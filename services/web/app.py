@@ -198,6 +198,42 @@ def site_label(site: str) -> str:
 
 
 app.jinja_env.filters["site_label"] = site_label
+
+#: teinte associee a chaque site (pour les badges colores)
+SITE_HUES = {
+    "avito": 214,        # bleu
+    "tomobila": 145,     # vert
+    "globaloccaz": 268,  # violet
+    "kifal": 24,        # orange
+    "renew": 340,       # rose
+    "otoclic": 186,     # cyan
+    "leguideauto": 45,  # jaune
+}
+
+
+def site_hue(site: str) -> int:
+    """Teinte (0-360) d'un site : fixe pour les sites connus, sinon calculee.
+
+    Le calcul est deterministe : un nouveau site obtient toujours une
+    couleur stable et differente de ses voisins.
+    """
+    name = (site or "").lower()
+    if name in SITE_HUES:
+        return SITE_HUES[name]
+    total = sum((i + 1) * ord(c) for i, c in enumerate(name))
+    hue = total % 360
+    # on evite les teintes deja prises par les sites connus (et on recommence
+    # si la rotation retombe sur une teinte proche)
+    for _ in range(20):
+        clash = [k for k, v in SITE_HUES.items()
+                 if min(abs(hue - v), 360 - abs(hue - v)) < 18]
+        if not clash:
+            break
+        hue = (hue + 40) % 360
+    return hue
+
+
+app.jinja_env.filters["site_hue"] = site_hue
 #: groupes de tris (utilises par la barre du haut, sur toutes les pages)
 app.jinja_env.globals["sort_groups"] = SORT_GROUPS
 

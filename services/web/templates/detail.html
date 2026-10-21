@@ -24,7 +24,7 @@
     {% set v2 = ad.notes_v2 or {} %}
     <h1>{{ ad.title }}</h1>
     <div class="sub">
-      <span class="sitebadge s-{{ ad.site }}">{{ ad.site|site_label }}</span>
+      <span class="sitebadge" style="--site-hue: {{ ad.site|site_hue }}">{{ ad.site|site_label }}</span>
       <span class="muted small">annonce #{{ ad.ad_id }}{% if ad.version %} · version {{ ad.version }}{% endif %}</span>
     </div>
     <div class="price big">

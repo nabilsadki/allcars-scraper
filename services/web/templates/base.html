@@ -8,6 +8,16 @@
 <link rel="alternate icon" href="/static/favicon.svg">
 <link rel="apple-touch-icon" href="/static/favicon.svg">
 <link rel="stylesheet" href="/static/style.css">
+<script>
+// applique le theme avant le rendu (pas de flash)
+(function () {
+  try {
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -15,6 +25,8 @@
   <nav class="mainnav">
     <a href="/" class="{{ 'on' if request.path == '/' else '' }}">Catalogue</a>
     <a href="/tracking" class="{{ 'on' if request.path == '/tracking' else '' }}">Suivi du scrap</a>
+    <button type="button" id="theme-toggle" class="theme-toggle"
+            title="Basculer le theme clair / sombre">🌙</button>
   </nav>
 </header>
 <main>
@@ -24,6 +36,25 @@
 
 <div id="loader" class="loader"><div class="spinner"></div><span>Chargement…</span></div>
 <script>
+// bascule du theme (clair / sombre), memorise dans le navigateur
+(function () {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  const apply = (light) => {
+    document.documentElement.classList.toggle('light', light);
+    btn.textContent = light ? '☀' : '🌙';
+    btn.title = light ? 'Passer en theme sombre' : 'Passer en theme clair';
+  };
+  let light = false;
+  try { light = localStorage.getItem('theme') === 'light'; } catch (e) {}
+  apply(light);
+  btn.addEventListener('click', () => {
+    light = !light;
+    try { localStorage.setItem('theme', light ? 'light' : 'dark'); } catch (e) {}
+    apply(light);
+  });
+})();
+
 // loader : affiche un voile tant qu'une action (formulaire, lien) est en cours
 (function () {
   const loader = document.getElementById('loader');

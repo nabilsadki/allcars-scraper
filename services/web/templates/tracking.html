@@ -62,7 +62,7 @@
 {% for st in states %}
 <div class="panel" data-site="{{ st.site }}">
   <div class="panel-title">
-    <span class="sitebadge s-{{ st.site }}">{{ st.site|site_label }}</span>
+    <span class="sitebadge" style="--site-hue: {{ st.site|site_hue }}">{{ st.site|site_label }}</span>
     {% if st.running %}
       Progression en cours
     {% elif st.status == 'success' %}
@@ -173,7 +173,7 @@
       {% for r in runs %}
       <tr>
         <td data-v="{{ r.id }}">{{ r.id }}</td>
-        <td data-v="{{ r.site or '' }}"><span class="sitebadge s-{{ r.site or 'unknown' }}">{{ (r.site or '?')|site_label }}</span></td>
+        <td data-v="{{ r.site or '' }}"><span class="sitebadge" style="--site-hue: {{ (r.site or '')|site_hue }}">{{ (r.site or '?')|site_label }}</span></td>
         <td class="small" data-v="{{ r.started_ts }}">{{ r.started_at|datefr(true) }}</td>
         <td class="small" data-v="{{ r.duration if r.duration else 0 }}">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
         <td class="small" data-v="{{ r.mode or '' }}">{{ r.mode }}</td>

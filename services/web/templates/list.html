@@ -139,7 +139,7 @@
     </div>
     <div class="title">{{ r.title }}</div>
     <div class="meta">
-      <span class="sitebadge s-{{ r.site }}">{{ r.site|site_label }}</span>
+      <span class="sitebadge" style="--site-hue: {{ r.site|site_hue }}">{{ r.site|site_label }}</span>
       {{ r.brand or '?' }} {{ r.model or '' }} {% if r.year %}· {{ r.year }}{% endif %}
       {% if r.km %}· {{ '{:,}'.format(r.km).replace(',', ' ') }} km{% endif %}
     </div>

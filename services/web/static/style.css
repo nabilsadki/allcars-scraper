@@ -10,6 +10,25 @@
   --warn: #ffaa33;
   --bad: #ff5555;
 }
+/* ---------------------------------------------------------- theme clair */
+html.light {
+  --bg: #f2f5f9;
+  --panel: #ffffff;
+  --panel2: #eaeef4;
+  --line: #d3dae5;
+  --txt: #161a21;
+  --muted: #5d6675;
+  --accent: #1f6feb;
+  --accent-soft: rgba(31,111,235,.12);
+  --accent-txt: #14509f;
+  --ok: #12823c;
+  --warn: #9a5b00;
+  --bad: #c62828;
+  --veil: rgba(242,245,249,.78);
+  --on-accent: #ffffff;
+}
+body { --accent-soft: rgba(76,141,255,.15); --accent-txt: #85b4ff; --on-accent: #fff; --veil: rgba(15,17,21,.72); }
+
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--txt);
@@ -72,7 +91,7 @@ footer { text-align: center; color: var(--muted); padding: 26px; font-size: 13px
 .noimg { color: var(--muted); font-size: 12px; }
 .badge {
   position: absolute; top: 6px; left: 6px; background: var(--accent);
-  color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 5px;
+  color: var(--on-accent); font-size: 10px; padding: 2px 6px; border-radius: 5px;
 }
 .badge.off { background: var(--bad); left: auto; right: 6px; }
 /* etat du scrap : fiche complete (page detail) ou simple liste */
@@ -80,14 +99,19 @@ footer { text-align: center; color: var(--muted); padding: 26px; font-size: 13px
 .badge.detail.full { background: rgba(46,204,113,.92); color: #06240f; }
 .badge.detail.part { background: rgba(139,147,163,.9); color: #14171d; }
 
-/* badge du site d'origine (avito, tomobila, ...) */
+/* badge du site d'origine : une couleur par site (teinte --site-hue) */
 .sitebadge {
   display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px;
   font-weight: 700; margin-right: 6px; letter-spacing: .02em;
-  background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
+  background: hsl(var(--site-hue, 214) 72% 58% / .16);
+  border: 1px solid hsl(var(--site-hue, 214) 72% 58% / .5);
+  color: hsl(var(--site-hue, 214) 85% 74%);
 }
-.sitebadge.s-avito { background: rgba(76,141,255,.16); border-color: rgba(76,141,255,.5); color: #85b4ff; }
-.sitebadge.s-tomobila { background: rgba(46,204,113,.13); border-color: rgba(46,204,113,.45); color: var(--ok); }
+html.light .sitebadge {
+  background: hsl(var(--site-hue, 214) 72% 45% / .12);
+  border-color: hsl(var(--site-hue, 214) 72% 45% / .45);
+  color: hsl(var(--site-hue, 214) 72% 32%);
+}
 .sitebadge.s-unknown { background: rgba(255,170,51,.12); border-color: rgba(255,170,51,.4); color: var(--warn); }
 .price { color: var(--ok); font-weight: 700; font-size: 17px; }
 .price em { color: var(--muted); font-weight: 400; font-size: 13px; }
@@ -100,8 +124,8 @@ footer { text-align: center; color: var(--muted); padding: 26px; font-size: 13px
   border-radius: 5px; padding: 1px 6px; color: var(--muted);
 }
 .scores .note {
-  background: rgba(76,141,255,.15); border-color: rgba(76,141,255,.5);
-  color: var(--accent); font-weight: 700; font-size: 13px;
+  background: var(--accent-soft); border-color: var(--accent);
+  color: var(--accent-txt); font-weight: 700; font-size: 13px;
 }
 .scores .conf { font-size: 10px; }
 .empty { color: var(--muted); }
@@ -126,7 +150,7 @@ footer { text-align: center; color: var(--muted); padding: 26px; font-size: 13px
   border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
 }
 .lb-close, .lb-nav {
-  position: absolute; background: rgba(30,34,43,.9); color: var(--txt);
+  position: absolute; background: var(--panel); color: var(--txt);
   border: 1px solid var(--line); border-radius: 9px; cursor: pointer;
   font-size: 22px; line-height: 1;
 }
@@ -137,7 +161,7 @@ footer { text-align: center; color: var(--muted); padding: 26px; font-size: 13px
 .lb-close:hover, .lb-nav:hover { border-color: var(--accent); background: var(--panel2); }
 .lb-count {
   position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
-  color: var(--muted); font-size: 13px; background: rgba(20,23,30,.8);
+  color: var(--muted); font-size: 13px; background: var(--panel);
   padding: 4px 12px; border-radius: 20px; border: 1px solid var(--line);
 }
 h1 { font-size: 21px; margin: 0 0 6px; }
@@ -176,7 +200,7 @@ table.vers th { color: var(--muted); font-weight: 500; }
   padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
   background: var(--panel); color: var(--txt);
 }
-.pager .cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pager .cur { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .pager .gap { border: none; background: none; color: var(--muted); padding: 5px 2px; }
 .pager select.goto {
   padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
@@ -199,7 +223,7 @@ table.vers th { color: var(--muted); font-weight: 500; }
 .loader {
   position: fixed; inset: 0; display: none; z-index: 100;
   align-items: center; justify-content: center; gap: 12px;
-  background: rgba(15,17,21,.72); backdrop-filter: blur(2px);
+  background: var(--veil); backdrop-filter: blur(2px);
   color: var(--txt); font-size: 15px;
 }
 .loader.on { display: flex; }
@@ -249,11 +273,11 @@ button:disabled:hover { border-color: var(--line); }
   padding: 3px 10px; border-radius: 20px; font-size: 12.5px; font-weight: 600;
   background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
 }
-.status.s-running { color: var(--ok); border-color: rgba(46,204,113,.5); background: rgba(46,204,113,.12); }
-.status.s-done { color: var(--accent); border-color: rgba(76,141,255,.5); background: rgba(76,141,255,.12); }
-.status.s-error { color: var(--bad); border-color: rgba(255,85,85,.5); background: rgba(255,85,85,.12); }
-.status.s-exited, .status.s-stopped, .status.s-created { color: var(--warn); border-color: rgba(255,170,51,.5); background: rgba(255,170,51,.12); }
-.status.s-absent, .status.s-unknown { color: var(--bad); border-color: rgba(255,85,85,.5); background: rgba(255,85,85,.12); }
+.status.s-running { color: var(--ok); border-color: var(--ok); background: var(--accent-soft); }
+.status.s-done { color: var(--accent-txt); border-color: var(--accent); background: var(--accent-soft); }
+.status.s-error { color: var(--bad); border-color: var(--bad); background: var(--accent-soft); }
+.status.s-exited, .status.s-stopped, .status.s-created { color: var(--warn); border-color: var(--warn); background: var(--accent-soft); }
+.status.s-absent, .status.s-unknown { color: var(--bad); border-color: var(--bad); background: var(--accent-soft); }
 
 .alert {
   border-radius: 9px; padding: 10px 13px; margin-bottom: 9px; display: flex;
@@ -326,10 +350,10 @@ table.runs { border-collapse: collapse; width: 100%; font-size: 13px; }
 table.runs th { text-align: left; color: var(--muted); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; padding: 5px 7px; border-bottom: 1px solid var(--line); }
 table.runs td { padding: 5px 7px; border-bottom: 1px solid var(--line); }
 .st { padding: 2px 7px; border-radius: 5px; font-size: 11.5px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
-.st-success { color: var(--ok); border-color: rgba(46,204,113,.45); }
-.st-error { color: var(--bad); border-color: rgba(255,85,85,.45); }
-.st-stopped { color: var(--warn); border-color: rgba(255,170,51,.45); }
-.st-running { color: var(--accent); border-color: rgba(76,141,255,.45); }
+.st-success { color: var(--ok); border-color: var(--ok); }
+.st-error { color: var(--bad); border-color: var(--bad); }
+.st-stopped { color: var(--warn); border-color: var(--warn); }
+.st-running { color: var(--accent-txt); border-color: var(--accent); }
 
 /* -------------------------------------- filtres + tri de l'historique */
 .runfilters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
@@ -346,3 +370,15 @@ details.logs pre {
   border-radius: 8px; font: 12px/1.5 ui-monospace, Menlo, monospace; color: #c8cfdd;
   max-height: 340px; overflow: auto; white-space: pre-wrap; word-break: break-word;
 }
+
+/* -------------------------------------------------- bascule clair/sombre */
+.theme-toggle {
+  background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+  border-radius: 7px; width: 34px; height: 30px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1; padding: 0;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--txt); }
+html.light .desc { background: var(--panel2); }
+html.light .errbox { background: #fff5f5; color: #8a1c1c; border-color: var(--bad); }
+html.light .lb-close:hover, html.light .lb-nav:hover { background: var(--panel2); }
