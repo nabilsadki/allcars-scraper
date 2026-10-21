@@ -87,7 +87,7 @@ class ImageFetcher:
         params.append(limit if limit else 100000)
         return self.db.query(sql, tuple(params))
 
-    def ad_images(self, ad_id: int) -> list[dict]:
+    def ad_images(self, ad_id) -> list[dict]:
         return self.db.query(
             "SELECT id, link, link_full, path_local, variant, bytes, sha1 "
             "FROM ad_images WHERE ad_id = %s ORDER BY is_main DESC, id",
@@ -95,7 +95,7 @@ class ImageFetcher:
         )
 
     # ------------------------------------------------------------ download
-    def fetch_ad(self, ad_id: int) -> None:
+    def fetch_ad(self, ad_id) -> None:
         rows = self.ad_images(ad_id)
         if not rows:
             return

@@ -8,9 +8,18 @@ Pour ajouter un site :
 
 from ..core.registry import register_site
 from .avito import AvitoAdapter
+from .globaloccaz import GlobalOccazAdapter
+from .kifal import KifalAdapter
+from .leguideauto import LeguideautoAdapter
+from .otoclic import OtoclicAdapter
+from .renew import RenewAdapter
 from .tomobila import TomobilaAdapter
 
-register_site(AvitoAdapter())
-register_site(TomobilaAdapter())
+for _adapter in (AvitoAdapter(), TomobilaAdapter(), GlobalOccazAdapter(),
+                 KifalAdapter(), RenewAdapter(), OtoclicAdapter(),
+                 LeguideautoAdapter()):
+    register_site(_adapter)
 
-__all__ = ["AvitoAdapter", "TomobilaAdapter"]
+__all__ = ["AvitoAdapter", "TomobilaAdapter", "GlobalOccazAdapter",
+           "KifalAdapter", "RenewAdapter", "OtoclicAdapter",
+           "LeguideautoAdapter"]

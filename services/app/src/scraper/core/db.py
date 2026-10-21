@@ -100,16 +100,40 @@ class Database:
                     added.append(f"{table}.{name}")
                 except Exception:
                     pass
-        # cle primaire composite (site, ad_id) : necessaire pour plusieurs sites
+        # --- cle primaire composite (site, ad_id) + ad_id alphanumerique ---
+        # ad_id peut etre un slug ou un identifiant interne du site ("dITj3MBMiY")
         try:
+            self.cur.execute(
+                "SELECT DATA_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'ads' "
+                "AND COLUMN_NAME = 'ad_id'")
+            row = self.cur.fetchone()
+            is_varchar = bool(row) and str(row.get("DATA_TYPE", "")).lower() == "varchar"
+
             self.cur.execute("SHOW KEYS FROM ads WHERE Key_name = 'PRIMARY'")
-            cols = [r["Column_name"] for r in self.cur.fetchall()]
-            if cols == ["ad_id"]:
-                self.cur.execute("ALTER TABLE ads DROP PRIMARY KEY, "
-                                 "ADD PRIMARY KEY (site, ad_id)")
+            pk = [r["Column_name"] for r in self.cur.fetchall()]
+            if pk == ["ad_id"]:
+                self.cur.execute("ALTER TABLE ads DROP PRIMARY KEY")
+                pk = []
+                added.append("ads.PK(site,ad_id)")
+            if not is_varchar:
+                # passage en VARCHAR : il faut retirer la PK avant de modifier
+                if pk:
+                    self.cur.execute("ALTER TABLE ads DROP PRIMARY KEY")
+                    pk = []
+                for table in ("ads", "ad_images", "ad_versions"):
+                    self.cur.execute(
+                        f"ALTER TABLE {table} MODIFY ad_id VARCHAR(64) NOT NULL")
+                    added.append(f"{table}.ad_id VARCHAR")
+                is_varchar = True
+            if not pk:
+                self.cur.execute("ALTER TABLE ads ADD PRIMARY KEY (site, ad_id)")
                 added.append("ads.PK(site,ad_id)")
         except Exception:
-            pass
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
         for table, col, ddl in (
             ("ad_images", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
             ("ad_versions", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
@@ -269,10 +293,16 @@ class Database:
             # rien n'a change : on ne touche qu'aux compteurs de visionnage
             # (et aux notes, qui dependent de l'annee en cours : elles
             #  evoluent sans que l'annonce soit modifiee)
+            # les colonnes "non observees" mais renseignees sont rafraichies
+            extra = {}
+            if ad.get("publish_date") and not existing.get("publish_date"):
+                extra["publish_date"] = ad["publish_date"]
+            sets = "".join(f"{c} = %s, " for c in extra)
             self.cur.execute(
-                "UPDATE ads SET last_seen_at = NOW(), seen_count = seen_count + 1, "
-                "is_active = 1 WHERE site = %s AND ad_id = %s",
-                (site, ad_id),
+                f"UPDATE ads SET {sets}last_seen_at = NOW(), "
+                "seen_count = seen_count + 1, is_active = 1 "
+                "WHERE site = %s AND ad_id = %s",
+                list(extra.values()) + [site, ad_id],
             )
             self._update_scores(ad_id, ad, site)
             self.counters["unchanged"] += 1
@@ -286,8 +316,9 @@ class Database:
         sets = ", ".join(f"{c} = %s" for c in cols)
         self.cur.execute(
             f"UPDATE ads SET {sets}, last_seen_at = NOW(), "
-            "seen_count = seen_count + 1, is_active = 1 WHERE ad_id = %s",
-            [row[c] for c in cols] + [ad_id],
+            "seen_count = seen_count + 1, is_active = 1 "
+            "WHERE site = %s AND ad_id = %s",
+            [row[c] for c in cols] + [site, ad_id],
         )
         self._add_version(ad, existing=existing, change_type=None, version=version,
                           changes=changes, site=site)

@@ -357,7 +357,7 @@ def main(argv=None) -> int:
     s.set_defaults(func=cmd_ads)
 
     s2 = sub.add_parser("ad", parents=[common], help="fiche d'une annonce")
-    s2.add_argument("ad_id", type=int)
+    s2.add_argument("ad_id")   # identifiant du site : numerique ou alphanumerique
     s2.add_argument("--explain", action="store_true", help="detail des notes")
     s2.set_defaults(func=cmd_ad)
 

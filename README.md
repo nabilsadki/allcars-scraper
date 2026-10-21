@@ -153,7 +153,9 @@ docker compose up -d web          # http://127.0.0.1:8080
 * Chaque annonce porte un **badge d'etat du scrap** : "detail v" (page
   detail recuperee) ou "liste" (connue uniquement via la page de liste)
 * **Fiche d'annonce** : toutes les caracteristiques, description, equipements,
-  photos (locales si telechargees, sinon distantes), **scoring v2 detaille**
+  photos (locales si telechargees, sinon distantes) — un clic sur une photo
+  ouvre une **lightbox** (navigation clavier, fermeture par Echap) au lieu
+  d'ouvrir l'image dans un onglet vide ; **scoring v2 detaille**
   (etat / achat / global / confiance) + **scoring legacy**, et l'**historique
   des versions** avec le diff de chaque changement
 * **API JSON** : `/api/ads?fuel=Diesel&min_price=100000&limit=50`
@@ -463,6 +465,35 @@ HTTP, blocages Cloudflare, statut, erreur.
 
 ---
 
+## 8b. Sites scrapes
+
+| site | adaptateur | source | annonces | requetes |
+|------|------------|--------|----------|----------|
+| avito | `sites/avito.py` | Next.js (`__NEXT_DATA__`) + API GraphQL marques | 138 836 | 2 556 pour le catalogue |
+| tomobila | `sites/tomobila.py` | WordPress (tableau d'attributs) | ~4 600 | 1/page |
+| globaloccaz | `sites/globaloccaz.py` | **API REST** `/wp-json/vehica/v1/cars` (plugin Vehica) | 268 | **1 pour tout le catalogue** |
+| kifal | `sites/kifal.py` | HTML + donnees codees dans l'URL | 396 | 1/page (35) |
+| renew | `sites/renew.py` | SPA **Nuxt** : etat `window.__NUXT__` (format devalue) | 412 | **1 pour tout le catalogue** |
+| otoclic | `sites/otoclic.py` | WordPress + plugin Apus (taxonomies dans les classes CSS) | ~150 | 1/page (12) |
+| leguideauto | `sites/leguideauto.py` | HTML (tableau d'attributs) | 2 934 | 1/page (10) |
+
+Points notables :
+
+* **globaloccaz** expose une API REST qui renvoie toutes les voitures avec
+  leurs attributs types (marque, modele, annee, prix, km, carburant, boite,
+  VIN, fiche expertise...) : **une seule requete** pour tout le catalogue
+* **renew** est une application Vue/Nuxt : le catalogue est serialise dans le
+  payload `window.__NUXT__` (format "devalue"). `sites/renew.py` embarque un
+  lecteur de ce format, ce qui donne les 412 voitures (avec leurs photos et
+  leurs equipements) en une requete
+* **kifal** encode tout dans le nom de fichier de l'URL :
+  `MARQUE_MODELE_ANNEE_CARBURANT_BOITE_VILLE_ID_REF.htm`
+* **otoclic** encode les taxonomies dans les classes CSS de la carte
+  (`listing_make-peugeot listing_fuel_type-diesel listing_feature-abs ...`),
+  et la galerie complete dans un attribut `data-images`
+* le `ad_id` est une **chaine** (VARCHAR 64) : certains sites utilisent un
+  identifiant alphanumerique (`dITj3MBMiY`) ou un slug
+
 ## 9. Architecture multi-sites
 
 Le scraper est **modulaire** : le coeur (pipeline, base, versionnement,
@@ -502,7 +533,8 @@ docker compose run --rm app list --site tomobila --category "achat-voiture-occas
 ```
 
 En base, la cle primaire est composite `(site, ad_id)` : plusieurs sites
-coexistent dans la meme table, filtrable par `site`.
+coexistent dans la meme table, filtrable par `site`. `ad_id` est un
+VARCHAR(64) (les identifiants de site ne sont pas toujours numeriques).
 
 ## 10. Structure
 

@@ -14,7 +14,7 @@ CREATE DATABASE IF NOT EXISTS avito CHARACTER SET utf8mb4 COLLATE utf8mb4_unicod
 USE avito;
 
 CREATE TABLE IF NOT EXISTS ads (
-    ad_id           BIGINT       NOT NULL,
+    ad_id           VARCHAR(64)  NOT NULL,
     list_id         BIGINT       NULL,
     site            VARCHAR(20)  NOT NULL DEFAULT 'avito',
     category        VARCHAR(128) NULL,

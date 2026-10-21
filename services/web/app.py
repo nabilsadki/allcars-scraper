@@ -338,6 +338,7 @@ def index():
             f"ORDER BY {col}")]
     opts["models"] = model_options(request.args.get("brand", ""),
                                    request.args.get("site", ""))
+    opts["sites"] = known_sites()
     # annees presentes dans le catalogue (pour les selects)
     years = [r["year"] for r in query(
         "SELECT DISTINCT year FROM ads WHERE year IS NOT NULL "
@@ -353,9 +354,13 @@ def index():
     )
 
 
-@app.route("/ad/<site>/<int:ad_id>")
-def detail_site(site: str, ad_id: int):
-    """Fiche d'une annonce (cle composite : site + ad_id)."""
+@app.route("/ad/<site>/<ad_id>")
+def detail_site(site: str, ad_id: str):
+    """Fiche d'une annonce (cle composite : site + ad_id).
+
+    ad_id est une chaine : certains sites utilisent un identifiant
+    alphanumerique ("dITj3MBMiY") ou un slug.
+    """
     return _detail(site, ad_id)
 
 
@@ -369,7 +374,7 @@ def detail(ad_id: int):
     return _detail(rows[0]["site"], ad_id)
 
 
-def _detail(site: str, ad_id: int):
+def _detail(site: str, ad_id: str):
     rows = query("SELECT * FROM ads WHERE site = %s AND ad_id = %s", (site, ad_id))
     if not rows:
         abort(404)
@@ -427,8 +432,8 @@ def images(filename: str):
     return send_from_directory(IMAGES_DIR, filename)
 
 
-@app.route("/imgthumb/<site>/<int:ad_id>")
-def imgthumb_site(site: str, ad_id: int):
+@app.route("/imgthumb/<site>/<ad_id>")
+def imgthumb_site(site: str, ad_id: str):
     """Vignette d'une annonce (site + ad_id)."""
     return _imgthumb(site, ad_id)
 
@@ -444,7 +449,7 @@ def imgthumb(ad_id: int):
     return _imgthumb(rows[0]["site"], ad_id)
 
 
-def _imgthumb(site: str, ad_id: int):
+def _imgthumb(site: str, ad_id: str):
     rows = query(
         "SELECT link, link_full, path_local FROM ad_images "
         "WHERE site = %s AND ad_id = %s "

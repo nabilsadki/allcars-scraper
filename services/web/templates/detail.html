@@ -5,9 +5,10 @@
 <a class="back" href="/">← retour au catalogue</a>
 
 <div class="detail">
-  <section class="photos">
+  <section class="photos" id="gallery">
     {% for im in images %}
-      <a href="{{ im.local_url or im.link_full or im.link }}" target="_blank">
+      <a href="{{ im.local_url or im.link_full or im.link }}" class="photo"
+         data-full="{{ im.link_full or im.link }}" data-local="{{ im.local_url or '' }}">
         {% if im.local_url %}
           <img loading="lazy" src="{{ im.local_url }}">
         {% else %}
@@ -162,8 +163,68 @@
     </table>
     {% endif %}
 
-    <p class="link"><a href="{{ ad.link }}" target="_blank">Voir l'annonce sur avito.ma ↗</a></p>
+    <p class="link"><a href="{{ ad.link }}" target="_blank">Voir l'annonce sur {{ ad.site|site_label }} ↗</a></p>
   </section>
 </div>
+
+<!-- ------------------------------------------------------- lightbox -->
+<div id="lightbox" class="lightbox" hidden>
+  <button class="lb-close" title="Fermer (Echap)">✕</button>
+  <button class="lb-nav lb-prev" title="Photo précédente">‹</button>
+  <img id="lb-img" src="" alt="">
+  <button class="lb-nav lb-next" title="Photo suivante">›</button>
+  <div class="lb-count"></div>
+</div>
+
+<script>
+// galerie : clic sur une photo -> lightbox (et non un nouvel onglet)
+(function () {
+  const gallery = document.getElementById('gallery');
+  if (!gallery) return;
+  const box = document.getElementById('lightbox');
+  const img = document.getElementById('lb-img');
+  const counter = box.querySelector('.lb-count');
+  const links = [...gallery.querySelectorAll('a.photo')];
+  let index = 0;
+
+  function show(i) {
+    if (!links.length) return;
+    index = (i + links.length) % links.length;
+    const a = links[index];
+    // version locale si telechargee, sinon pleine resolution
+    img.src = a.dataset.local || a.dataset.full;
+    counter.textContent = (index + 1) + ' / ' + links.length;
+  }
+
+  function open(i) {
+    show(i);
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    box.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  links.forEach((a, i) => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      open(i);
+    });
+  });
+
+  box.querySelector('.lb-close').addEventListener('click', close);
+  box.querySelector('.lb-prev').addEventListener('click', (e) => { e.stopPropagation(); show(index - 1); });
+  box.querySelector('.lb-next').addEventListener('click', (e) => { e.stopPropagation(); show(index + 1); });
+  box.addEventListener('click', (e) => { if (e.target === box) close(); });
+  document.addEventListener('keydown', (e) => {
+    if (box.hidden) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft') show(index - 1);
+    else if (e.key === 'ArrowRight') show(index + 1);
+  });
+})();
+</script>
 
 {% endblock %}

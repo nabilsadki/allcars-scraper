@@ -11,8 +11,9 @@
     <label>Site
       <select name="site">
         <option value="">tous les sites</option>
-        <option value="avito" {% if request.args.get('site')=='avito' %}selected{% endif %}>Avito.ma</option>
-        <option value="tomobila" {% if request.args.get('site')=='tomobila' %}selected{% endif %}>Tomobila.ma</option>
+        {% for s in opts.sites %}
+        <option value="{{ s.name }}" {% if request.args.get('site')==s.name %}selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
       </select>
     </label>
     <label>Ville

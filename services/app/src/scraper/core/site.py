@@ -9,7 +9,9 @@ est independant du site.
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 # Contrat de l'annonce normalisee (un dict, comme partout dans le projet).
@@ -124,6 +126,27 @@ class SiteAdapter(ABC):
         import re
         name = os.path.basename(url.split("?")[0])
         return re.sub(r"[^0-9A-Za-z_.-]", "_", name) or "img"
+
+
+def relative_date(text: str, today: Optional[datetime] = None) -> Optional[str]:
+    """Date ISO a partir d'un texte relatif ("il y a 2 jours", "il y a 3 h").
+
+    Retourne None si le texte n'est pas reconnu.
+    """
+    if not text:
+        return None
+    m = re.search(r"il y a\s+(\d+)\s*(minute|heure|jour|semaine|mois)", text, re.I)
+    if not m:
+        return None
+    n = int(m.group(1))
+    unit = m.group(2).lower()
+    delta = {"minute": timedelta(minutes=n), "heure": timedelta(hours=n),
+             "jour": timedelta(days=n), "semaine": timedelta(weeks=n),
+             "mois": timedelta(days=30 * n)}.get(unit)
+    if delta is None:
+        return None
+    base = today or datetime.now()
+    return (base - delta).strftime("%Y-%m-%d")
 
 
 def make_ad(**kwargs) -> dict:
