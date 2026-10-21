@@ -130,6 +130,13 @@
       <a href="?{{ dict(base, page=p) | urlencode }}">{{ p }}</a>
     {% endif %}
   {% endfor %}
+  <select class="goto" title="Aller directement a une page"
+          onchange="if(this.value){location.href='?{{ base_qs }}&page='+this.value;}">
+    <option value="">Aller a la page…</option>
+    {% for p in goto %}
+      <option value="{{ p }}" {% if p == page %}selected{% endif %}>Page {{ p }}</option>
+    {% endfor %}
+  </select>
 </nav>
 {% endif %}
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from urllib.parse import urlencode
 
 import pymysql
 from flask import (Flask, abort, jsonify, redirect, render_template,
@@ -158,6 +159,19 @@ app.jinja_env.filters["site_label"] = site_label
 app.jinja_env.globals["sort_groups"] = SORT_GROUPS
 
 
+def goto_pages(page: int, pages: int, window: int = 15) -> list:
+    """Pages proposees dans le selecteur "aller a une page".
+
+    Une fenetre autour de la page courante, plus la premiere et la
+    derniere page (le catalogue peut depasser les 700 pages).
+    """
+    if pages <= 1:
+        return []
+    wanted = {1, pages}
+    wanted |= set(range(max(1, page - window), min(pages, page + window) + 1))
+    return sorted(wanted)
+
+
 def pager_items(page: int, pages: int, window: int = 2) -> list:
     """Numeros de page a afficher dans le pager.
 
@@ -260,6 +274,9 @@ def index():
     per_page = min(100, int(request.args.get("per_page", 24)))
 
     total = query(f"SELECT COUNT(*) n FROM ads WHERE {where}", tuple(params))[0]["n"]
+    pages = max(1, (total + per_page - 1) // per_page)
+    # une page hors borne (page=9999) est ramenee dans les limites
+    page = max(1, min(page, pages))
     offset = (page - 1) * per_page
     rows = query(
         f"SELECT {', '.join(COLUMNS)} FROM ads WHERE {where} "
@@ -277,11 +294,12 @@ def index():
     opts["models"] = model_options(request.args.get("brand", ""),
                                    request.args.get("site", ""))
 
-    pages = max(1, (total + per_page - 1) // per_page)
     return render_template(
         "list.html", rows=rows, total=total, page=page, pages=pages,
         per_page=per_page, opts=opts, args=request.args,
-        pager=pager_items(page, pages),
+        pager=pager_items(page, pages), goto=goto_pages(page, pages),
+        base_qs=urlencode({k: v for k, v in request.args.to_dict().items()
+                           if k != "page"}),
     )
 
 
