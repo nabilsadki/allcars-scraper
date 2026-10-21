@@ -30,6 +30,29 @@ totalité du catalogue, sans navigateur.
 
 ---
 
+## 1b. Où sont les données
+
+**Tout est dans le dossier du projet, sur le disque 4 To** — aucun volume
+Docker (donc rien sur le disque racine) :
+
+```
+/mnt/4TB/scraper-avito/
+├── data/
+│   ├── mysql/        base MySQL (annonces, versions, historique des runs)
+│   └── scraped/       images, catalogue, progression, jobs par site
+├── logs/             logs de scrape
+├── services/         code (web, app, db)
+└── docker-compose.yml
+```
+
+Le `docker-compose.yml` utilise des **bind mounts** (`./data/mysql`,
+`./data/scraped`) et non des volumes nommés. Conséquence : un `docker
+compose down` puis `up` ne perd rien, et le dossier `data/` peut être
+sauvegardé ou déplacé tel quel.
+
+> Vérification rapide : `docker volume ls | grep avito` ne doit rien
+> renvoyer, et `df -h /mnt/4TB` montre la taille des données.
+
 ## 2. Démarrage (manuel)
 
 ```bash

@@ -63,7 +63,7 @@ def cmd_list(args) -> int:
     if db:
         run_id = db.start_run({"started_at": started, "site": site.name,
                                "category": args.category,
-                               "mode": "details" if args.details else "list"})
+                               "mode": "list+detail" if args.details else "list"})
     try:
         res = run_list(site, client, db, category=args.category, limit=args.limit,
                        details=args.details, out=args.out, quiet=args.quiet,

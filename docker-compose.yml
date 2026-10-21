@@ -36,7 +36,9 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     volumes:
-      - db_data:/var/lib/mysql
+      # les donnees MySQL vivent dans le dossier du projet (disque 4 To),
+      # pas dans un volume Docker sur le disque racine
+      - ./data/mysql:/var/lib/mysql
     ports:
       # accessible seulement en local, pour inspecter avec un client
       - "127.0.0.1:${DB_PORT_HOST:-3307}:3306"
@@ -65,8 +67,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-avito}
       SCORING_CONFIG: /app/config/scoring.json
     volumes:
-      # donnees scrapees (JSONL/CSV) : reste dans Docker
-      - scraped_data:/data
+      # donnees scrapees (JSONL/CSV, images, progression) : dans le projet (4 To)
+      - ./data/scraped:/data
       # config du scoring v2 : modifiable sans rebuild
       - ./services/app/config:/app/config:ro
     # usage :
@@ -92,7 +94,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-avito}
       SCORING_CONFIG: /app/config/scoring.json
     volumes:
-      - scraped_data:/data
+      - ./data/scraped:/data
       - ./services/app/config:/app/config:ro
     entrypoint: ["python3", "-m", "scraper.query"]
 
@@ -121,7 +123,7 @@ services:
       SCRAPER_SERVICE: app
       SCRAPER_PREFIX: avito-scraper
     volumes:
-      - scraped_data:/data
+      - ./data/scraped:/data
       # socket Docker + projet compose : l'interface lance les scrapes avec
       # "docker compose run" (la config reste dans docker-compose.yml)
       - /var/run/docker.sock:/var/run/docker.sock
@@ -138,8 +140,5 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  db_data:
-    name: avito_db_data
-  scraped_data:
-    name: avito_scraped_data
+# Aucun volume Docker nomme : toutes les donnees sont dans ./data (4 To).
+volumes: {}

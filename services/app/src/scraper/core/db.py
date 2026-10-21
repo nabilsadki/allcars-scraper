@@ -36,6 +36,16 @@ class Database:
         self.cfg.update(overrides)
         self.conn = pymysql.connect(**self.cfg)
         self.cur = self.conn.cursor()
+        # plusieurs scrapes ecrivent en meme temps : en READ COMMITTED
+        # InnoDB prend beaucoup moins de verrous de trou (gap locks), ce qui
+        # supprime la plupart des "lock wait timeout" / deadlocks.
+        # Le delai d'attente est court : on rejoue vite plutot que d'etre
+        # bloque 50 s sur une transaction concurrente.
+        try:
+            self.cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+            self.cur.execute("SET SESSION innodb_lock_wait_timeout = 10")
+        except Exception:
+            pass
         # compteurs de la session
         self.counters = {
             "inserted": 0, "updated": 0, "unchanged": 0,
@@ -455,15 +465,19 @@ class Database:
         self.counters["disappeared"] += n
         return n
 
-    def upsert_images(self, ad_id: int, images: list[dict],
+    def upsert_images(self, ad_id, images: list[dict],
                       site: str = "avito") -> None:
-        for i, img in enumerate(images or []):
-            self.cur.execute(
-                "INSERT INTO ad_images (site, ad_id, link, link_full, is_main) "
-                "VALUES (%s,%s,%s,%s,%s) "
-                "ON DUPLICATE KEY UPDATE link_full=VALUES(link_full), is_main=VALUES(is_main)",
-                (site, ad_id, img.get("url"), img.get("url_full_hd"), 1 if i == 0 else 0),
-            )
+        """Enregistre les photos en un seul aller-retour (jusqu'a 60 par annonce)."""
+        rows = [(site, ad_id, img.get("url"), img.get("url_full_hd"),
+                 1 if i == 0 else 0)
+                for i, img in enumerate(images or [])]
+        if not rows:
+            return
+        self.cur.executemany(
+            "INSERT INTO ad_images (site, ad_id, link, link_full, is_main) "
+            "VALUES (%s,%s,%s,%s,%s) "
+            "ON DUPLICATE KEY UPDATE link_full=VALUES(link_full), is_main=VALUES(is_main)",
+            rows)
 
     def start_run(self, run: dict) -> int:
         """Ouvre une ligne d'historique (status=running) et renvoie son id."""
