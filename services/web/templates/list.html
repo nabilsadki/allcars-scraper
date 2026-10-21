@@ -89,7 +89,32 @@
   </div>
 </form>
 
-<p class="count">{{ total }} annonce(s){% if total > per_page %} — page {{ page }}/{{ pages }}{% endif %}</p>
+<div class="sortbar">
+  <form class="sortform" method="get" action="/">
+    <input type="hidden" name="search" value="{{ request.args.get('search','') }}">
+    <input type="hidden" name="per_page" value="{{ request.args.get('per_page', '24') }}">
+    {# on conserve les filtres actifs quand on change le tri #}
+    {% for key in ['site','city','brand','model','fuel','gear','category',
+                   'min_price','max_price','min_year','max_year','max_km',
+                   'min_note_etat','min_note_achat','min_note_global','min_confiance',
+                   'with_phone','with_photos','with_price','with_details','active_only'] %}
+      {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
+    {% endfor %}
+    <label>Trier par
+      <select name="sort" title="Trier les annonces" onchange="this.form.submit()">
+        {% for group, options in sort_groups %}
+        <optgroup label="{{ group }}">
+          {% for v, l in options %}
+          <option value="{{ v }}" {% if request.args.get('sort','date')==v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button type="submit">Trier</button></noscript>
+  </form>
+  <p class="count">{{ total }} annonce(s){% if total > per_page %} — page {{ page }}/{{ pages }}{% endif %}</p>
+</div>
 
 <div class="grid">
 {% for r in rows %}

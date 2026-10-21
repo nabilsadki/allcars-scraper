@@ -146,8 +146,10 @@ docker compose up -d web          # http://127.0.0.1:8080
   avec telephone, **avec photos**, **avec prix**, **fiche complete**,
   actives
 * **Tri** : publication, mise a jour, prix, annee, kilometrage, note globale
-  (etat, achat, confiance) — dans les deux sens, avec un selecteur
-  "aller a une page" pour sauter directement a une page
+  (etat, achat, confiance) — dans les deux sens. Le selecteur de tri est
+  juste au-dessus de la liste des annonces (il conserve les filtres
+  actifs), avec un selecteur "aller a une page" pour sauter directement a
+  une page
 * Chaque annonce porte un **badge d'etat du scrap** : "detail v" (page
   detail recuperee) ou "liste" (connue uniquement via la page de liste)
 * **Fiche d'annonce** : toutes les caracteristiques, description, equipements,
@@ -195,7 +197,9 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   boutons passent en "desactive" selon l'etat du conteneur (evite le double
   clic).
 * **Un bloc de progression par site** : barre, %, temps ecoule, temps
-  restant, vitesse, tranche en cours, requetes, blocages, erreurs.
+  restant, vitesse, tranche en cours, requetes, blocages, erreurs. La barre
+  est **animee** (bandes defilantes) tant qu'un scrap tourne, et statique
+  sinon ; le badge "en cours" est precede d'un petit loader.
 * **Alertes** : erreur du run, **blocage serveur (Cloudflare)** detecte
   (403/429/503 ou challenge), erreurs reseau, arret manuel, conteneur arrete
   alors que le suivi annonce un run en cours.

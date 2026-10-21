@@ -5,7 +5,7 @@
 <div class="page-head">
   <h1>Suivi du scrap</h1>
   <div class="head-right">
-    <span id="status-badge" class="status {{ container_css }}">{{ container_label }}</span>
+    <span id="status-badge" class="status {{ container_css }}">{% if container_state == 'running' %}<span class="spin"></span>{% endif %}{{ container_label }}</span>
     <span class="muted small">conteneur : {{ container_name }}</span>
   </div>
 </div>
@@ -77,7 +77,9 @@
   </div>
 
   <div class="progress-wrap">
-    <div class="progress"><div class="bar" data-f="bar" style="width:{{ st.percent if st.percent else 0 }}%"></div></div>
+    <div class="progress {{ 'live' if st.running else '' }}" data-f="pwrap">
+      <div class="bar {{ 'live' if st.running else '' }}" data-f="bar" style="width:{{ st.percent if st.percent else 0 }}%"></div>
+    </div>
     <div class="progress-legend">
       <span data-f="percent">{{ '%.1f'|format(st.percent) if st.percent is not none else '—' }} %</span>
       <span data-f="counts">{{ st.listed }} / {{ st.total if st.total else '—' }} annonces</span>
@@ -334,7 +336,9 @@ async function refresh() {
     const data = await res.json();
     renderAlerts(data.alerts);
     const badge = $('#status-badge');
-    badge.textContent = data.container_label || data.container;
+    const running = data.container === 'running';
+    badge.innerHTML = (running ? '<span class="spin"></span>' : '') +
+                      (data.container_label || data.container);
     badge.className = 'status ' + (data.container_css || ('s-' + data.container));
     badge.dataset.container = data.container;
     updateButtons(data.container);
@@ -366,6 +370,10 @@ async function refresh() {
       set('mode', s.mode || '—');
       const dot = block.querySelector('[data-f="dot"]');
       if (dot) dot.className = 'dot ' + (s.running ? 'on' : 'off');
+      // la barre n'est animee que pendant un run
+      if (bar) bar.classList.toggle('live', !!s.running);
+      const wrap = block.querySelector('[data-f="pwrap"]');
+      if (wrap) wrap.classList.toggle('live', !!s.running);
     }
   } catch (e) { /* le serveur est momentanement injoignable */ }
 }
