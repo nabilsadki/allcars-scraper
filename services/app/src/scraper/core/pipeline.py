@@ -114,22 +114,35 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
         site.reset_pagination()
     except Exception:
         pass
+    failures = 0
     while True:
         url = site.listing_url(category, offset)
         ads = []
         html = ""
         # certaines pages renvoient une variante incomplete : on reessaye
-        for attempt in range(1, 4):
-            html = client.get(url)
-            if total is None:
-                total = site.total_ads(html)
-                if total and verbose:
-                    print(f"  catalogue : {total} annonces", flush=True)
-            ads = site.parse_listing(html, category)
-            if ads:
+        try:
+            for attempt in range(1, 4):
+                html = client.get(url)
+                if total is None:
+                    total = site.total_ads(html)
+                    if total and verbose:
+                        print(f"  catalogue : {total} annonces", flush=True)
+                ads = site.parse_listing(html, category)
+                if ads:
+                    break
+                if attempt < 3:
+                    client.log(f"  ! page vide ({attempt}/3) - nouvel essai")
+        except Exception as e:
+            # erreur HTTP transitoire (502/503 du site) : on ne tue pas le run
+            failures += 1
+            client.log(f"  ! page en echec ({type(e).__name__}: {str(e)[:60]}) "
+                       f"- {failures}/5")
+            if failures >= 5:
+                client.log("  ! trop d'echecs consecutifs - fin du balayage")
                 break
-            if attempt < 3:
-                client.log(f"  ! page vide ({attempt}/3) - nouvel essai")
+            time.sleep(min(60, 5 * failures))
+            continue
+        failures = 0
         if not ads:
             break
         # la taille de page varie (38 puis 35) : on ne s'arrete que si la page
