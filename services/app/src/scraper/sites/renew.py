@@ -271,7 +271,7 @@ class RenewAdapter(SiteAdapter):
         return LISTING
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
-        state = NuxtState(html)
+        state = self._state(html)
         cars = state.objects()
         out = []
         for car in cars:
@@ -279,6 +279,16 @@ class RenewAdapter(SiteAdapter):
             if ad:
                 out.append(ad)
         return out
+
+    def _state(self, html: str) -> "NuxtState":
+        """Etat Nuxt parse (mis en cache : le payload fait ~700 Ko)."""
+        cached = getattr(self, "_nuxt_state", None)
+        if cached is not None and getattr(self, "_nuxt_html_len", 0) == len(html):
+            return cached
+        state = NuxtState(html)
+        self._nuxt_state = state
+        self._nuxt_html_len = len(html)
+        return state
 
     def _normalize(self, car: dict) -> Optional[dict]:
         argus = car.get("argusid")
@@ -355,9 +365,7 @@ class RenewAdapter(SiteAdapter):
         return ad
 
     def total_ads(self, html: str) -> Optional[int]:
-        state = NuxtState(html)
-        cars = state.objects()
-        return len(cars) or None
+        return len(self._state(html).objects()) or None
 
     # -------------------------------------------------------------- detail
     def detail_url(self, ad: dict) -> Optional[str]:

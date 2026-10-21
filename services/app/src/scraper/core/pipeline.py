@@ -96,7 +96,8 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
             return
         if progress is not None:
             progress.update(current_slice=label, slices_done=idx)
-        for ad in _iter_slice(site, client, path, limit, total_seen, page_size, verbose):
+        for ad in _iter_slice(site, client, path, limit, total_seen, page_size,
+                              verbose, progress):
             total_seen += 1
             yield ad
             if limit and total_seen >= limit:
@@ -104,7 +105,8 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
 
 
 def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
-                 already: int, page_size: int, verbose: bool):
+                 already: int, page_size: int, verbose: bool,
+                 progress: Optional[Progress] = None):
     """Parcourt les pages d'une seule tranche."""
     offset = 0
     seen = 0
@@ -127,6 +129,12 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
                     total = site.total_ads(html)
                     if total and verbose:
                         print(f"  catalogue : {total} annonces", flush=True)
+                    # le total alimente la barre de progression (ETA).
+                    # on garde le plus grand connu : avec des tranches, le
+                    # total par tranche est plus petit que le total global
+                    if progress is not None and total:
+                        known = int(progress.state.get("total") or 0)
+                        progress.update(total=max(known, int(total)))
                 ads = site.parse_listing(html, category)
                 if ads:
                     break

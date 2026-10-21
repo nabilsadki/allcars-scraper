@@ -20,6 +20,8 @@ from ..core.site import SiteAdapter, make_ad
 BASE = "https://www.tomobila.ma"
 LIST_PATH = "/achat-voiture-occasion/"
 DETAIL_RE = re.compile(r"/voiture-occasion-ou-neuve/[^/]+-(\d+)/?")
+#: annonces par page (observe sur le site)
+PAGE_SIZE = 12
 
 
 class TomobilaAdapter(SiteAdapter):
@@ -36,6 +38,11 @@ class TomobilaAdapter(SiteAdapter):
         if page == 0:
             return f"{BASE}/{cat}/"
         return f"{BASE}/{cat}/page/{page + 1}/"
+
+    def total_ads(self, html: str) -> Optional[int]:
+        """Total approche : derniere page x taille de page (12)."""
+        last = _last_page(html)
+        return last * PAGE_SIZE if last else None
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []
@@ -73,10 +80,6 @@ class TomobilaAdapter(SiteAdapter):
         for ad, price in zip(ads, prices):
             ad["price"] = price
             ad["price_str"] = f"{price} DH"
-
-    def total_ads(self, html: str) -> Optional[int]:
-        m = re.search(r'([\d\s]+)\s*(?:v|result|annonce)', html, re.I)
-        return None
 
     def enrich(self, ad: dict, client) -> dict:
         """Deduit marque / modele du titre via le referentiel partage.
@@ -221,3 +224,30 @@ def _slug_title(url: str) -> str:
     slug = url.rstrip("/").split("/")[-1]
     slug = re.sub(r"-\d+$", "", slug)
     return slug.replace("-", " ").strip()
+
+
+def _last_page(html: str) -> Optional[int]:
+    """Numero de la derniere page de la pagination (0 si absent)."""
+    zone = html
+    # attention : la pagination utilise des guillemets SIMPLES
+    m = re.search(r"class=[\"'][^\"']*stm-blog-pagination[^\"']*[\"'][^>]*>"
+                  r"(.*?)</(?:ul|nav|div)>", html, re.S)
+    if m:
+        zone = m.group(1)
+    nums = []
+    for pat in (r'/page/(\d+)/?', r'[?&]page=(\d+)', r'>\s*(\d{1,5})\s*<'):
+        for mm in re.finditer(pat, zone):
+            try:
+                nums.append(int(mm.group(1)))
+            except (TypeError, ValueError):
+                continue
+    if not nums:
+        # certaines pages n'ont pas de bloc de pagination : on cherche dans
+        # toute la page
+        for pat in (r'/page/(\d+)/', r"[?&]page=(\d+)"):
+            for mm in re.finditer(pat, html):
+                try:
+                    nums.append(int(mm.group(1)))
+                except (TypeError, ValueError):
+                    continue
+    return max(nums) if nums else None

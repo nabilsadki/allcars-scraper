@@ -20,6 +20,9 @@ from ..core.site import SiteAdapter, make_ad
 BASE = "https://otoclic.com"
 LISTING = f"{BASE}/acheter-voiture-occasion-maroc/"
 
+#: annonces par page (observe sur le site)
+PAGE_SIZE = 12
+
 _FUEL = {
     "diesel": "Diesel", "essence": "Essence", "electrique": "Électrique",
     "hybride": "Hybride", "gaz": "Gaz", "essence-melange": "Essence",
@@ -50,6 +53,15 @@ class OtoclicAdapter(SiteAdapter):
     def listing_url(self, category: str, offset: int) -> str:
         self._page = getattr(self, "_page", 0) + 1
         return f"{LISTING}page/{self._page}/" if self._page > 1 else LISTING
+
+    def total_ads(self, html: str) -> Optional[int]:
+        """Total approche : derniere page x taille de page.
+
+        Le site charge ses annonces en AJAX : le nombre n'est pas dans le
+        HTML, mais la pagination annonce la derniere page.
+        """
+        last = _last_page(html)
+        return last * PAGE_SIZE if last else None
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []
@@ -203,3 +215,18 @@ class OtoclicAdapter(SiteAdapter):
     # -------------------------------------------------------------- images
     def image_url(self, img: dict, variant: str = "images") -> str:
         return img.get("url") or ""
+
+
+def _last_page(html: str) -> Optional[int]:
+    """Numero de la derniere page de la pagination (0 si absent)."""
+    block = re.search(r'class="[^"]*pagination[^"]*"[^>]*>(.*?)</(?:ul|nav|div)>',
+                      html, re.S)
+    zone = block.group(1) if block else html
+    nums = []
+    for pat in (r'/page/(\d+)/?', r'[?&]page=(\d+)', r'>\s*(\d{1,4})\s*<'):
+        for m in re.finditer(pat, zone):
+            try:
+                nums.append(int(m.group(1)))
+            except (TypeError, ValueError):
+                continue
+    return max(nums) if nums else None
