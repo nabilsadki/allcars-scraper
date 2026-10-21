@@ -13,11 +13,20 @@
     <input type="text" name="search" placeholder="titre, description, vendeur…"
            value="{{ request.args.get('search', '') }}">
     <input type="hidden" name="per_page" value="{{ request.args.get('per_page', '24') }}">
-    <select name="sort">
-      {% for v, l in [('date','plus récentes'),('price','prix croissant'),('price_desc','prix décroissant'),
-                      ('year','année'),('km','km'),('note','note globale'),('note_etat','note état'),
-                      ('note_achat','note achat'),('confiance','confiance'),('recent','scrape')] %}
-      <option value="{{ v }}" {% if request.args.get('sort','date')==v %}selected{% endif %}>{{ l }}</option>
+    {# on conserve les filtres actifs quand on trie ou qu'on cherche #}
+    {% for key in ['site','city','brand','model','fuel','gear','category',
+                   'min_price','max_price','min_year','max_year','max_km',
+                   'min_note_etat','min_note_achat','min_note_global','min_confiance',
+                   'with_phone','with_photos','with_price','active_only'] %}
+      {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
+    {% endfor %}
+    <select name="sort" title="Trier les annonces">
+      {% for group, options in sort_groups %}
+      <optgroup label="{{ group }}">
+        {% for v, l in options %}
+        <option value="{{ v }}" {% if request.args.get('sort','date')==v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </optgroup>
       {% endfor %}
     </select>
     <button type="submit">Filtrer</button>

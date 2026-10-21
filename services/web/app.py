@@ -51,18 +51,57 @@ COLUMNS = [
     "publish_date", "last_seen_at", "nb_images",
 ]
 
+#: tris disponibles : cle -> clause ORDER BY
+#: "colonne IS NULL" pour pushed les annonces sans valeur en fin de liste
 SORTABLE = {
-    "date": "publish_date DESC",
-    "price": "price ASC",
-    "price_desc": "price DESC",
-    "year": "year DESC",
-    "km": "km ASC",
-    "note": "note_global DESC, note DESC",
-    "note_etat": "note_etat DESC",
-    "note_achat": "note_achat DESC",
-    "confiance": "note_confiance DESC",
-    "recent": "scraped_at DESC",
+    # dates
+    "date": "publish_date IS NULL, publish_date DESC",
+    "date_asc": "publish_date IS NULL, publish_date ASC",
+    "update": "last_seen_at IS NULL, last_seen_at DESC",
+    "update_asc": "last_seen_at IS NULL, last_seen_at ASC",
+    "recent": "scraped_at IS NULL, scraped_at DESC",
+    # prix
+    "price": "price IS NULL, price ASC",
+    "price_desc": "price IS NULL, price DESC",
+    # millesime / kilometrage
+    "year": "year IS NULL, year DESC",
+    "year_asc": "year IS NULL, year ASC",
+    "km": "km IS NULL, km ASC",
+    "km_desc": "km IS NULL, km DESC",
+    # notes
+    "note": "note_global IS NULL, note_global DESC, note DESC",
+    "note_asc": "note_global IS NULL, note_global ASC",
+    "note_etat": "note_etat IS NULL, note_etat DESC",
+    "note_achat": "note_achat IS NULL, note_achat DESC",
+    "confiance": "note_confiance IS NULL, note_confiance DESC",
 }
+
+#: tris proposes dans le selecteur (regroupes par famille)
+SORT_GROUPS = [
+    ("Dates", [
+        ("date", "Publication : plus récentes"),
+        ("date_asc", "Publication : plus anciennes"),
+        ("update", "Mise à jour : plus récentes"),
+        ("update_asc", "Mise à jour : plus anciennes"),
+    ]),
+    ("Prix", [
+        ("price", "Prix croissant"),
+        ("price_desc", "Prix décroissant"),
+    ]),
+    ("Véhicule", [
+        ("year", "Année (plus récentes)"),
+        ("year_asc", "Année (plus anciennes)"),
+        ("km", "Kilométrage croissant"),
+        ("km_desc", "Kilométrage décroissant"),
+    ]),
+    ("Notes", [
+        ("note", "Note globale (meilleure)"),
+        ("note_asc", "Note globale (moins bonne)"),
+        ("note_etat", "Note état"),
+        ("note_achat", "Note achat"),
+        ("confiance", "Confiance"),
+    ]),
+]
 
 
 def db():
@@ -115,6 +154,8 @@ def site_label(site: str) -> str:
 
 
 app.jinja_env.filters["site_label"] = site_label
+#: groupes de tris (utilises par la barre du haut, sur toutes les pages)
+app.jinja_env.globals["sort_groups"] = SORT_GROUPS
 
 
 def pager_items(page: int, pages: int, window: int = 2) -> list:
