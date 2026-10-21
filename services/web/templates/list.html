@@ -4,6 +4,10 @@
 <form class="filters" method="get" action="/">
   <input type="hidden" name="sort" value="{{ request.args.get('sort','date') }}">
   <div class="row">
+    <label>Recherche
+      <input type="text" name="search" placeholder="titre, description, vendeur…"
+             value="{{ request.args.get('search','') }}">
+    </label>
     <label>Site
       <select name="site">
         <option value="">tous les sites</option>
@@ -49,8 +53,18 @@
   <div class="row">
     <label>Prix min <input type="number" name="min_price" value="{{ request.args.get('min_price','') }}" placeholder="DH"></label>
     <label>Prix max <input type="number" name="max_price" value="{{ request.args.get('max_price','') }}" placeholder="DH"></label>
-    <label>Année min <input type="number" name="min_year" value="{{ request.args.get('min_year','') }}"></label>
-    <label>Année max <input type="number" name="max_year" value="{{ request.args.get('max_year','') }}"></label>
+    <label>Année min
+      <select name="min_year">
+        <option value="">toutes</option>
+        {% for y in opts.years %}<option value="{{ y }}" {% if request.args.get('min_year')|string == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Année max
+      <select name="max_year">
+        <option value="">toutes</option>
+        {% for y in opts.years %}<option value="{{ y }}" {% if request.args.get('max_year')|string == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+    </label>
     <label>Km max <input type="number" name="max_km" value="{{ request.args.get('max_km','') }}"></label>
   </div>
   <div class="row">

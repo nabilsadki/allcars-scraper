@@ -26,18 +26,22 @@
   <form id="job-form" class="jobform" onsubmit="return false;">
     <label>Site
       <select name="site" id="f-site">
-        <option value="avito" {% if job.site=='avito' %}selected{% endif %}>Avito.ma</option>
-        <option value="tomobila" {% if job.site=='tomobila' %}selected{% endif %}>Tomobila.ma</option>
+        {% for s in sites %}
+        <option value="{{ s.name }}" {% if job.site == s.name %}selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
       </select>
     </label>
     <label>Catégorie
-      <input type="text" name="category" id="f-category" value="{{ job.category }}">
+      <input type="text" name="category" id="f-category" list="dl-categories" value="{{ job.category }}">
+      <datalist id="dl-categories">
+        {% for c in job_categories %}<option value="{{ c }}">{% endfor %}
+      </datalist>
     </label>
     <label>Mode
       <select name="mode" id="f-mode">
-        <option value="list" {% if job.mode=='list' %}selected{% endif %}>list (pages de liste)</option>
-        <option value="rescan" {% if job.mode=='rescan' %}selected{% endif %}>rescan (détection de changements)</option>
-        <option value="details" {% if job.mode=='details' %}selected{% endif %}>details (fiches manquantes)</option>
+        {% for m in job_modes %}
+        <option value="{{ m }}" {% if job.mode == m %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
       </select>
     </label>
     <label>Delay (s) <input type="number" step="0.1" name="delay" id="f-delay" value="{{ job.delay }}"></label>
@@ -46,9 +50,9 @@
     <label class="chk"><input type="checkbox" name="details_flag" id="f-details" {% if job.details %}checked{% endif %}> fiches détail</label>
     <label class="chk"><input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}> découpe en tranches</label>
     <div class="btns">
-      <button type="button" id="btn-start" class="btn-ok">Démarrer</button>
-      <button type="button" id="btn-stop" class="btn-bad">Arrêter</button>
-      <button type="button" id="btn-restart">Relancer</button>
+      <button type="button" id="btn-start" class="btn-ok" {% if container_state == 'running' %}disabled{% endif %}>Démarrer</button>
+      <button type="button" id="btn-stop" class="btn-bad" {% if container_state != 'running' %}disabled{% endif %}>Arrêter</button>
+      <button type="button" id="btn-restart" {% if container_state == 'running' %}disabled{% endif %}>Relancer</button>
     </div>
   </form>
   <div id="action-msg" class="muted small"></div>
@@ -114,7 +118,8 @@
   <div class="panel-title">Scrapes passés ({{ runs|length }})</div>
   <table class="runs">
     <thead>
-      <tr><th>#</th><th>Début</th><th>Durée</th><th>Mode</th><th>Catégorie</th>
+      <tr><th>#</th><th>Site</th><th>Début</th><th>Durée</th><th>Mode</th>
+          {% if not hide_category %}<th>Catégorie</th>{% endif %}
           <th>Listées</th><th>Détail</th><th>Insérées</th><th>Modif.</th>
           <th>Requêtes</th><th>Blocages</th><th>Statut</th></tr>
     </thead>
@@ -122,22 +127,30 @@
       {% for r in runs %}
       <tr>
         <td>{{ r.id }}</td>
-        <td class="small">{{ r.started_at }}</td>
+        <td><span class="sitebadge s-{{ r.site or 'unknown' }}">{{ (r.site or '?')|site_label }}</span></td>
+        <td class="small">{{ r.started_at|datefr(true) }}</td>
         <td class="small">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
         <td class="small">{{ r.mode }}</td>
-        <td class="small">{{ r.category or '—' }}</td>
+        {% if not hide_category %}<td class="small">{{ r.category or '—' }}</td>{% endif %}
         <td>{{ r.ads_listed }}</td>
         <td>{{ r.ads_details }}</td>
         <td>{{ r.ads_inserted }}</td>
         <td>{{ r.ads_updated }}</td>
         <td>{{ r.http_requests }}</td>
         <td class="{{ 'bad' if r.blocked else '' }}">{{ r.blocked }}</td>
-        <td><span class="st st-{{ r.status }}">{{ r.status }}</span>
-            {% if r.error %}<div class="small bad" title="{{ r.error }}">{{ r.error[:80] }}</div>{% endif %}
+        <td>
+          {% if r.error %}
+            <details class="errpop">
+              <summary><span class="st st-{{ r.status }}">{{ r.status }}</span></summary>
+              <pre class="errbox">{{ r.error }}</pre>
+            </details>
+          {% else %}
+            <span class="st st-{{ r.status }}">{{ r.status }}</span>
+          {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="12" class="muted">Aucun scrap enregistre.</td></tr>
+      <tr><td colspan="13" class="muted">Aucun scrap enregistre.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -172,7 +185,15 @@ function payload() {
   };
 }
 
+function setBusy(busy) {
+  for (const id of ['#btn-start', '#btn-stop', '#btn-restart']) {
+    const b = document.querySelector(id);
+    if (b) b.disabled = busy;
+  }
+}
+
 async function action(url, label) {
+  setBusy(true);                    // evite le double clic
   $('#action-msg').textContent = label + '…';
   try {
     const res = await fetch(url, {
@@ -182,16 +203,75 @@ async function action(url, label) {
     });
     const data = await res.json();
     $('#action-msg').textContent = data.ok ? (data.message || 'OK') : ('Erreur : ' + (data.error || '?'));
-    refresh();
+    await refresh();
     setTimeout(refresh, 1200);
   } catch (e) {
     $('#action-msg').textContent = 'Erreur : ' + e;
+  } finally {
+    setBusy(false);
+    updateButtons($('#status-badge').dataset.container || 'unknown');
+    refresh();
   }
 }
 
 $('#btn-start').onclick = () => action('/api/scrape/start', 'Démarrage');
 $('#btn-stop').onclick = () => action('/api/scrape/stop', 'Arrêt');
 $('#btn-restart').onclick = () => action('/api/scrape/restart', 'Relance');
+
+// ------------------------------------------------------ site => categorie/mode
+const SITES = {{ sites | tojson }};
+const MODE_LABELS = {
+  list: 'list (pages de liste)',
+  rescan: 'rescan (détection de changements)',
+  details: 'details (fiches manquantes)',
+};
+
+function applySite(siteName) {
+  const meta = SITES.find(s => s.name === siteName);
+  if (!meta) return;
+  // categories
+  const dl = document.querySelector('#dl-categories');
+  const cat = document.querySelector('#f-category');
+  if (dl && cat) {
+    dl.innerHTML = '';
+    for (const c of (meta.categories || [])) {
+      const o = document.createElement('option');
+      o.value = c;
+      dl.appendChild(o);
+    }
+    const known = (meta.categories || []).includes(cat.value);
+    if (!known) cat.value = meta.default_category || '';
+  }
+  // modes
+  const mode = document.querySelector('#f-mode');
+  if (mode) {
+    const current = mode.value;
+    mode.innerHTML = '';
+    for (const m of (meta.modes || ['list'])) {
+      const o = document.createElement('option');
+      o.value = m;
+      o.textContent = MODE_LABELS[m] || m;
+      mode.appendChild(o);
+    }
+    if ((meta.modes || []).includes(current)) mode.value = current;
+  }
+}
+
+$('#f-site').addEventListener('change', () => applySite($('#f-site').value));
+
+// ---------------------------------------------------------- etat des boutons
+function updateButtons(containerState) {
+  const running = containerState === 'running';
+  const start = $('#btn-start'), stop = $('#btn-stop'), restart = $('#btn-restart');
+  // demarrer / relancer : inactifs si un scrap tourne deja
+  start.disabled = running;
+  restart.disabled = running;
+  // arreter : inactif si rien ne tourne
+  stop.disabled = !running;
+  start.title = running ? 'Un scrap est déjà en cours' : '';
+  stop.title = running ? '' : 'Aucun scrap en cours';
+  restart.title = running ? 'Un scrap est déjà en cours' : '';
+}
 
 function renderAlerts(alerts) {
   const box = $('#alerts');
@@ -213,6 +293,8 @@ async function refresh() {
     const badge = $('#status-badge');
     badge.textContent = data.container_label || data.container;
     badge.className = 'status ' + (data.container_css || ('s-' + data.container));
+    badge.dataset.container = data.container;
+    updateButtons(data.container);
     // un bloc de progression par site
     for (const s of (data.states || [])) {
       const block = document.querySelector('[data-site="' + s.site + '"]');

@@ -72,6 +72,8 @@ class SiteAdapter(ABC):
     default_category: str = ""
     #: categories communes a tous les sites (utilisees par le CLI)
     categories: list[str] = []
+    #: modes de scraping supportes par ce site
+    modes: list[str] = ["list", "rescan", "details"]
 
     # ------------------------------------------------------------- a fournir
     @abstractmethod

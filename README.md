@@ -139,9 +139,17 @@ docker compose up -d web          # http://127.0.0.1:8080
   (+ sa confiance) ; tri par date, prix, annee, km, note globale, etat, achat,
   confiance. Les notes detaillees (etat / achat / legacy) apparaissent
   uniquement sur la fiche d'une annonce
-* **Filtres** : ville, marque, carburant, boite, prix min/max, annee min/max,
-  km max, recherche plein texte, notes (etat / achat / globale), confiance
-  minimale, avec telephone, actives
+* **Filtres** (tous dans le meme bloc) : recherche plein texte, site, ville,
+  marque, **modele** (liste groupee par marque, mise a jour quand on change
+  de marque), carburant, boite, prix min/max, **annee min/max (listes
+  deroulantes)**, km max, notes (etat / achat / globale), confiance minimale,
+  avec telephone, **avec photos**, **avec prix**, **fiche complete**,
+  actives
+* **Tri** : publication, mise a jour, prix, annee, kilometrage, note globale
+  (etat, achat, confiance) — dans les deux sens, avec un selecteur
+  "aller a une page" pour sauter directement a une page
+* Chaque annonce porte un **badge d'etat du scrap** : "detail v" (page
+  detail recuperee) ou "liste" (connue uniquement via la page de liste)
 * **Fiche d'annonce** : toutes les caracteristiques, description, equipements,
   photos (locales si telechargees, sinon distantes), **scoring v2 detaille**
   (etat / achat / global / confiance) + **scoring legacy**, et l'**historique
@@ -183,12 +191,19 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
 * **Pilotage** : demarrer / arreter / relancer le scrap en cours, avec le
   choix du site, de la categorie, du mode (`list`, `rescan`, `details`),
   de la cadence (delay / jitter), du plafond et de la decoupe en tranches.
+  Changer de site met a jour la categorie et les modes proposes ; les
+  boutons passent en "desactive" selon l'etat du conteneur (evite le double
+  clic).
+* **Un bloc de progression par site** : barre, %, temps ecoule, temps
+  restant, vitesse, tranche en cours, requetes, blocages, erreurs.
 * **Alertes** : erreur du run, **blocage serveur (Cloudflare)** detecte
   (403/429/503 ou challenge), erreurs reseau, arret manuel, conteneur arrete
   alors que le suivi annonce un run en cours.
-* **Historique** : tous les scrapes passes (debut, duree, mode, categorie,
+* **Historique** : tous les scrapes passes (site, debut, duree, mode,
   annonces listees / detail / inserees / modifiees, requetes, blocages,
-  statut, message d'erreur) + les derniers logs du conteneur.
+  statut). L''erreur d'un run en echec s'affiche en cliquant sur le statut.
+  La colonne categorie est masquee quand chaque site n'a que peu de
+  categories. + les derniers logs du conteneur.
 
 Fonctionnement :
 

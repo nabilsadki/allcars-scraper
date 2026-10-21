@@ -42,6 +42,27 @@ def site_info() -> list[dict]:
             "label": s.label or s.name,
             "default_category": s.default_category,
             "categories": s.categories,
+            "modes": getattr(s, "modes", ["list", "rescan", "details"]),
         }
         for s in sorted(_SITES.values(), key=lambda x: x.name)
     ]
+
+
+def publish(path: str = "/data/sites.json") -> None:
+    """Ecrit les metadonnées des sites (pour l'interface web).
+
+    L'interface web tourne dans un autre conteneur : elle ne peut pas
+    importer le registre. On publie donc un fichier JSON partage.
+    """
+    import json
+    import os
+    import tempfile
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".sites-",
+                                   suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"sites": site_info()}, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        pass

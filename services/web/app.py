@@ -109,6 +109,35 @@ def db():
     return pymysql.connect(**DB)
 
 
+SITES_PATH = os.environ.get("SITES_FILE", "/data/sites.json")
+
+#: fallback si le scraper n'a jamais tourne (pas de /data/sites.json)
+DEFAULT_SITES = [
+    {"name": "avito", "label": "Avito.ma",
+     "default_category": "maroc/voitures-à_vendre",
+     "categories": ["maroc/voitures-à_vendre", "maroc/immobilier",
+                    "maroc/telephones", "maroc/informatique"],
+     "modes": ["list", "rescan", "details"]},
+    {"name": "tomobila", "label": "Tomobila.ma",
+     "default_category": "achat-voiture-occasion",
+     "categories": ["achat-voiture-occasion"],
+     "modes": ["list", "rescan", "details"]},
+]
+
+
+def known_sites() -> list[dict]:
+    """Sites disponibles (categories + modes), publies par le scraper."""
+    try:
+        with open(SITES_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+        sites = data.get("sites") if isinstance(data, dict) else data
+        if sites:
+            return sites
+    except Exception:
+        pass
+    return DEFAULT_SITES
+
+
 def query(sql, params=()):
     conn = db()
     try:
@@ -310,6 +339,11 @@ def index():
             f"ORDER BY {col}")]
     opts["models"] = model_options(request.args.get("brand", ""),
                                    request.args.get("site", ""))
+    # annees presentes dans le catalogue (pour les selects)
+    years = [r["year"] for r in query(
+        "SELECT DISTINCT year FROM ads WHERE year IS NOT NULL "
+        "AND year BETWEEN 1950 AND 2100 ORDER BY year DESC")]
+    opts["years"] = years
 
     return render_template(
         "list.html", rows=rows, total=total, page=page, pages=pages,
@@ -417,6 +451,12 @@ def _imgthumb(site: str, ad_id: int):
     return redirect(im.get("link_full") or im["link"], code=302)
 
 
+@app.route("/api/sites")
+def api_sites():
+    """Sites scrapables : categories et modes (pour le formulaire de pilotage)."""
+    return jsonify({"sites": known_sites()})
+
+
 @app.route("/api/models")
 def api_models():
     """Modeles disponibles, groupes par marque (pour le selecteur dynamique)."""
@@ -479,6 +519,17 @@ def _runs_history(limit: int = 50) -> list[dict]:
     return rows
 
 
+def _hide_category_column(runs: list[dict]) -> bool:
+    """La colonne categorie est inutile si chaque site n'a que peu de categories."""
+    per_site: dict = {}
+    for r in runs:
+        site = r.get("site") or "?"
+        per_site.setdefault(site, set()).add(r.get("category") or "")
+    if not per_site:
+        return True
+    return all(len(cats) <= 2 for cats in per_site.values())
+
+
 def _sync_stale_runs(container_state: str) -> None:
     """Marque 'stopped' les runs 'running' dont le conteneur n'est plus actif.
 
@@ -508,10 +559,16 @@ def tracking():
     counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
                    "MAX(scraped_at) dernier FROM ads GROUP BY site")
     c_label, c_css = progress_reader.container_status(container_state, state)
+    all_sites = known_sites()
+    site_meta = next((s for s in all_sites if s.get("name") == job.get("site")), None)
+    job_categories = (site_meta or {}).get("categories", [])
+    job_modes = (site_meta or {}).get("modes", ["list", "rescan", "details"])
     return render_template(
         "tracking.html", state=state, states=states, alerts=alerts, runs=runs,
         job=job, container_state=container_state, counts=counts,
         container_label=c_label, container_css=c_css,
+        hide_category=_hide_category_column(runs),
+        sites=all_sites, job_categories=job_categories, job_modes=job_modes,
         container_name=dockerctl.CONTAINER_NAME)
 
 

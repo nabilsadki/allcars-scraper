@@ -25,7 +25,7 @@ from .core.db import Database
 from .core.http import HttpClient
 from .core.pipeline import run_details, run_list, run_rescan
 from .core.progress import install_signal_handlers
-from .core.registry import get_site
+from .core.registry import get_site, publish
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
 
 JOB_PATH = os.environ.get("SCRAPE_JOB_FILE", "/data/scrape_job.json")
@@ -58,6 +58,7 @@ def load_job() -> dict:
 def main() -> int:
     install_signal_handlers()
     job = load_job()
+    publish()          # l'interface web a besoin des categories/modes par site
     site_name = job.get("site", "avito")
     mode = job.get("mode", "list")
     category = job.get("category", "")

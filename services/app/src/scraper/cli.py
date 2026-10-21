@@ -22,7 +22,7 @@ from .core.db import Database
 from .core.http import HttpClient
 from .core.pipeline import run_details, run_list, run_rescan
 from .core.progress import install_signal_handlers
-from .core.registry import available_sites, get_site, site_info
+from .core.registry import available_sites, get_site, publish, site_info
 from .core.scoring import compute_notes, compute_notes_v2, load_config
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
 
@@ -270,6 +270,7 @@ def main(argv=None) -> int:
 
     args = p.parse_args(argv)
     install_signal_handlers()
+    publish()
     return args.func(args)
 
 
