@@ -43,6 +43,13 @@
     <label>Confiance ≥ <input type="number" step="1" name="min_confiance" value="{{ request.args.get('min_confiance','') }}"></label>
     <label class="chk"><input type="checkbox" name="with_phone" value="1" {% if request.args.get('with_phone')=='1' %}checked{% endif %}> avec téléphone</label>
     <label class="chk"><input type="checkbox" name="active_only" value="1" {% if request.args.get('active_only')=='1' %}checked{% endif %}> actives</label>
+    <label>Par page
+      <select name="per_page">
+        {% for n in [24, 48, 100] %}
+        <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </label>
     <button type="submit">Appliquer</button>
     <a class="reset" href="/">Réinitialiser</a>
   </div>
@@ -90,12 +97,14 @@
 {% if pages > 1 %}
 <nav class="pager">
   {% set base = request.args.to_dict() %}
-  {% for p in range(1, pages+1) %}
-    {% if p == page %}
+  {% for p in pager %}
+    {% if p == '…' %}
+      <span class="gap">…</span>
+    {% elif p == page %}
       <span class="cur">{{ p }}</span>
-    {% elif p <= 3 or p > pages-3 or (p-page)|abs <= 2 %}
+    {% else %}
       <a href="?{{ dict(base, page=p) | urlencode }}">{{ p }}</a>
-    {% else %}<span>…</span>{% endif %}
+    {% endif %}
   {% endfor %}
 </nav>
 {% endif %}

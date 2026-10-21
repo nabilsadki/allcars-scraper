@@ -119,12 +119,13 @@ table.vers th { color: var(--muted); font-weight: 500; }
 .muted { color: var(--muted); }
 .link { margin-top: 18px; }
 
-.pager { display: flex; gap: 6px; justify-content: center; margin: 24px 0; }
+.pager { display: flex; gap: 6px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
 .pager a, .pager span {
   padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px;
   background: var(--panel); color: var(--txt);
 }
 .pager .cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pager .gap { border: none; background: none; color: var(--muted); padding: 5px 2px; }
 
 .flags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
 .flag { background: rgba(255,170,51,.14); border: 1px solid rgba(255,170,51,.5); color: var(--warn); border-radius: 6px; padding: 3px 9px; font-size: 12.5px; }

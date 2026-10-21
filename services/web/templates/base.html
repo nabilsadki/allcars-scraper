@@ -12,6 +12,7 @@
   <form class="search" method="get" action="/">
     <input type="text" name="search" placeholder="titre, description, vendeur…"
            value="{{ request.args.get('search', '') }}">
+    <input type="hidden" name="per_page" value="{{ request.args.get('per_page', '24') }}">
     <select name="sort">
       {% for v, l in [('date','plus récentes'),('price','prix croissant'),('price_desc','prix décroissant'),
                       ('year','année'),('km','km'),('note','note globale'),('note_etat','note état'),

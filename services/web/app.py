@@ -79,6 +79,28 @@ def query(sql, params=()):
         conn.close()
 
 
+def pager_items(page: int, pages: int, window: int = 2) -> list:
+    """Numeros de page a afficher dans le pager.
+
+    Renvoie une liste de nombres et de "…" : au maximum une dizaine
+    d'elements, quel que soit le nombre de pages (le catalogue avito
+    dépasse les 600 pages).
+    """
+    if pages <= 1:
+        return []
+    shown = set(range(1, min(pages, 3) + 1))                     # 1, 2, 3
+    shown |= set(range(max(1, page - window), min(pages, page + window) + 1))
+    shown |= set(range(max(1, pages - 2), pages + 1))             # N-2, N-1, N
+    out = []
+    prev = 0
+    for p in sorted(shown):
+        if prev and p - prev > 1:
+            out.append("…")
+        out.append(p)
+        prev = p
+    return out
+
+
 # ------------------------------------------------------------------ filtres
 def build_filters() -> tuple[str, list]:
     where = ["site = 'avito'"]
@@ -149,6 +171,7 @@ def index():
     return render_template(
         "list.html", rows=rows, total=total, page=page, pages=pages,
         per_page=per_page, opts=opts, args=request.args,
+        pager=pager_items(page, pages),
     )
 
 
