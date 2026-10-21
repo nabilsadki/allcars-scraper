@@ -55,32 +55,39 @@
 </div>
 
 <!-- ---------------------------------------------------------- progression -->
-<div class="panel">
-  <div class="panel-title">Progression en cours
-    <span id="live-dot" class="dot {{ 'on' if state and state.running else 'off' }}"></span>
+{% for st in states %}
+<div class="panel" data-site="{{ st.site }}">
+  <div class="panel-title">
+    <span class="sitebadge s-{{ st.site }}">{{ st.site|site_label }}</span>
+    Progression {{ 'en cours' if st.running else ('terminée' if st.status == 'success' else st.status) }}
+    <span class="dot {{ 'on' if st.running else 'off' }}" data-f="dot"></span>
+    <span class="muted small" data-f="badge">{{ st.mode }}</span>
   </div>
 
   <div class="progress-wrap">
-    <div class="progress"><div id="bar" class="bar" style="width:{{ state.percent if state and state.percent else 0 }}%"></div></div>
+    <div class="progress"><div class="bar" data-f="bar" style="width:{{ st.percent if st.percent else 0 }}%"></div></div>
     <div class="progress-legend">
-      <span id="p-percent">{{ '%.1f'|format(state.percent) if state and state.percent is not none else '—' }} %</span>
-      <span id="p-counts">{{ state.listed if state else 0 }} / {{ state.total if state and state.total else '—' }} annonces</span>
+      <span data-f="percent">{{ '%.1f'|format(st.percent) if st.percent is not none else '—' }} %</span>
+      <span data-f="counts">{{ st.listed }} / {{ st.total if st.total else '—' }} annonces</span>
     </div>
   </div>
 
   <div class="stats">
-    <div class="stat"><small>Temps écoulé</small><b id="s-elapsed">{{ state.elapsed_seconds|duree if state else '—' }}</b></div>
-    <div class="stat"><small>Temps restant</small><b id="s-eta">{{ state.eta_seconds|duree if state and state.eta_seconds else '—' }}</b></div>
-    <div class="stat"><small>Vitesse</small><b id="s-rate">{{ state.rate_per_min if state else '—' }}<span class="u"> /min</span></b></div>
-    <div class="stat"><small>Requêtes HTTP</small><b id="s-req">{{ state.requests if state else 0 }}</b></div>
-    <div class="stat"><small>Blocages serveur</small><b id="s-block" class="{{ 'bad' if state and state.blocked else '' }}">{{ state.blocked if state else 0 }}</b></div>
-    <div class="stat"><small>Erreurs réseau</small><b id="s-err">{{ state.errors if state else 0 }}</b></div>
-    <div class="stat"><small>Nouvelles / modif.</small><b id="s-ins">{{ state.inserted if state else 0 }} / {{ state.updated if state else 0 }}</b></div>
-    <div class="stat"><small>Tranche en cours</small><b id="s-slice">{{ state.current_slice if state and state.current_slice else '—' }}</b></div>
-    <div class="stat"><small>Tranches</small><b id="s-slices">{{ state.slices_done if state else 0 }} / {{ state.slices_total if state else 0 }}</b></div>
-    <div class="stat"><small>Mode</small><b id="s-mode">{{ state.mode if state else '—' }}</b></div>
+    <div class="stat"><small>Temps écoulé</small><b data-f="elapsed">{{ st.elapsed_seconds|duree }}</b></div>
+    <div class="stat"><small>Temps restant</small><b data-f="eta">{{ st.eta_seconds|duree if st.eta_seconds else '—' }}</b></div>
+    <div class="stat"><small>Vitesse</small><b data-f="rate">{{ st.rate_per_min }}<span class="u"> /min</span></b></div>
+    <div class="stat"><small>Requêtes HTTP</small><b data-f="req">{{ st.requests }}</b></div>
+    <div class="stat"><small>Blocages serveur</small><b data-f="block" class="{{ 'bad' if st.blocked else '' }}">{{ st.blocked }}</b></div>
+    <div class="stat"><small>Erreurs réseau</small><b data-f="err">{{ st.errors }}</b></div>
+    <div class="stat"><small>Nouvelles / modif.</small><b data-f="ins">{{ st.inserted }} / {{ st.updated }}</b></div>
+    <div class="stat"><small>Tranche en cours</small><b data-f="slice">{{ st.current_slice or '—' }}</b></div>
+    <div class="stat"><small>Tranches</small><b data-f="slices">{{ st.slices_done }} / {{ st.slices_total }}</b></div>
+    <div class="stat"><small>Mode</small><b data-f="mode">{{ st.mode }}</b></div>
   </div>
 </div>
+{% else %}
+<div class="panel"><p class="muted">Aucun scrap enregistre pour le moment.</p></div>
+{% endfor %}
 
 <!-- ------------------------------------------------------------- catalogue -->
 <div class="panel">
@@ -194,30 +201,39 @@ async function refresh() {
   try {
     const res = await fetch('/api/progress');
     const data = await res.json();
-    const s = data.state;
     renderAlerts(data.alerts);
     const badge = $('#status-badge');
     badge.textContent = data.container;
     badge.className = 'status s-' + data.container;
-    if (!s) {
-      $('#live-dot').className = 'dot off';
-      return;
+    // un bloc de progression par site
+    for (const s of (data.states || [])) {
+      const block = document.querySelector('[data-site="' + s.site + '"]');
+      if (!block) continue;
+      const set = (f, value) => {
+        const el = block.querySelector('[data-f="' + f + '"]');
+        if (el) el.textContent = value;
+      };
+      const pct = (s.percent === null || s.percent === undefined) ? 0 : s.percent;
+      const bar = block.querySelector('[data-f="bar"]');
+      if (bar) bar.style.width = Math.min(100, pct) + '%';
+      set('percent', (s.percent === null || s.percent === undefined) ? '—' : Number(s.percent).toFixed(1) + ' %');
+      set('counts', s.listed + ' / ' + (s.total || '—') + ' annonces');
+      set('elapsed', fmt(s.elapsed_seconds));
+      set('eta', (s.eta_seconds === null || s.eta_seconds === undefined) ? '—' : fmt(s.eta_seconds));
+      const rate = block.querySelector('[data-f="rate"]');
+      if (rate) rate.innerHTML = (s.rate_per_min || 0) + '<span class="u"> /min</span>';
+      set('req', s.requests);
+      set('block', s.blocked);
+      const blk = block.querySelector('[data-f="block"]');
+      if (blk) blk.className = s.blocked ? 'bad' : '';
+      set('err', s.errors);
+      set('ins', s.inserted + ' / ' + s.updated);
+      set('slice', s.current_slice || '—');
+      set('slices', (s.slices_done || 0) + ' / ' + (s.slices_total || 0));
+      set('mode', s.mode || '—');
+      const dot = block.querySelector('[data-f="dot"]');
+      if (dot) dot.className = 'dot ' + (s.running ? 'on' : 'off');
     }
-    const pct = s.percent === null || s.percent === undefined ? 0 : s.percent;
-    $('#bar').style.width = Math.min(100, pct) + '%';
-    $('#p-percent').textContent = (s.percent === null || s.percent === undefined) ? '—' : Number(s.percent).toFixed(1) + ' %';
-    $('#p-counts').textContent = s.listed + ' / ' + (s.total || '—') + ' annonces';
-    $('#s-elapsed').textContent = fmt(s.elapsed_seconds);
-    $('#s-eta').textContent = s.eta_seconds === null || s.eta_seconds === undefined ? '—' : fmt(s.eta_seconds);
-    $('#s-rate').innerHTML = (s.rate_per_min || 0) + '<span class="u"> /min</span>';
-    $('#s-req').textContent = s.requests;
-    $('#s-block').textContent = s.blocked;
-    $('#s-err').textContent = s.errors;
-    $('#s-ins').textContent = s.inserted + ' / ' + s.updated;
-    $('#s-slice').textContent = s.current_slice || '—';
-    $('#s-slices').textContent = (s.slices_done || 0) + ' / ' + (s.slices_total || 0);
-    $('#s-mode').textContent = s.mode || '—';
-    $('#live-dot').className = 'dot ' + (s.running ? 'on' : 'off');
   } catch (e) { /* le serveur est momentanement injoignable */ }
 }
 

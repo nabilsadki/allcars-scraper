@@ -420,15 +420,16 @@ def tracking():
     """Page de suivi : live, historique, pilotage, alertes."""
     container_state = _container_state()
     _sync_stale_runs(container_state)
-    state = progress_reader.read_progress()
-    alerts = progress_reader.alerts(state, container_state)
+    states = progress_reader.read_all()
+    state = progress_reader.pick_primary(states, container_state)
+    alerts = progress_reader.alerts(state, container_state, states)
     job = progress_reader.read_job()
     runs = _runs_history(50)
     counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
                    "MAX(scraped_at) dernier FROM ads GROUP BY site")
     return render_template(
-        "tracking.html", state=state, alerts=alerts, runs=runs, job=job,
-        container_state=container_state, counts=counts,
+        "tracking.html", state=state, states=states, alerts=alerts, runs=runs,
+        job=job, container_state=container_state, counts=counts,
         container_name=dockerctl.CONTAINER_NAME)
 
 
@@ -437,11 +438,13 @@ def api_progress():
     """Etat live du scrap (JSON), appele en boucle par la page."""
     container_state = _container_state()
     _sync_stale_runs(container_state)
-    state = progress_reader.read_progress()
+    states = progress_reader.read_all()
+    state = progress_reader.pick_primary(states, container_state)
     return jsonify({
         "state": state,
+        "states": states,
         "container": container_state,
-        "alerts": progress_reader.alerts(state, container_state),
+        "alerts": progress_reader.alerts(state, container_state, states),
         "server_time": datetime.now().isoformat(timespec="seconds"),
     })
 

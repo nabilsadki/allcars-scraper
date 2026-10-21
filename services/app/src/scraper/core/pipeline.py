@@ -190,7 +190,7 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
             market = None
     catalog = _catalog(site, client, not quiet)
 
-    n_listed = n_details = 0
+    n_listed = n_details = n_db_errors = 0
     out_fh = open(out, "w", encoding="utf-8") if out else None
     error = None
     progress = Progress(site.name, mode="list", category=category)
@@ -208,13 +208,24 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
             if out_fh:
                 out_fh.write(json.dumps(ad, ensure_ascii=False, default=str) + "\n")
             if db is not None:
-                db.upsert_ad(ad, site=site.name)
-                db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+                try:
+                    db.upsert_ad(ad, site=site.name)
+                    db.upsert_images(ad.get("ad_id"), ad.get("images"),
+                                      site=site.name)
+                except Exception as e:
+                    # une annonce en echec ne doit pas arreter le run
+                    n_db_errors += 1
+                    client.log(f"  ! ecriture en echec ({type(e).__name__}: {e})")
+                    try:
+                        db.conn.rollback()
+                    except Exception:
+                        pass
                 # commit par lots : un run interrompu ne perd pas tout
                 if n_listed % 50 == 0:
                     db.commit()
             if n_listed % 10 == 0:
-                progress.update(listed=n_listed, details=n_details)
+                progress.update(listed=n_listed, details=n_details,
+                                db_errors=n_db_errors)
                 progress.stats(client, db)
             if n_listed % 100 == 0 and db is not None:
                 db.update_run(run_id, {
@@ -237,7 +248,8 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
     finally:
         if out_fh:
             out_fh.close()
-        progress.update(listed=n_listed, details=n_details)
+        progress.update(listed=n_listed, details=n_details,
+                        db_errors=n_db_errors)
         progress.stats(client, db)
         progress.finish("error" if error else "success", error)
 
@@ -268,7 +280,7 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
 
     known_before = set(db.known_ad_ids(site.name))
     seen: set = set()
-    n_new = n_changed = n_unchanged = n_details = n_candidates = 0
+    n_new = n_changed = n_unchanged = n_details = n_candidates = n_db_errors = 0
     progress = Progress(site.name, mode="rescan", category=category)
 
     for ad in iter_listing(site, client, category, limit, verbose=not quiet,
@@ -295,13 +307,26 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
             ad = fetch_detail(site, client, ad)
             n_details += 1
         _apply_notes(ad, market=market, config=config)
-        result = db.upsert_ad(ad, site=site.name)
+        try:
+            result = db.upsert_ad(ad, site=site.name)
+        except Exception as e:
+            n_db_errors += 1
+            client.log(f"  ! ecriture en echec ({type(e).__name__}: {e})")
+            try:
+                db.conn.rollback()
+            except Exception:
+                pass
+            continue
         if result == "updated":
             n_changed += 1
         elif result == "unchanged":
             n_unchanged += 1
             n_candidates -= 1
-        db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+        try:
+            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+        except Exception as e:
+            n_db_errors += 1
+            client.log(f"  ! images en echec ({type(e).__name__}: {e})")
         if len(seen) % 50 == 0:
             db.commit()          # commit par lots
         if len(seen) % 10 == 0:

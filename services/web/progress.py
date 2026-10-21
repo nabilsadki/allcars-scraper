@@ -44,6 +44,20 @@ def read_all() -> list[dict]:
     return out
 
 
+def pick_primary(states: list, container_state: str = "") -> Optional[dict]:
+    """Choisit l'etat a mettre en avant.
+
+    Priorite : le site en cours de scrape (status=running), sinon le plus
+    recemment mis a jour.
+    """
+    if not states:
+        return None
+    running = [s for s in states if s.get("running")]
+    if running:
+        return max(running, key=lambda s: s.get("updated_at") or "")
+    return states[0]
+
+
 def read_progress(site: Optional[str] = None) -> Optional[dict]:
     """Etat de progression d'un site (ou le plus recent si site est None)."""
     states = read_all()
@@ -66,6 +80,7 @@ def enrich(state: dict) -> dict:
     st.setdefault("total", 0)
     st.setdefault("blocked", 0)
     st.setdefault("errors", 0)
+    st.setdefault("db_errors", 0)
     st.setdefault("requests", 0)
     st.setdefault("details", 0)
     st.setdefault("inserted", 0)
@@ -128,9 +143,27 @@ def write_job(job: dict) -> None:
     os.replace(tmp, JOB_PATH)
 
 
-def alerts(state: Optional[dict], container_state: str = "") -> list[dict]:
-    """Alertes a afficher : erreur, blocage serveur, etat du conteneur."""
+def alerts(state: Optional[dict], container_state: str = "",
+           states: Optional[list] = None) -> list[dict]:
+    """Alertes a afficher : erreur, blocage serveur, etat du conteneur.
+
+    `states` = etats de tous les sites : on signale aussi les sites qui
+    sont en erreur alors qu'un autre site tourne.
+    """
     out: list[dict] = []
+    for st in (states or []):
+        if st.get("status") == "error" and (not state or st.get("site") != state.get("site")):
+            out.append({
+                "level": "error",
+                "title": f"Erreur sur {st.get('site')}",
+                "detail": st.get("error") or "Le run s'est termine en erreur"})
+        elif int(st.get("db_errors") or 0):
+            out.append({
+                "level": "warn",
+                "title": f"{st.get('db_errors')} annonce(s) non enregistree(s) "
+                         f"sur {st.get('site')}",
+                "detail": "Ecriture en base en echec (verrou MySQL ?) : "
+                          "ces annonces seront reprises au prochain run."})
     if not state:
         if container_state in ("exited", "absent"):
             out.append({"level": "warn",

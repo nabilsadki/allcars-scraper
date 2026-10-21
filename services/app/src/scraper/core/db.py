@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import os
 from datetime import datetime
 from typing import Any, Optional
@@ -211,7 +212,26 @@ class Database:
         """Insere ou met a jour une annonce en gerant les versions.
 
         Retourne : 'new' | 'updated' | 'unchanged'
+
+        MySQL peut renvoyer un deadlock (1213) ou un lock timeout (1205)
+        quand deux scrapps travaillent en meme temps : on rejoue l'ecriture
+        au lieu de perdre l'annonce (et le run).
         """
+        for attempt in range(5):
+            try:
+                return self._upsert_ad(ad, site)
+            except pymysql.err.OperationalError as e:
+                code = e.args[0] if e.args else 0
+                if code in (1213, 1205) and attempt < 4:
+                    time.sleep(0.2 * (attempt + 1))
+                    try:
+                        self.conn.rollback()
+                    except Exception:
+                        pass
+                    continue
+                raise
+
+    def _upsert_ad(self, ad: dict, site: str = "avito") -> str:
         ad_id = ad.get("ad_id")
         h = content_hash(ad)
         self.cur.execute(
