@@ -210,23 +210,40 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   categories. Le tableau se **filtre** (site, statut, mode) et se **trie**
   en cliquant sur un en-tete. + les derniers logs du conteneur.
 
+### Scraper plusieurs sites en parallele
+
+Chaque site a **son propre conteneur ephemere**, lance par l'interface :
+
+```bash
+# depuis l'interface (page /tracking) : le site choisi demarre
+# equivalent en ligne de commande :
+docker compose run -d --rm --name avito-scraper-tomobila app list --site tomobila --db
+```
+
+* les conteneurs sont supprimes a la fin du run (`--rm`) : il n'y a jamais
+  plus de conteneurs que de scrapes en cours
+* arreter un site ne touche pas les autres
+* l'interface appelle `docker compose run` (le CLI docker est embarque dans
+  l'image web) : la configuration reste celle du `docker-compose.yml`
+* chaque site a ses propres parametres (`/data/jobs/<site>.json`)
+
 Fonctionnement :
 
 * le scraper ecrit `/data/progress/<site>.json` (volume partage) a chaque
   lot d'annonces : c'est la source de la progression live ;
 * les runs sont aussi enregistres en base (`scrape_runs`) : une ligne est
   ouverte au debut du run (statut `running`) et completee a la fin ;
-* l'interface pilote le conteneur `avito-scraper` via le socket Docker
-  (`/var/run/docker.sock`) : `docker stop` / `docker start` ;
+* l'interface pilote un conteneur par site via le CLI docker
+  (`docker compose run`, `docker stop`) ; le socket Docker est monte dans le
+  conteneur web ;
 * les parametres du job sont ecrits dans `/data/scrape_job.json` et lus au
   demarrage du conteneur : on peut changer de categorie sans reconstruire.
 
 ```bash
-# creer le conteneur du scraper (sans le lancer)
-docker compose create scraper
-# le lancer / l'arreter en ligne de commande
-docker compose up -d scraper
-docker compose stop scraper
+# lancer / arreter un scrape en ligne de commande
+docker compose run --rm app list --site avito --category "maroc/voitures-à_vendre" --db
+docker compose run -d --rm --name avito-scraper-avito app list --site avito --db
+docker stop avito-scraper-avito
 ```
 
 ## 4. L'outil de consultation

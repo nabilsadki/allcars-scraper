@@ -217,13 +217,15 @@ class Database:
         quand deux scrapps travaillent en meme temps : on rejoue l'ecriture
         au lieu de perdre l'annonce (et le run).
         """
-        for attempt in range(5):
+        for attempt in range(8):
             try:
                 return self._upsert_ad(ad, site)
             except pymysql.err.OperationalError as e:
                 code = e.args[0] if e.args else 0
-                if code in (1213, 1205) and attempt < 4:
-                    time.sleep(0.2 * (attempt + 1))
+                if code in (1213, 1205) and attempt < 7:
+                    # deux scrapps en parallele se disputent les memes lignes :
+                    # on rejoue avec un petit delai
+                    time.sleep(0.3 * (attempt + 1))
                     try:
                         self.conn.rollback()
                     except Exception:

@@ -221,8 +221,8 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
                     except Exception:
                         pass
                 # commit par lots : un run interrompu ne perd pas tout
-                if n_listed % 50 == 0:
-                    db.commit()
+                if n_listed % 20 == 0:
+                    db.commit()   # transactions courtes : moins de contention
             if n_listed % 10 == 0:
                 progress.update(listed=n_listed, details=n_details,
                                 db_errors=n_db_errors)
@@ -332,8 +332,8 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
         except Exception as e:
             n_db_errors += 1
             client.log(f"  ! images en echec ({type(e).__name__}: {e})")
-        if len(seen) % 50 == 0:
-            db.commit()          # commit par lots
+        if len(seen) % 20 == 0:
+            db.commit()          # commit par lots (transactions courtes)
         if len(seen) % 10 == 0:
             progress.update(listed=len(seen), details=n_details,
                             unchanged=n_unchanged)

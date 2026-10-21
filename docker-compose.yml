@@ -7,11 +7,12 @@
 #  accessible.
 #
 #  IMPORTANT : aucun SCRAP n'est lance automatiquement.
-#  - `app`, `tools` et `scraper` restent en restart: "no"
+#  - `app` et `tools` restent en restart: "no"
 #  - pas de service cron / scheduler
 #  Le scrap se lance depuis l'interface (page /tracking) ou en ligne de commande :
 #      docker compose run --rm app list --category "..." --db
-#      docker compose up -d scraper      # service pilote par l'interface
+#  L'interface lance un conteneur ephemere par site (docker compose run -d --rm)
+#  : les sites peuvent scraper en parallele, rien ne traine apres le run.
 #  Les volumes (donnees MySQL + dumps) persistent sur /mnt/4TB.
 # ---------------------------------------------------------------------------
 
@@ -95,34 +96,6 @@ services:
       - ./services/app/config:/app/config:ro
     entrypoint: ["python3", "-m", "scraper.query"]
 
-  # --------------------------------------------------------- scraper piloté
-  # Service lance/arrete depuis l'interface web (page /tracking).
-  # Il n'est jamais relance automatiquement : restart "no".
-  #   docker compose create scraper   -> cree le conteneur (sans le lancer)
-  #   demarrage / arret : boutons de la page /tracking
-  scraper:
-    build:
-      context: ./services/app
-    image: avito-scraper-app:latest
-    container_name: ${SCRAPER_CONTAINER:-avito-scraper}
-    restart: "no"
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DB_HOST: ${DB_HOST:-db}
-      DB_PORT: ${DB_PORT:-3306}
-      DB_NAME: ${DB_NAME:-avito}
-      DB_USER: ${DB_USER:-avito}
-      DB_PASSWORD: ${DB_PASSWORD:-avito}
-      SCORING_CONFIG: /app/config/scoring.json
-      PROGRESS_DIR: /data/progress
-      SCRAPE_JOB_FILE: /data/scrape_job.json
-    volumes:
-      - scraped_data:/data
-      - ./services/app/config:/app/config:ro
-    entrypoint: ["python3", "-m", "scraper.run_job"]
-
   # ---------------------------------------------------------------- web
   web:
     build:
@@ -143,12 +116,16 @@ services:
       IMAGES_DIR: /data/images
       PROGRESS_DIR: /data/progress
       SCRAPE_JOB_FILE: /data/scrape_job.json
-      DOCKER_SOCKET: /var/run/docker.sock
-      SCRAPER_CONTAINER: ${SCRAPER_CONTAINER:-avito-scraper}
+      # pilotage des scrapes (un conteneur ephemere par site)
+      COMPOSE_PROJECT_DIR: /mnt/4TB/scraper-avito
+      SCRAPER_SERVICE: app
+      SCRAPER_PREFIX: avito-scraper
     volumes:
       - scraped_data:/data
-      # socket Docker : permet a l'interface de piloter le conteneur scraper
+      # socket Docker + projet compose : l'interface lance les scrapes avec
+      # "docker compose run" (la config reste dans docker-compose.yml)
       - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/4TB/scraper-avito:/mnt/4TB/scraper-avito:ro
     group_add:
       # groupe "docker" de l'hote (pour l'acces au socket)
       - "${DOCKER_GID:-999}"

@@ -28,11 +28,10 @@ import pymysql
 from flask import (Flask, abort, jsonify, redirect, render_template,
                    request, send_from_directory)
 
-import dockerctl
 import progress as progress_reader
+import scrapectl
 
 app = Flask(__name__)
-docker = dockerctl.Docker()
 
 DB = {
     "host": os.environ.get("DB_HOST", "db"),
@@ -459,6 +458,13 @@ def _imgthumb(site: str, ad_id: int):
     return redirect(im.get("link_full") or im["link"], code=302)
 
 
+@app.route("/api/job")
+def api_job():
+    """Parametres du job d'un site (pour recharger le formulaire de pilotage)."""
+    site = (request.args.get("site") or "").strip() or "avito"
+    return jsonify(progress_reader.read_job(site))
+
+
 @app.route("/api/sites")
 def api_sites():
     """Sites scrapables : categories et modes (pour le formulaire de pilotage)."""
@@ -502,12 +508,33 @@ def _duration(seconds) -> str:
 app.jinja_env.filters["duree"] = _duration
 
 
-def _container_state() -> str:
-    """Etat du conteneur scraper ('running', 'exited', 'absent'...)."""
+def _container_state(site: str = "") -> str:
+    """Etat du conteneur de scrape d'un site.
+
+    'running' | 'exited' | 'created' | 'absent' (run termine, conteneur
+    supprime) | 'unknown'
+    """
+    if not site:
+        site = "avito"
     try:
-        return docker.state()
+        return scrapectl.state(site)
     except Exception:
         return "unknown"
+
+
+def _container_states() -> dict:
+    """Etat des conteneurs de scrape, par site (etat + libelle)."""
+    out = {}
+    try:
+        raw = scrapectl.states([s["name"] for s in known_sites()])
+    except Exception:
+        raw = {}
+    for site, st in raw.items():
+        site_state = next((s for s in progress_reader.read_all()
+                           if s.get("site") == site), None)
+        label, css = progress_reader.container_status(st, site_state)
+        out[site] = {"state": st, "label": label, "css": css}
+    return out
 
 
 def _runs_history(limit: int = 50, site: str = "", status: str = "",
@@ -555,13 +582,14 @@ def _hide_category_column(runs: list[dict]) -> bool:
     return all(len(cats) <= 2 for cats in per_site.values())
 
 
-def _sync_stale_runs(container_state: str) -> None:
-    """Marque 'stopped' les runs 'running' dont le conteneur n'est plus actif.
+def _sync_stale_runs(container_states: dict) -> None:
+    """Marque 'stopped' les runs 'running' dont plus aucun scrap ne tourne.
 
-    Un conteneur arrete (ou absent) signifie qu'aucun run n'est en cours :
-    les lignes restees a 'running' ont ete interrompues.
+    Si aucun conteneur de scrape n'est actif, les lignes restees a
+    'running' ont ete interrompues (machine redemarree, conteneur tue).
     """
-    if container_state == "running":
+    if any(c.get("state") in ("running", "restarting")
+           for c in container_states.values()):
         return
     try:
         execute("UPDATE scrape_runs SET status = 'stopped', "
@@ -574,21 +602,25 @@ def _sync_stale_runs(container_state: str) -> None:
 @app.route("/tracking")
 def tracking():
     """Page de suivi : live, historique, pilotage, alertes."""
-    container_state = _container_state()
-    _sync_stale_runs(container_state)
+    all_sites = known_sites()
+    containers = _container_states()
+    site = (request.args.get("job_site") or "").strip() or \
+        (all_sites[0]["name"] if all_sites else "avito")
+    job = progress_reader.read_job(site)
+    container_state = containers.get(site, {}).get("state", "unknown")
+    _sync_stale_runs(containers)
     states = progress_reader.read_all()
     state = progress_reader.pick_primary(states, container_state)
     alerts = progress_reader.alerts(state, container_state, states)
-    job = progress_reader.read_job()
     f_site = (request.args.get("site") or "").strip()
     f_status = (request.args.get("status") or "").strip()
     f_mode = (request.args.get("mode") or "").strip()
     runs = _runs_history(50, f_site, f_status, f_mode)
     counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
                    "MAX(scraped_at) dernier FROM ads GROUP BY site")
-    c_label, c_css = progress_reader.container_status(container_state, state)
-    all_sites = known_sites()
-    site_meta = next((s for s in all_sites if s.get("name") == job.get("site")), None)
+    c_label = containers.get(site, {}).get("label", "inconnu")
+    c_css = containers.get(site, {}).get("css", "s-unknown")
+    site_meta = next((s for s in all_sites if s.get("name") == site), None)
     job_categories = (site_meta or {}).get("categories", [])
     job_modes = (site_meta or {}).get("modes", ["list", "rescan", "details"])
     return render_template(
@@ -598,20 +630,26 @@ def tracking():
         hide_category=_hide_category_column(runs),
         sites=all_sites, job_categories=job_categories, job_modes=job_modes,
         f_site=f_site, f_status=f_status, f_mode=f_mode,
-        container_name=dockerctl.CONTAINER_NAME)
+        containers=containers, site=site,
+        container_name=scrapectl.container_name(site))
 
 
 @app.route("/api/progress")
 def api_progress():
     """Etat live du scrap (JSON), appele en boucle par la page."""
-    container_state = _container_state()
-    _sync_stale_runs(container_state)
+    containers = _container_states()
+    _sync_stale_runs(containers)
+    site = (request.args.get("site") or "").strip() or "avito"
+    container_state = containers.get(site, {}).get("state", "unknown")
     states = progress_reader.read_all()
     state = progress_reader.pick_primary(states, container_state)
-    c_label, c_css = progress_reader.container_status(container_state, state)
+    c_label = containers.get(site, {}).get("label", "inconnu")
+    c_css = containers.get(site, {}).get("css", "s-unknown")
     return jsonify({
         "state": state,
         "states": states,
+        "containers": containers,
+        "site": site,
         "container": container_state,
         "container_label": c_label,
         "container_css": c_css,
@@ -621,9 +659,13 @@ def api_progress():
 
 
 def _job_from_request() -> dict:
-    """Parametres du job depuis le formulaire (ou le JSON)."""
-    job = progress_reader.read_job()
+    """Parametres du job depuis le formulaire (ou le JSON).
+
+    Chaque site a ses propres parametres : on repart du job du site demande.
+    """
     payload = request.get_json(silent=True) or request.form or {}
+    site = str(payload.get("site") or "").strip() or "avito"
+    job = progress_reader.read_job(site)
     for key in ("site", "category", "mode"):
         val = payload.get(key)
         if val:
@@ -647,72 +689,61 @@ def _job_from_request() -> dict:
 
 @app.route("/api/scrape/start", methods=["POST"])
 def api_scrape_start():
-    """Demarre (ou relance) le conteneur scraper avec les parametres demandes."""
+    """Demarre un scrape pour le site demande (conteneur ephemere).
+
+    Les sites sont independants : avito et tomobila peuvent tourner en
+    meme temps, chacun dans son conteneur.
+    """
     job = _job_from_request()
+    site = job.get("site") or "avito"
     progress_reader.write_job(job)
     try:
-        state = docker.state()
-        if state == "running":
-            docker.restart()
-            msg = "Scrap relance"
-        elif state == "absent":
-            return jsonify({"ok": False,
-                            "error": f"Conteneur {dockerctl.CONTAINER_NAME} absent. "
-                                     "Creez-le avec : docker compose create scraper"}), 409
-        else:
-            docker.start()
-            msg = "Scrap demarre"
-    except dockerctl.DockerError as e:
+        msg = scrapectl.start(site, job)
+    except scrapectl.DockerCliError as e:
         return jsonify({"ok": False, "error": str(e)}), 503
     return jsonify({"ok": True, "message": msg, "job": job,
-                    "container": dockerctl.CONTAINER_NAME})
+                    "container": scrapectl.container_name(site)})
 
 
 @app.route("/api/scrape/stop", methods=["POST"])
 def api_scrape_stop():
-    """Arrete le scrap en cours."""
+    """Arrete le scrape d'un site (les autres sites continuent)."""
+    job = _job_from_request()
+    site = job.get("site") or "avito"
     try:
-        state = docker.state()
-        if state == "absent":
-            return jsonify({"ok": False, "error": "Aucun conteneur scraper"}), 409
-        docker.stop(timeout=10)
-    except dockerctl.DockerError as e:
-        return jsonify({"ok": False, "error": str(e)}), 503
-    return jsonify({"ok": True, "message": "Scrap arrete"})
+        msg = scrapectl.stop(site)
+    except scrapectl.DockerCliError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "message": msg})
 
 
 @app.route("/api/scrape/restart", methods=["POST"])
 def api_scrape_restart():
-    """Relance le scrap en cours (meme parametres)."""
+    """Relance le scrape d'un site (meme parametres)."""
     job = _job_from_request()
+    site = job.get("site") or "avito"
     progress_reader.write_job(job)
     try:
-        state = docker.state()
-        if state == "absent":
-            return jsonify({"ok": False,
-                            "error": f"Conteneur {dockerctl.CONTAINER_NAME} absent"}), 409
-        if state == "running":
-            docker.restart()
-        else:
-            docker.start()
-    except dockerctl.DockerError as e:
-        return jsonify({"ok": False, "error": str(e)}), 503
-    return jsonify({"ok": True, "message": "Scrap relance", "job": job})
+        msg = scrapectl.restart(site, job)
+    except scrapectl.DockerCliError as e:
+        return jsonify({"ok": False, "error": str(e)}), 409
+    return jsonify({"ok": True, "message": msg, "job": job})
 
 
 @app.route("/api/scrape/logs")
 def api_scrape_logs():
-    """Dernieres lignes de log du conteneur scraper."""
+    """Dernieres lignes de log du scrape d'un site."""
     try:
         tail = max(10, min(500, int(request.args.get("tail", 120))))
     except (TypeError, ValueError):
         tail = 120
+    site = (request.args.get("site") or "").strip() or "avito"
     try:
-        text = docker.logs(tail=tail)
-    except dockerctl.DockerError as e:
-        text = f"(!) {e}"
-    lines = [ln for ln in (text or "").splitlines() if ln.strip()]
-    return jsonify({"lines": lines[-tail:], "container": dockerctl.CONTAINER_NAME})
+        lines = scrapectl.logs(site, tail=tail)
+    except scrapectl.DockerCliError as e:
+        lines = [f"(!) {e}"]
+    return jsonify({"lines": lines[-tail:], "site": site,
+                    "container": scrapectl.container_name(site)})
 
 
 @app.route("/health")

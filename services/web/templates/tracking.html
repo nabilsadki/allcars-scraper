@@ -6,7 +6,7 @@
   <h1>Suivi du scrap</h1>
   <div class="head-right">
     <span id="status-badge" class="status {{ container_css }}">{% if container_state == 'running' %}<span class="spin"></span>{% endif %}{{ container_label }}</span>
-    <span class="muted small">conteneur : {{ container_name }}</span>
+    <span class="muted small">conteneur : <span id="container-name">{{ container_name }}</span></span>
   </div>
 </div>
 
@@ -74,6 +74,7 @@
     {% endif %}
     <span class="dot {{ 'on' if st.running else 'off' }}" data-f="dot"></span>
     <span class="muted small" data-f="badge">{{ st.mode }}</span>
+    <span class="status s-unknown" data-f="cstate" data-site="{{ st.site }}">…</span>
   </div>
 
   <div class="progress-wrap">
@@ -209,6 +210,7 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
+let LAST = { containers: {} };
 const fmt = (sec) => {
   if (sec === null || sec === undefined) return '—';
   sec = Math.max(0, Math.round(sec));
@@ -302,7 +304,26 @@ function applySite(siteName) {
   }
 }
 
-$('#f-site').addEventListener('change', () => applySite($('#f-site').value));
+// recharge les parametres memorises du site choisi
+async function loadJob(siteName) {
+  try {
+    const res = await fetch('/api/job?site=' + encodeURIComponent(siteName));
+    const job = await res.json();
+    if (job.category !== undefined) $('#f-category').value = job.category;
+    if (job.delay !== undefined) $('#f-delay').value = job.delay;
+    if (job.jitter !== undefined) $('#f-jitter').value = job.jitter;
+    if (job.limit !== undefined) $('#f-limit').value = job.limit;
+    if ($('#f-details')) $('#f-details').checked = !!job.details;
+    if ($('#f-slices')) $('#f-slices').checked = job.slices !== false;
+  } catch (e) { /* on garde les valeurs affichees */ }
+}
+
+$('#f-site').addEventListener('change', async () => {
+  applySite($('#f-site').value);
+  await loadJob($('#f-site').value);
+  refresh();
+  refreshLogs();
+});
 
 // ---------------------------------------------------------- etat des boutons
 function updateButtons(containerState) {
@@ -335,13 +356,24 @@ async function refresh() {
     const res = await fetch('/api/progress');
     const data = await res.json();
     renderAlerts(data.alerts);
+    LAST = data;
+    // etat du conteneur du site selectionne dans le formulaire de pilotage
+    const sel = $('#f-site') ? $('#f-site').value : (data.site || 'avito');
+    const c = (data.containers || {})[sel] || {state: 'unknown', label: 'inconnu', css: 's-unknown'};
     const badge = $('#status-badge');
-    const running = data.container === 'running';
-    badge.innerHTML = (running ? '<span class="spin"></span>' : '') +
-                      (data.container_label || data.container);
-    badge.className = 'status ' + (data.container_css || ('s-' + data.container));
-    badge.dataset.container = data.container;
-    updateButtons(data.container);
+    badge.innerHTML = (c.state === 'running' ? '<span class="spin"></span>' : '') + c.label;
+    badge.className = 'status ' + c.css;
+    badge.dataset.container = c.state;
+    const cname = $('#container-name');
+    if (cname) cname.textContent = 'avito-scraper-' + sel;
+    updateButtons(c.state);
+    // badge de conteneur dans chaque bloc de site
+    document.querySelectorAll('[data-f="cstate"]').forEach((el) => {
+      const s = (data.containers || {})[el.dataset.site];
+      if (!s) return;
+      el.textContent = s.label;
+      el.className = 'status ' + s.css;
+    });
     // un bloc de progression par site
     for (const s of (data.states || [])) {
       const block = document.querySelector('[data-site="' + s.site + '"]');
@@ -413,7 +445,8 @@ async function refresh() {
 
 async function refreshLogs() {
   try {
-    const res = await fetch('/api/scrape/logs?tail=80');
+    const site = $('#f-site') ? $('#f-site').value : 'avito';
+    const res = await fetch('/api/scrape/logs?tail=80&site=' + encodeURIComponent(site));
     const data = await res.json();
     $('#logs').textContent = (data.lines || []).join('\n') || '(aucun log)';
   } catch (e) { /* ignore */ }

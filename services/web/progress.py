@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 PROGRESS_DIR = os.environ.get("PROGRESS_DIR", "/data/progress")
-JOB_PATH = os.environ.get("SCRAPE_JOB_FILE", "/data/scrape_job.json")
+JOB_DIR = os.environ.get("SCRAPE_JOB_DIR", "/data/jobs")
 
 
 def _parse_dt(value: str) -> Optional[datetime]:
@@ -112,10 +112,16 @@ def enrich(state: dict) -> dict:
     return st
 
 
-def read_job() -> dict:
-    """Parametres du job currently configure."""
+def job_path(site: str) -> str:
+    """Un fichier de job par site (les sites sont independants)."""
+    return os.path.join(JOB_DIR, f"{site or 'avito'}.json")
+
+
+def read_job(site: str = "") -> dict:
+    """Parametres du job configure pour un site."""
+    site = site or "avito"
     job = {
-        "site": "avito",
+        "site": site,
         "category": "maroc/voitures-à_vendre",
         "mode": "list",
         "details": False,
@@ -125,22 +131,24 @@ def read_job() -> dict:
         "slices": True,
     }
     try:
-        with open(JOB_PATH, encoding="utf-8") as fh:
+        with open(job_path(site), encoding="utf-8") as fh:
             data = json.load(fh)
         if isinstance(data, dict):
             job.update(data)
+            job["site"] = site
     except Exception:
         pass
     return job
 
 
 def write_job(job: dict) -> None:
-    """Ecrit les parametres du job (lus au demarrage du scraper)."""
-    os.makedirs(os.path.dirname(JOB_PATH), exist_ok=True)
-    tmp = JOB_PATH + ".tmp"
+    """Ecrit les parametres du job d'un site."""
+    path = job_path(job.get("site", "avito"))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(job, fh, ensure_ascii=False, indent=2)
-    os.replace(tmp, JOB_PATH)
+    os.replace(tmp, path)
 
 
 #: libelles du conteneur selon son etat et celui du dernier run
@@ -160,7 +168,8 @@ def container_status(container_state: str, state: Optional[dict]) -> tuple[str, 
     run s'est termine normalement, on affiche "termine".
     """
     label, css = CONTAINER_LABELS.get(container_state, (container_state or "?", "s-unknown"))
-    if container_state == "exited":
+    if container_state in ("exited", "absent"):
+        # le conteneur est ephemere : "absent" veut dire "run termine"
         status = (state or {}).get("status")
         if status == "success":
             return "termine", "s-done"
@@ -168,6 +177,8 @@ def container_status(container_state: str, state: Optional[dict]) -> tuple[str, 
             return "erreur", "s-error"
         if status == "stopped":
             return "arrete", "s-stopped"
+        if container_state == "absent":
+            return "termine", "s-done"
         return "arrete", "s-stopped"
     if container_state == "running":
         if state and state.get("status") == "error":
