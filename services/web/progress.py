@@ -143,6 +143,54 @@ def write_job(job: dict) -> None:
     os.replace(tmp, JOB_PATH)
 
 
+#: libelles du conteneur selon son etat et celui du dernier run
+CONTAINER_LABELS = {
+    "running": ("en cours", "s-running"),
+    "exited": ("arrete", "s-stopped"),
+    "created": ("pret a demarrer", "s-created"),
+    "absent": ("absent", "s-absent"),
+    "unknown": ("inconnu", "s-unknown"),
+}
+
+
+def container_status(container_state: str, state: Optional[dict]) -> tuple[str, str]:
+    """(libelle, classe CSS) du conteneur, en tenant compte du dernier run.
+
+    Un conteneur "exited" n'est pas forcement un probleme : si le dernier
+    run s'est termine normalement, on affiche "termine".
+    """
+    label, css = CONTAINER_LABELS.get(container_state, (container_state or "?", "s-unknown"))
+    if container_state == "exited":
+        status = (state or {}).get("status")
+        if status == "success":
+            return "termine", "s-done"
+        if status == "error":
+            return "erreur", "s-error"
+        if status == "stopped":
+            return "arrete", "s-stopped"
+        return "arrete", "s-stopped"
+    if container_state == "running":
+        if state and state.get("status") == "error":
+            return "erreur", "s-error"
+        return "en cours", "s-running"
+    return label, css
+
+
+#: au-dela de ce delai, les alertes d'un run termine ne sont plus affichees
+ALERT_TTL = 15 * 60
+
+
+def _state_age(state: Optional[dict]) -> float:
+    """Age en secondes du dernier evenement d'un run."""
+    if not state:
+        return 1e9
+    stamp = state.get("finished_at") or state.get("updated_at")
+    dt = _parse_dt(stamp) if stamp else None
+    if dt is None:
+        return 1e9
+    return (datetime.now() - dt).total_seconds()
+
+
 def alerts(state: Optional[dict], container_state: str = "",
            states: Optional[list] = None) -> list[dict]:
     """Alertes a afficher : erreur, blocage serveur, etat du conteneur.
@@ -176,14 +224,14 @@ def alerts(state: Optional[dict], container_state: str = "",
     if status == "error":
         out.append({"level": "error", "title": "Le scrap s'est terminé en erreur",
                     "detail": state.get("error") or "Erreur inconnue"})
-    if blocked:
+    if blocked and _state_age(state) < ALERT_TTL:
         out.append({
             "level": "error",
             "title": f"Blocage serveur detecte ({blocked})",
             "detail": "Le serveur a renvoye un challenge Cloudflare / un code "
                       "403-429-503 pendant le run. Ralentir (delay/jitter) "
                       "puis relancer."})
-    if errors:
+    if errors and _state_age(state) < ALERT_TTL:
         out.append({"level": "warn",
                     "title": f"{errors} erreur(s) reseau pendant le run",
                     "detail": "Des requetes ont echoue (elles sont rejouees "

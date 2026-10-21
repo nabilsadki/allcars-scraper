@@ -173,7 +173,9 @@ table.vers th { color: var(--muted); font-weight: 500; }
   background: var(--panel2); border: 1px solid var(--line); color: var(--muted);
 }
 .status.s-running { color: var(--ok); border-color: rgba(46,204,113,.5); background: rgba(46,204,113,.12); }
-.status.s-exited, .status.s-stopped { color: var(--warn); border-color: rgba(255,170,51,.5); background: rgba(255,170,51,.12); }
+.status.s-done { color: var(--accent); border-color: rgba(76,141,255,.5); background: rgba(76,141,255,.12); }
+.status.s-error { color: var(--bad); border-color: rgba(255,85,85,.5); background: rgba(255,85,85,.12); }
+.status.s-exited, .status.s-stopped, .status.s-created { color: var(--warn); border-color: rgba(255,170,51,.5); background: rgba(255,170,51,.12); }
 .status.s-absent, .status.s-unknown { color: var(--bad); border-color: rgba(255,85,85,.5); background: rgba(255,85,85,.12); }
 
 .alert {

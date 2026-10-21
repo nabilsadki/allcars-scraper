@@ -119,6 +119,21 @@ def query(sql, params=()):
         conn.close()
 
 
+def execute(sql, params=()) -> int:
+    """Ecriture en base : la transaction est validee explicitement.
+
+    (fermer la connexion sans commit annule l'ecriture)
+    """
+    conn = db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            conn.commit()
+            return cur.rowcount
+    finally:
+        conn.close()
+
+
 SITE_LABELS = {"avito": "Avito.ma", "tomobila": "Tomobila.ma"}
 
 
@@ -463,13 +478,17 @@ def _runs_history(limit: int = 50) -> list[dict]:
 
 
 def _sync_stale_runs(container_state: str) -> None:
-    """Marque 'stopped' les runs 'running' dont le conteneur n'est plus actif."""
+    """Marque 'stopped' les runs 'running' dont le conteneur n'est plus actif.
+
+    Un conteneur arrete (ou absent) signifie qu'aucun run n'est en cours :
+    les lignes restees a 'running' ont ete interrompues.
+    """
     if container_state == "running":
         return
     try:
-        query("UPDATE scrape_runs SET status = 'stopped', "
-              "error = COALESCE(error, 'interrompu') "
-              "WHERE status = 'running'")
+        execute("UPDATE scrape_runs SET status = 'stopped', "
+                "error = COALESCE(error, 'interrompu') "
+                "WHERE status = 'running'")
     except Exception:
         pass
 
@@ -486,9 +505,11 @@ def tracking():
     runs = _runs_history(50)
     counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
                    "MAX(scraped_at) dernier FROM ads GROUP BY site")
+    c_label, c_css = progress_reader.container_status(container_state, state)
     return render_template(
         "tracking.html", state=state, states=states, alerts=alerts, runs=runs,
         job=job, container_state=container_state, counts=counts,
+        container_label=c_label, container_css=c_css,
         container_name=dockerctl.CONTAINER_NAME)
 
 
@@ -499,10 +520,13 @@ def api_progress():
     _sync_stale_runs(container_state)
     states = progress_reader.read_all()
     state = progress_reader.pick_primary(states, container_state)
+    c_label, c_css = progress_reader.container_status(container_state, state)
     return jsonify({
         "state": state,
         "states": states,
         "container": container_state,
+        "container_label": c_label,
+        "container_css": c_css,
         "alerts": progress_reader.alerts(state, container_state, states),
         "server_time": datetime.now().isoformat(timespec="seconds"),
     })

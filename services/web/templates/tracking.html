@@ -5,7 +5,7 @@
 <div class="page-head">
   <h1>Suivi du scrap</h1>
   <div class="head-right">
-    <span id="status-badge" class="status s-{{ container_state }}">{{ container_state }}</span>
+    <span id="status-badge" class="status {{ container_css }}">{{ container_label }}</span>
     <span class="muted small">conteneur : {{ container_name }}</span>
   </div>
 </div>
@@ -59,7 +59,15 @@
 <div class="panel" data-site="{{ st.site }}">
   <div class="panel-title">
     <span class="sitebadge s-{{ st.site }}">{{ st.site|site_label }}</span>
-    Progression {{ 'en cours' if st.running else ('terminée' if st.status == 'success' else st.status) }}
+    {% if st.running %}
+      Progression en cours
+    {% elif st.status == 'success' %}
+      Progression terminée le {{ st.finished_at|datefr(true) }}
+    {% elif st.status == 'stopped' %}
+      Progression arrêtée le {{ st.finished_at|datefr(true) }}
+    {% else %}
+      Progression {{ st.status }} le {{ st.finished_at|datefr(true) }}
+    {% endif %}
     <span class="dot {{ 'on' if st.running else 'off' }}" data-f="dot"></span>
     <span class="muted small" data-f="badge">{{ st.mode }}</span>
   </div>
@@ -203,8 +211,8 @@ async function refresh() {
     const data = await res.json();
     renderAlerts(data.alerts);
     const badge = $('#status-badge');
-    badge.textContent = data.container;
-    badge.className = 'status s-' + data.container;
+    badge.textContent = data.container_label || data.container;
+    badge.className = 'status ' + (data.container_css || ('s-' + data.container));
     // un bloc de progression par site
     for (const s of (data.states || [])) {
       const block = document.querySelector('[data-site="' + s.site + '"]');
