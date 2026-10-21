@@ -104,6 +104,14 @@ class SiteAdapter(ABC):
         """Nombre total d'annonces du catalogue (si la page l'expose)."""
         return None
 
+    def reset_pagination(self) -> None:
+        """Reinitialise le compteur de pages (appele au debut de chaque tranche).
+
+        Certains sites ont une taille de page variable : on ne peut pas
+        deduire le numero de page du nombre d'annonces vues, l'adaptateur
+        compte donc lui-meme ses pages.
+        """
+
     def slices(self, category: str, client=None) -> list[tuple[str, str]]:
         """Decoupe la categorie en tranches : [(libelle, chemin_url), ...].
 

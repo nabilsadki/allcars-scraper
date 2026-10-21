@@ -39,9 +39,13 @@ class KifalAdapter(SiteAdapter):
     page_size_fixed = True
 
     # ------------------------------------------------------------- listing
+    def reset_pagination(self) -> None:
+        self._page = 0
+
     def listing_url(self, category: str, offset: int) -> str:
-        page = offset // 35 + 1 if offset else 1
-        return f"{LISTING}?page={page}"
+        # la taille de page varie (10 a 35 annonces) : on compte les pages
+        self._page = getattr(self, "_page", 0) + 1
+        return f"{LISTING}?page={self._page}"
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []

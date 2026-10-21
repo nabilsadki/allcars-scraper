@@ -41,9 +41,13 @@ class LeguideautoAdapter(SiteAdapter):
     page_size_fixed = True
 
     # ------------------------------------------------------------- listing
+    def reset_pagination(self) -> None:
+        self._page = 0
+
     def listing_url(self, category: str, offset: int) -> str:
-        page = offset // 10 + 1 if offset else 1
-        return f"{LISTING}?page={page}"
+        # pagination par chemin : /voitures-occasion/2 , /voitures-occasion/3 ...
+        self._page = getattr(self, "_page", 0) + 1
+        return LISTING if self._page <= 1 else f"{LISTING}/{self._page}"
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []

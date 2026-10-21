@@ -110,6 +110,10 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
     seen = 0
     total = None
     seen_ids: set = set()
+    try:
+        site.reset_pagination()
+    except Exception:
+        pass
     while True:
         url = site.listing_url(category, offset)
         ads = []

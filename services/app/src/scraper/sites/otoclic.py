@@ -44,9 +44,12 @@ class OtoclicAdapter(SiteAdapter):
     page_size_fixed = True
 
     # ------------------------------------------------------------- listing
+    def reset_pagination(self) -> None:
+        self._page = 0
+
     def listing_url(self, category: str, offset: int) -> str:
-        page = offset // 12 + 1 if offset else 1
-        return f"{LISTING}page/{page}/" if page > 1 else LISTING
+        self._page = getattr(self, "_page", 0) + 1
+        return f"{LISTING}page/{self._page}/" if self._page > 1 else LISTING
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []
