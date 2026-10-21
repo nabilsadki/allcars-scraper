@@ -1,0 +1,24 @@
+# secrets / config locale
+.env
+.env.local
+*.local
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# donnees scrapees / exports
+data/
+logs/
+*.log
+*.jsonl
+*.csv
+
+# systeme
+.DS_Store
+Thumbs.db
+*.swp

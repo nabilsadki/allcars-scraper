@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ ad.title[:60] }} — Avito{% endblock %}
+{% block content %}
+
+<a class="back" href="/">← retour au catalogue</a>
+
+<div class="detail">
+  <section class="photos">
+    {% for im in images %}
+      <a href="{{ im.local_url or im.link_full or im.link }}" target="_blank">
+        {% if im.local_url %}
+          <img loading="lazy" src="{{ im.local_url }}">
+        {% else %}
+          <img loading="lazy" src="{{ im.link_full or im.link }}">
+        {% endif %}
+      </a>
+    {% else %}
+      <p class="noimg">Aucune photo</p>
+    {% endfor %}
+  </section>
+
+  <section class="infos">
+    {% set v2 = ad.notes_v2 or {} %}
+    <h1>{{ ad.title }}</h1>
+    <div class="price big">
+      {% if ad.price %}{{ '{:,}'.format(ad.price).replace(',', ' ') }} DH{% else %}<em>sur demande</em>{% endif %}
+    </div>
+    <div class="sub">{{ ad.brand or '' }} {{ ad.model or '' }}
+      {% if ad.year %} · {{ ad.year }}{% endif %}
+      {% if ad.km %} · {{ '{:,}'.format(ad.km).replace(',', ' ') }} km{% endif %}
+      {% if ad.fuel %} · {{ ad.fuel }}{% endif %}
+      {% if ad.gear %} · {{ ad.gear }}{% endif %}
+    </div>
+
+    <table class="kv">
+      <tr><th>Ville</th><td>{{ ad.city or '-' }}{% if ad.area %} ({{ ad.area }}){% endif %}</td>
+          <th>Portes</th><td>{{ ad.doors or '-' }}</td></tr>
+      <tr><th>Origine</th><td>{{ ad.origin or '-' }}</td>
+          <th>1ère main</th><td>{{ ad.first_hand or '-' }}</td></tr>
+      <tr><th>État</th><td>{{ ad.cond or '-' }}</td>
+          <th>Puissance fiscale</th><td>{{ ad.fiscal_power or '-' }}</td></tr>
+      <tr><th>Vendeur</th><td>{{ ad.seller or '-' }}{% if ad.seller_type %} ({{ ad.seller_type }}){% endif %}</td>
+          <th>Téléphone</th><td>{% if ad.phone %}<a href="tel:{{ ad.phone }}">{{ ad.phone }}</a>{% else %}-{% endif %}</td></tr>
+      <tr><th>Publié le</th><td>{{ ad.publish_date or '-' }}</td>
+          <th>Photos</th><td>{{ ad.nb_images or 0 }}</td></tr>
+      <tr><th>Version</th><td>v{{ ad.version }} ({{ ad.seen_count }} passages)</td>
+          <th>Statut</th><td>{{ 'active' if ad.is_active else 'disparue du catalogue' }}</td></tr>
+    </table>
+
+    {% if ad.description %}
+    <h3>Description</h3>
+    <pre class="desc">{{ ad.description }}</pre>
+    {% endif %}
+
+    {% if ad.options %}
+    <h3>Équipements</h3>
+    <div class="opts">
+      {% for k, v in ad.options.items() %}
+        {% if v %}<span class="opt">{{ k }}</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if v2.get('flags') %}
+    <div class="flags">
+      {% for f in v2['flags'] %}<span class="flag">⚠ {{ f }}</span>{% endfor %}
+    </div>
+    {% endif %}
+
+    <h3>Scoring</h3>
+    <div class="scores-detail">
+      <div class="scorebox v2">
+        <div class="sbtitle">Scoring v2 — aide aux acheteurs</div>
+        <div class="sbmain">
+          <div><span class="big">{{ ad.note_global or '-' }}</span><small>global</small></div>
+          <div><span class="big">{{ ad.note_etat or '-' }}</span><small>état</small></div>
+          <div><span class="big">{{ ad.note_achat or '-' }}</span><small>achat</small></div>
+          <div><span class="big">{{ ad.note_confiance or '-' }}%</span><small>confiance</small></div>
+        </div>
+      </div>
+      <div class="scorebox legacy">
+        <div class="sbtitle">Scoring legacy (inchangé)</div>
+        <div class="sbmain">
+          <div><span class="big">{{ ad.note or '-' }}</span><small>global</small></div>
+          <div><span class="big">{{ ad.note_year or '-' }}</span><small>année</small></div>
+          <div><span class="big">{{ ad.note_km or '-' }}</span><small>km</small></div>
+          <div><span class="big">{{ ad.note_ratio or '-' }}</span><small>ratio</small></div>
+          <div><span class="big">{{ ad.note_cv or '-' }}</span><small>cv</small></div>
+          <div><span class="big">{{ ad.note_fuel or '-' }}</span><small>carburant</small></div>
+          <div><span class="big">{{ ad.note_gear or '-' }}</span><small>boîte</small></div>
+          <div><span class="big">{{ ad.note_specs or '-' }}</span><small>équipements</small></div>
+        </div>
+      </div>
+    </div>
+
+    {% if v2.get('detail_etat') or v2.get('detail_achat') %}
+    <div class="breakdown">
+      <div class="bcol">
+        <h4>Critères d'état</h4>
+        <table>
+          {% for k, v in (v2.get('detail_etat') or {}).items() %}
+          <tr><td>{{ k }}</td><td>{{ v if v is not none else '—' }}</td></tr>
+          {% endfor %}
+        </table>
+      </div>
+      <div class="bcol">
+        <h4>Critères d'achat</h4>
+        <table>
+          {% for k, v in (v2.get('detail_achat') or {}).items() %}
+          <tr><td>{{ k.replace('_', ' ') }}</td><td>{{ v if v is not none else '—' }}</td></tr>
+          {% endfor %}
+        </table>
+        {% if v2.get('achat_info') %}
+        <p class="muted small">
+          années de vie restantes : {{ v2.achat_info.get('annees_restantes', '?') }} ·
+          coût par année restante : {{ '{:,}'.format(v2.achat_info.get('par_annee_restante', 0)).replace(',', ' ') }} DH
+        </p>
+        {% endif %}
+        {% if v2.get('marche') %}
+        <p class="muted small">
+          prix = {{ v2.marche.get('ratio') }}× la moyenne du segment
+          ({{ v2.marche.get('reference') }}, {{ v2.marche.get('n') }} annonces)
+        </p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if versions %}
+    <h3>Historique ({{ versions|length }} version(s))</h3>
+    <table class="vers">
+      <tr><th>Version</th><th>Type</th><th>Date</th><th>Changements</th></tr>
+      {% for v in versions %}
+      <tr>
+        <td>v{{ v.version }}</td>
+        <td><span class="ctype c-{{ v.change_type }}">{{ v.change_type }}</span></td>
+        <td>{{ v.created }}</td>
+        <td>
+          {% if v.diff %}
+            {% for k, val in v.diff.items() %}
+              <div class="d"><b>{{ k }}</b>: {{ val.get('old') }} → {{ val.get('new') }}</div>
+            {% endfor %}
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+
+    <p class="link"><a href="{{ ad.link }}" target="_blank">Voir l'annonce sur avito.ma ↗</a></p>
+  </section>
+</div>
+
+{% endblock %}

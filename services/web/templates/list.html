@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block content %}
+
+<form class="filters" method="get" action="/">
+  <input type="hidden" name="sort" value="{{ request.args.get('sort','date') }}">
+  <div class="row">
+    <label>Ville
+      <select name="city">
+        <option value="">toutes</option>
+        {% for c in opts.city %}<option value="{{ c }}" {% if request.args.get('city')==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Marque
+      <select name="brand">
+        <option value="">toutes</option>
+        {% for b in opts.brand %}<option value="{{ b }}" {% if request.args.get('brand')==b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Carburant
+      <select name="fuel">
+        <option value="">tous</option>
+        {% for f in opts.fuel %}<option value="{{ f }}" {% if request.args.get('fuel')==f %}selected{% endif %}>{{ f }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Boîte
+      <select name="gear">
+        <option value="">toutes</option>
+        {% for g in opts.gear %}<option value="{{ g }}" {% if request.args.get('gear')==g %}selected{% endif %}>{{ g }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <label>Prix min <input type="number" name="min_price" value="{{ request.args.get('min_price','') }}" placeholder="DH"></label>
+    <label>Prix max <input type="number" name="max_price" value="{{ request.args.get('max_price','') }}" placeholder="DH"></label>
+    <label>Année min <input type="number" name="min_year" value="{{ request.args.get('min_year','') }}"></label>
+    <label>Année max <input type="number" name="max_year" value="{{ request.args.get('max_year','') }}"></label>
+    <label>Km max <input type="number" name="max_km" value="{{ request.args.get('max_km','') }}"></label>
+  </div>
+  <div class="row">
+    <label>Note état ≥ <input type="number" step="0.1" name="min_note_etat" value="{{ request.args.get('min_note_etat','') }}"></label>
+    <label>Note achat ≥ <input type="number" step="0.1" name="min_note_achat" value="{{ request.args.get('min_note_achat','') }}"></label>
+    <label>Note globale ≥ <input type="number" step="0.1" name="min_note_global" value="{{ request.args.get('min_note_global','') }}"></label>
+    <label>Confiance ≥ <input type="number" step="1" name="min_confiance" value="{{ request.args.get('min_confiance','') }}"></label>
+    <label class="chk"><input type="checkbox" name="with_phone" value="1" {% if request.args.get('with_phone')=='1' %}checked{% endif %}> avec téléphone</label>
+    <label class="chk"><input type="checkbox" name="active_only" value="1" {% if request.args.get('active_only')=='1' %}checked{% endif %}> actives</label>
+    <button type="submit">Appliquer</button>
+    <a class="reset" href="/">Réinitialiser</a>
+  </div>
+</form>
+
+<p class="count">{{ total }} annonce(s){% if total > per_page %} — page {{ page }}/{{ pages }}{% endif %}</p>
+
+<div class="grid">
+{% for r in rows %}
+  <a class="card" href="/ad/{{ r.ad_id }}">
+    <div class="thumb">
+      {% if r.nb_images %}
+        <img loading="lazy" src="/imgthumb/{{ r.ad_id }}" alt="">
+      {% else %}
+        <div class="noimg">pas de photo</div>
+      {% endif %}
+      {% if r.is_premium %}<span class="badge">Premium</span>{% endif %}
+      {% if not r.is_active %}<span class="badge off">disparue</span>{% endif %}
+    </div>
+    <div class="price">
+      {% if r.price %}{{ '{:,}'.format(r.price).replace(',', ' ') }} DH{% else %}<em>sur demande</em>{% endif %}
+    </div>
+    <div class="title">{{ r.title }}</div>
+    <div class="meta">
+      {{ r.brand or '?' }} {{ r.model or '' }} {% if r.year %}· {{ r.year }}{% endif %}
+      {% if r.km %}· {{ '{:,}'.format(r.km).replace(',', ' ') }} km{% endif %}
+    </div>
+    <div class="meta">{{ r.city or '' }}{% if r.gear %} · {{ r.gear }}{% endif %}{% if r.fuel %} · {{ r.fuel }}{% endif %}</div>
+    <div class="scores">
+      {% if r.note_global is not none %}
+        <span class="note" title="note globale (état 65 % + achat 35 %)">★ {{ r.note_global }}</span>
+        {% if r.note_confiance is not none %}
+          <span class="conf" title="part des critères evaluables (une annonce sans prix n'a pas d'axe 'achat')">{{ r.note_confiance }}%</span>
+        {% endif %}
+      {% else %}
+        <span class="conf">note indisponible</span>
+      {% endif %}
+    </div>
+  </a>
+{% else %}
+  <p class="empty">Aucune annonce ne correspond aux filtres.</p>
+{% endfor %}
+</div>
+
+{% if pages > 1 %}
+<nav class="pager">
+  {% set base = request.args.to_dict() %}
+  {% for p in range(1, pages+1) %}
+    {% if p == page %}
+      <span class="cur">{{ p }}</span>
+    {% elif p <= 3 or p > pages-3 or (p-page)|abs <= 2 %}
+      <a href="?{{ dict(base, page=p) | urlencode }}">{{ p }}</a>
+    {% else %}<span>…</span>{% endif %}
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% endblock %}

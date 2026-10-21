@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Avito — catalogue{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">🚗 Avito <span class="sub">catalogue</span></a>
+  <form class="search" method="get" action="/">
+    <input type="text" name="search" placeholder="titre, description, vendeur…"
+           value="{{ request.args.get('search', '') }}">
+    <select name="sort">
+      {% for v, l in [('date','plus récentes'),('price','prix croissant'),('price_desc','prix décroissant'),
+                      ('year','année'),('km','km'),('note','note globale'),('note_etat','note état'),
+                      ('note_achat','note achat'),('confiance','confiance'),('recent','scrape')] %}
+      <option value="{{ v }}" {% if request.args.get('sort','date')==v %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Filtrer</button>
+  </form>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>Scraper avito.ma — HTTP sans navigateur · données locales</footer>
+</body>
+</html>

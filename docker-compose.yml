@@ -1,0 +1,123 @@
+# ---------------------------------------------------------------------------
+#  Scraper avito.ma — tout tourne en Docker (DB + scraper + outils).
+#
+#  IMPORTANT : aucun service n'est lance automatiquement.
+#  - restart: "no" partout
+#  - pas de service cron / scheduler
+#  Le DB se lance a la demande :  docker compose up -d db
+#  Le scraper se lance a la demande : docker compose run --rm app scrape list ...
+#  Les volumes (donnees MySQL + dumps) persistent sur /mnt/4TB.
+# ---------------------------------------------------------------------------
+
+name: avito-scraper
+
+services:
+  # ---------------------------------------------------------------- base
+  db:
+    build:
+      context: ./services/db
+    image: avito-scraper-db:latest
+    container_name: avito-db
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-avito}
+      MYSQL_USER: ${MYSQL_USER:-avito}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-avito}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      # accessible seulement en local, pour inspecter avec un client
+      - "127.0.0.1:${DB_PORT_HOST:-3307}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${MYSQL_ROOT_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # ------------------------------------------------------------- scraper
+  app:
+    build:
+      context: ./services/app
+    image: avito-scraper-app:latest
+    container_name: avito-app
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-avito}
+      DB_USER: ${DB_USER:-avito}
+      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      SCORING_CONFIG: /app/config/scoring.json
+    volumes:
+      # donnees scrapees (JSONL/CSV) : reste dans Docker
+      - scraped_data:/data
+      # config du scoring v2 : modifiable sans rebuild
+      - ./services/app/config:/app/config:ro
+    # usage :
+    #   docker compose run --rm app list   --category "..." --db
+    #   docker compose run --rm app rescan --category "..." --details
+    entrypoint: ["python3", "-m", "avito.cli"]
+
+  # -------------------------------------------------------------- outils
+  tools:
+    build:
+      context: ./services/app
+    image: avito-scraper-app:latest
+    container_name: avito-tools
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-avito}
+      DB_USER: ${DB_USER:-avito}
+      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      SCORING_CONFIG: /app/config/scoring.json
+    volumes:
+      - scraped_data:/data
+      - ./services/app/config:/app/config:ro
+    entrypoint: ["python3", "-m", "avito.query"]
+
+  # ---------------------------------------------------------------- web
+  web:
+    build:
+      context: ./services/web
+    image: avito-scraper-web:latest
+    container_name: avito-web
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-avito}
+      DB_USER: ${DB_USER:-avito}
+      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      IMAGES_DIR: /data/images
+    volumes:
+      - scraped_data:/data
+    ports:
+      # accessible depuis le reseau local + le tailnet (via tailscale serve)
+      - "127.0.0.1:${WEB_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+    name: avito_db_data
+  scraped_data:
+    name: avito_scraped_data

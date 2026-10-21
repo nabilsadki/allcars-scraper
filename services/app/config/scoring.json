@@ -1,0 +1,97 @@
+{
+  "_comment": "Poids et seuils du scoring v2 (aide aux acheteurs). Le legacy 'note' reste inchange. Fichier modifiable : relance du conteneur suffit (pas de rebuild).",
+
+  "etat": {
+    "_comment": "Qualite reelle du vehicule (0-20). Moyenne ponderee sur les criteres CONNUS uniquement.",
+    "weights": {
+      "etat": 3.0,
+      "first_hand": 2.0,
+      "origine": 1.5,
+      "doors": 1.0,
+      "year": 2.0,
+      "km": 2.0,
+      "ratio": 1.5,
+      "specs": 1.5
+    },
+    "etat_values": {
+      "Neuf": 20, "Excellent": 19, "Tres bon": 17, "Très bon": 17,
+      "Bon": 14, "Satisfaisant": 11, "Moyen": 8, "À réparer": 2, "A reparer": 2
+    },
+    "first_hand_values": { "Oui": 20, "Non": 8, "Non ": 8 },
+    "origine_values": {
+      "Importée neuve": 20, "Importée neuve": 20,
+      "WW au Maroc": 16,
+      "Dédouanée": 12, "Dedouanee": 12,
+      "Importée d'occasion": 10, "Importée occasion": 10
+    },
+    "doors_values": { "5": 20, "4": 16, "3": 12, "2": 8 },
+    "ratio": {
+      "_comment": "Coherence km/annee. Au-dela de max_km_par_an, la note ne tombe pas a 0 mais au plancher : une incoherence doit etre signalee, pas effacer le critere.",
+      "max": 30000,
+      "floor": 2
+    }
+  },
+
+  "achat": {
+    "_comment": "Rapport qualite/prix (0-20). C'est l'axe le plus utile pour un acheteur.",
+    "weights": {
+      "prix_vs_marche": 3.0,
+      "prix_par_annee_restante": 2.0,
+      "prix_par_km": 2.0,
+      "valeur_pour_prix": 3.0
+    },
+    "prix_vs_marche": {
+      "_comment": "prix / prix median du meme segment. < 1 = en dessous du marche.",
+      "seuils": [
+        { "ratio": 0.80, "score": 20 },
+        { "ratio": 0.90, "score": 17 },
+        { "ratio": 0.95, "score": 14 },
+        { "ratio": 1.00, "score": 10 },
+        { "ratio": 1.10, "score": 6 },
+        { "ratio": 1.25, "score": 3 }
+      ]
+    },
+    "prix_par_annee_restante": {
+      "_comment": "Cout d'acquisition par annee de vie RESTANTE (life_years - anciennete). Plus bas = meilleur : on paie moins par annee qui reste a rouler. Remplace l'ancien prix/anciennete qui favorisait les voitures deja depreciationnees.",
+      "life_years": 15,
+      "seuils": [
+        { "max": 8000, "score": 20 },
+        { "max": 12000, "score": 18 },
+        { "max": 16000, "score": 16 },
+        { "max": 22000, "score": 13 },
+        { "max": 30000, "score": 10 },
+        { "max": 45000, "score": 7 },
+        { "max": 70000, "score": 4 }
+      ]
+    },
+    "prix_par_km": {
+      "_comment": "DH par km (plus bas = mieux)",
+      "seuils": [
+        { "max": 3, "score": 20 },
+        { "max": 5, "score": 17 },
+        { "max": 7, "score": 14 },
+        { "max": 10, "score": 11 },
+        { "max": 14, "score": 8 },
+        { "max": 20, "score": 5 }
+      ]
+    },
+    "valeur_pour_prix": {
+      "_comment": "note d'etat pour 100 000 DH investis",
+      "seuils": [
+        { "min": 8.0, "score": 20 },
+        { "min": 6.0, "score": 17 },
+        { "min": 4.5, "score": 14 },
+        { "min": 3.0, "score": 11 },
+        { "min": 2.0, "score": 7 },
+        { "min": 1.0, "score": 4 }
+      ]
+    },
+    "min_echantillon": 5
+  },
+
+  "global": {
+    "_comment": "Combinaison des axes pour la note globale v2",
+    "etat_weight": 0.65,
+    "achat_weight": 0.35
+  }
+}

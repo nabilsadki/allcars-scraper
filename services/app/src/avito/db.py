@@ -1,0 +1,464 @@
+"""Acces MySQL : pool de connexions, upsert versionne, lecture."""
+
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime
+from typing import Any, Optional
+
+import pymysql
+from pymysql.cursors import DictCursor
+
+from .history import classify, compare, content_hash, diff
+from .schema import SCHEMA
+
+
+def _cfg() -> dict:
+    return {
+        "host": os.environ.get("DB_HOST", "db"),
+        "port": int(os.environ.get("DB_PORT", "3306")),
+        "user": os.environ.get("DB_USER", "avito"),
+        "password": os.environ.get("DB_PASSWORD", "avito"),
+        "database": os.environ.get("DB_NAME", "avito"),
+        "charset": "utf8mb4",
+        "autocommit": False,
+        "cursorclass": DictCursor,
+    }
+
+
+class Database:
+    """Wrapper MySQL minimaliste (pas d'ORM : le schema est stable)."""
+
+    def __init__(self, **overrides):
+        self.cfg = _cfg()
+        self.cfg.update(overrides)
+        self.conn = pymysql.connect(**self.cfg)
+        self.cur = self.conn.cursor()
+        # compteurs de la session
+        self.counters = {
+            "inserted": 0, "updated": 0, "unchanged": 0,
+            "versions": 0, "disappeared": 0,
+        }
+
+    # ------------------------------------------------------------------ base
+    def ensure_schema(self) -> None:
+        """Applique le schema (CREATE TABLE IF NOT EXISTS) + migrations."""
+        cur = self.conn.cursor()
+        for stmt in _split_sql(SCHEMA):
+            cur.execute(stmt)
+        self.conn.commit()
+        cur.close()
+        self.migrate()
+
+    def migrate(self) -> list[str]:
+        """Ajoute les colonnes manquantes sur une base deja creee."""
+        wanted = {
+            "ads": [
+                ("version", "INT NOT NULL DEFAULT 1"),
+                ("content_hash", "CHAR(64) NULL"),
+                ("seen_count", "INT DEFAULT 0"),
+                ("is_active", "TINYINT(1) DEFAULT 1"),
+                ("first_seen_at", "DATETIME NULL"),
+                ("last_seen_at", "DATETIME NULL"),
+                ("note_etat", "DECIMAL(4,2) NULL"),
+                ("note_achat", "DECIMAL(4,2) NULL"),
+                ("note_global", "DECIMAL(4,2) NULL"),
+                ("note_confiance", "DECIMAL(4,2) NULL"),
+                ("fiscal_power", "VARCHAR(64) NULL"),
+                ("sector", "VARCHAR(128) NULL"),
+                ("list_id", "BIGINT NULL"),
+                ("area", "VARCHAR(128) NULL"),
+                ("seller_type", "VARCHAR(64) NULL"),
+                ("seller_id", "VARCHAR(64) NULL"),
+                ("doors", "INT NULL"),
+                ("origin", "VARCHAR(64) NULL"),
+                ("first_hand", "VARCHAR(16) NULL"),
+                ("cond", "VARCHAR(64) NULL"),
+            ],
+            "ad_images": [
+                ("path_local", "VARCHAR(512) NULL"),
+                ("variant", "VARCHAR(16) NULL"),
+                ("bytes", "INT NULL"),
+                ("sha1", "CHAR(40) NULL"),
+                ("downloaded_at", "DATETIME NULL"),
+                ("link_full", "VARCHAR(1024) NULL"),
+            ],
+        }
+        added = []
+        for table, cols in wanted.items():
+            existing = {r["COLUMN_NAME"] for r in self.query(
+                "SELECT COLUMN_NAME FROM information_schema.columns "
+                "WHERE table_schema = DATABASE() AND table_name = %s", (table,))}
+            for name, ddl in cols:
+                if name in existing:
+                    continue
+                try:
+                    self.cur.execute(
+                        f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+                    added.append(f"{table}.{name}")
+                except Exception:
+                    pass
+        if added:
+            self.conn.commit()
+        return added
+
+    def ping(self) -> bool:
+        self.cur.execute("SELECT 1")
+        return self.cur.fetchone() is not None
+
+    def close(self) -> None:
+        try:
+            self.conn.commit()
+        except Exception:
+            pass
+        self.conn.close()
+
+    def commit(self) -> None:
+        self.conn.commit()
+
+    # ------------------------------------------------------------------ ecriture
+    def _row_from_ad(self, ad: dict) -> dict:
+        return {
+            "ad_id": ad.get("ad_id"),
+            "list_id": ad.get("list_id"),
+            "site": "avito",
+            "category": ad.get("category"),
+            "title": ad.get("title"),
+            "price": ad.get("price"),
+            "publish_date": _to_dt(ad.get("list_time")),
+            "city": ad.get("city"),
+            "area": ad.get("area"),
+            "sector": ad.get("sector"),
+            "seller": ad.get("seller"),
+            "seller_type": ad.get("seller_type"),
+            "seller_id": ad.get("seller_id"),
+            "phone": ad.get("phone"),
+            "link": ad.get("url"),
+            "description": ad.get("description"),
+            "fuel": ad.get("fuel"),
+            "gear": ad.get("gearbox"),
+            "km": ad.get("mileage_km"),
+            "year": _as_int(ad.get("year")),
+            "brand": ad.get("brand"),
+            "model": ad.get("model"),
+            "doors": ad.get("doors"),
+            "origin": ad.get("origin"),
+            "first_hand": ad.get("first_hand"),
+            "cond": ad.get("cond"),
+            "fiscal_power": ad.get("fiscal_power"),
+            "options_json": json.dumps(ad.get("options") or {}, ensure_ascii=False),
+            "raw_json": json.dumps(ad, ensure_ascii=False, default=str),
+            "nb_images": ad.get("nb_images", 0),
+            "is_premium": int(bool(ad.get("is_premium"))),
+            "is_urgent": int(bool(ad.get("is_urgent"))),
+            "is_hot_deal": int(bool(ad.get("is_hot_deal"))),
+            "details_fetched": int(bool(ad.get("details_fetched"))),
+            "note": ad.get("note"),
+            "note_year": ad.get("note_year"),
+            "note_km": ad.get("note_km"),
+            "note_ratio": ad.get("note_ratio"),
+            "note_cv": ad.get("note_cv"),
+            "note_sunroof": ad.get("note_sunroof"),
+            "note_fuel": ad.get("note_fuel"),
+            "note_gear": ad.get("note_gear"),
+            "note_specs": ad.get("note_specs"),
+            "km_year": ad.get("km_year"),
+            "note_etat": ad.get("note_etat"),
+            "note_achat": ad.get("note_achat"),
+            "note_global": ad.get("note_global"),
+            "note_confiance": ad.get("note_confiance"),
+        }
+
+    def check(self, ad: dict) -> tuple[str, dict]:
+        """Compare sans ecrire : ('new' | 'changed' | 'unchanged', diff)."""
+        ad_id = ad.get("ad_id")
+        self.cur.execute("SELECT * FROM ads WHERE ad_id = %s", (ad_id,))
+        existing = self.cur.fetchone()
+        if not existing:
+            return "new", {}
+        old_state = self._previous_state(existing)
+        changes = compare(old_state, ad, is_detail=bool(ad.get("details_fetched")))
+        return ("changed" if changes else "unchanged"), changes
+
+    def upsert_ad(self, ad: dict) -> str:
+        """Insere ou met a jour une annonce en gerant les versions.
+
+        Retourne : 'new' | 'updated' | 'unchanged'
+        """
+        ad_id = ad.get("ad_id")
+        h = content_hash(ad)
+        self.cur.execute(
+            "SELECT * FROM ads WHERE ad_id = %s", (ad_id,)
+        )
+        existing = self.cur.fetchone()
+
+        if not existing:
+            row = self._row_from_ad(ad)
+            row["version"] = 1
+            row["content_hash"] = h
+            cols = list(row.keys())
+            ph = ", ".join(["%s"] * len(cols))
+            names = ", ".join(cols)
+            upd = ", ".join(f"{c}=VALUES({c})" for c in cols if c not in ("ad_id",))
+            self.cur.execute(
+                f"INSERT INTO ads ({names}) VALUES ({ph}) ON DUPLICATE KEY UPDATE {upd}",
+                [row[c] for c in cols],
+            )
+            self._add_version(ad, existing=None, change_type="new", version=1)
+            self.counters["inserted"] += 1
+            self.counters["versions"] += 1
+            return "new"
+
+        # comparaison a la profondeur de l'observation : on ignore les champs
+        # non observes (une passe "liste" ne peut pas conclure sur le km, etc.)
+        old_state = self._previous_state(existing)
+        is_detail = bool(ad.get("details_fetched"))
+        changes = compare(old_state, ad, is_detail=is_detail)
+
+        if not changes:
+            # rien n'a change : on ne touche qu'aux compteurs de visionnage
+            # (et aux notes, qui dependent de l'annee en cours : elles
+            #  evoluent sans que l'annonce soit modifiee)
+            self.cur.execute(
+                "UPDATE ads SET last_seen_at = NOW(), seen_count = seen_count + 1, "
+                "is_active = 1 WHERE ad_id = %s",
+                (ad_id,),
+            )
+            self._update_scores(ad_id, ad)
+            self.counters["unchanged"] += 1
+            return "unchanged"
+
+        version = int(existing.get("version") or 1) + 1
+        row = self._row_from_ad(ad)
+        row["version"] = version
+        row["content_hash"] = h
+        cols = [c for c in row if c != "ad_id"]
+        sets = ", ".join(f"{c} = %s" for c in cols)
+        self.cur.execute(
+            f"UPDATE ads SET {sets}, last_seen_at = NOW(), "
+            "seen_count = seen_count + 1, is_active = 1 WHERE ad_id = %s",
+            [row[c] for c in cols] + [ad_id],
+        )
+        self._add_version(ad, existing=existing, change_type=None, version=version,
+                          changes=changes)
+        self.counters["updated"] += 1
+        self.counters["versions"] += 1
+        return "updated"
+
+    def _update_scores(self, ad_id: int, ad: dict) -> None:
+        """Met a jour les colonnes de scoring (sans incrementer la version)."""
+        cols = ["note", "note_year", "note_km", "note_ratio", "note_cv",
+                "note_sunroof", "note_fuel", "note_gear", "note_specs",
+                "km_year", "note_etat", "note_achat", "note_global",
+                "note_confiance"]
+        sets, vals = [], []
+        for c in cols:
+            if c in ad and ad.get(c) is not None:
+                sets.append(f"{c} = %s")
+                vals.append(ad[c])
+        # le detail des notes (v2 + drapeaux) vit dans raw_json : on le rafraichit
+        sets.append("raw_json = %s")
+        vals.append(json.dumps(ad, ensure_ascii=False, default=str))
+        if not sets:
+            return
+        try:
+            self.cur.execute(
+                f"UPDATE ads SET {', '.join(sets)} WHERE ad_id = %s",
+                vals + [ad_id],
+            )
+        except Exception:
+            pass
+
+    def _add_version(self, ad: dict, existing: Optional[dict],
+                     change_type: Optional[str], version: int,
+                     changes: Optional[dict] = None) -> None:
+        """Archive la version courante + le diff avec la version precedente."""
+        if existing is None:
+            d = {}
+            ctype = "new"
+        else:
+            d = changes if changes is not None else {}
+            ctype = change_type or classify(d)
+        snapshot = {
+            k: ad.get(k) for k in (
+                "title", "description", "price", "year", "mileage_km", "fuel",
+                "gearbox", "brand", "model", "doors", "origin", "first_hand",
+                "cond", "fiscal_power", "city", "area", "seller", "phone",
+                "url", "nb_images", "note",
+            )
+        }
+        self.cur.execute(
+            "INSERT INTO ad_versions (ad_id, version, change_type, diff_json, "
+            "snapshot_json, content_hash, details_fetched) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            (
+                ad.get("ad_id"),
+                version,
+                ctype,
+                json.dumps(d, ensure_ascii=False, default=str),
+                json.dumps(snapshot, ensure_ascii=False, default=str),
+                content_hash(ad),
+                int(bool(ad.get("details_fetched"))),
+            ),
+        )
+
+    @staticmethod
+    def _previous_state(existing: dict) -> dict:
+        """Etat precedent de l'annonce (depuis raw_json), ou la ligne SQL."""
+        raw = existing.get("raw_json")
+        if raw:
+            try:
+                return json.loads(raw)
+            except Exception:
+                pass
+        return Database._state_of(existing)
+
+    @staticmethod
+    def _state_of(src: dict) -> dict:
+        """Etat comparable (colonnes SQL -> cles du dict d'annonce)."""
+        if "options_json" in src:  # ligne SQL
+            return {
+                "title": src.get("title"),
+                "description": src.get("description"),
+                "price": src.get("price"),
+                "year": src.get("year"),
+                "mileage_km": src.get("km"),
+                "fuel": src.get("fuel"),
+                "gearbox": src.get("gear"),
+                "brand": src.get("brand"),
+                "model": src.get("model"),
+                "doors": src.get("doors"),
+                "origin": src.get("origin"),
+                "first_hand": src.get("first_hand"),
+                "cond": src.get("cond"),
+                "fiscal_power": src.get("fiscal_power"),
+                "city": src.get("city"),
+                "seller": src.get("seller"),
+                "phone": src.get("phone"),
+                "nb_images": src.get("nb_images"),
+                "is_premium": src.get("is_premium"),
+                "is_urgent": src.get("is_urgent"),
+                "is_hot_deal": src.get("is_hot_deal"),
+                "link": src.get("link"),
+            }
+        return src  # deja un dict d'annonce
+
+    def mark_disappeared(self, ad_ids: list[int]) -> int:
+        """Marque comme inactives les annonces non vues lors d'un run complet."""
+        if not ad_ids:
+            return 0
+        n = 0
+        for ad_id in ad_ids:
+            self.cur.execute(
+                "SELECT ad_id, version, is_active FROM ads WHERE ad_id = %s AND is_active = 1",
+                (ad_id,),
+            )
+            row = self.cur.fetchone()
+            if not row:
+                continue
+            version = int(row.get("version") or 1) + 1
+            self.cur.execute(
+                "UPDATE ads SET is_active = 0, version = %s WHERE ad_id = %s",
+                (version, ad_id),
+            )
+            self.cur.execute(
+                "INSERT INTO ad_versions (ad_id, version, change_type, diff_json, "
+                "snapshot_json) VALUES (%s,%s,'disappeared',%s,%s)",
+                (ad_id, version, json.dumps({"is_active": {"old": 1, "new": 0}}),
+                 json.dumps({"is_active": 0}, ensure_ascii=False)),
+            )
+            n += 1
+        self.counters["disappeared"] += n
+        return n
+
+    def upsert_images(self, ad_id: int, images: list[dict]) -> None:
+        for i, img in enumerate(images or []):
+            self.cur.execute(
+                "INSERT INTO ad_images (ad_id, link, link_full, is_main) VALUES (%s,%s,%s,%s) "
+                "ON DUPLICATE KEY UPDATE link_full=VALUES(link_full), is_main=VALUES(is_main)",
+                (ad_id, img.get("url"), img.get("url_full_hd"), 1 if i == 0 else 0),
+            )
+
+    def touch_run(self, run: dict) -> None:
+        self.cur.execute(
+            "INSERT INTO scrape_runs (started_at, finished_at, category, mode, ads_listed, "
+            "ads_details, ads_inserted, ads_updated, ads_unchanged, ads_disappeared, "
+            "http_requests, blocked, status, error) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                _to_dt(run.get("started_at")) or datetime.now(),
+                _to_dt(run.get("finished_at")),
+                run.get("category"),
+                run.get("mode"),
+                run.get("ads_listed", 0),
+                run.get("ads_details", 0),
+                run.get("ads_inserted", 0),
+                run.get("ads_updated", 0),
+                run.get("ads_unchanged", 0),
+                run.get("ads_disappeared", 0),
+                run.get("http_requests", 0),
+                run.get("blocked", 0),
+                run.get("status"),
+                (run.get("error") or "")[:2000] or None,
+            ),
+        )
+        self.conn.commit()
+
+    # ------------------------------------------------------------------ lecture
+    def query(self, sql: str, params: tuple = ()) -> list[dict]:
+        self.cur.execute(sql, params)
+        return list(self.cur.fetchall())
+
+    def count_ads(self) -> int:
+        return self.query("SELECT COUNT(*) AS n FROM ads")[0]["n"]
+
+    def known_ad_ids(self, category: str = None) -> list[int]:
+        """Ad_ids deja connus (pour detecter les disparitions)."""
+        if category:
+            rows = self.query(
+                "SELECT ad_id FROM ads WHERE site = 'avito' AND is_active = 1 "
+                "AND (category = %s OR %s IS NULL)",
+                (category, category),
+            )
+        else:
+            rows = self.query("SELECT ad_id FROM ads WHERE site = 'avito' AND is_active = 1")
+        return [r["ad_id"] for r in rows]
+
+
+def _split_sql(sql: str) -> list[str]:
+    """Decoupe un script SQL en instructions.
+
+    Attention : un ';' dans un commentaire ('-- ...') couperait le script en
+    plein. On retire donc les commentaires avant de decouper.
+    """
+    lines = []
+    for line in sql.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("--"):
+            continue
+        lines.append(line)
+    body = "\n".join(lines)
+    return [s.strip() for s in body.split(";") if s.strip()]
+
+
+def _to_dt(v: Any) -> Optional[datetime]:
+    if not v:
+        return None
+    s = str(v).replace("T", " ")
+    if s.endswith("Z"):
+        s = s[:-1]
+    for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s[:26], fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _as_int(v: Any) -> Optional[int]:
+    if v is None:
+        return None
+    try:
+        return int(str(v).replace(" ", "").replace("km", "").strip())
+    except (TypeError, ValueError):
+        return None
