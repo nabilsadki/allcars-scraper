@@ -37,7 +37,7 @@ class TomobilaAdapter(SiteAdapter):
             return f"{BASE}/{cat}/"
         return f"{BASE}/{cat}/page/{page + 1}/"
 
-    def parse_listing(self, html: str) -> list[dict]:
+    def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []
         seen = set()
         # chaque carte contient un lien vers /voiture-occasion-ou-neuve/...-<id>/

@@ -157,6 +157,15 @@ def normalize_ad(raw: dict) -> dict:
     )
 
 
+def _first_word(text: str) -> str:
+    """Premier mot significatif, sans accents : 'voitures-à_vendre' -> 'voitures'."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", text or "")
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = re.sub(r"[^a-zA-Z0-9]+", " ", t).strip().lower()
+    return t.split()[0] if t.split() else ""
+
+
 def _slugify(text: str) -> str:
     """'Casablanca' -> 'casablanca', 'Aïn Sebaa' -> 'ain_sebaa'."""
     import unicodedata
@@ -207,6 +216,8 @@ class AvitoAdapter(SiteAdapter):
     page_size_fixed = False
     #: total global du catalogue (renseigne par slices())
     global_total: int = 0
+    #: nombre d'annonces ecartees (hors categorie) depuis le demarrage
+    log_sponsored: int = 0
 
     # ------------------------------------------------------------- catalogue
     def catalog_fetcher(self, client):
@@ -265,11 +276,13 @@ class AvitoAdapter(SiteAdapter):
             url += f"?o={offset}"
         return url
 
-    def parse_listing(self, html: str) -> list[dict]:
+    def parse_listing(self, html: str, category: str = "") -> list[dict]:
         data = self._next_data(html)
-        props = data.get("props", {}).get("pageProps", {})
-        fsr = props.get("componentProps", {}).get("facetedSearchResponse", {})
-        raw_ads = fsr.get("ads", {}).get("details", []) or []
+        props = data.get("props", {}) or {}
+        page_props = props.get("pageProps", {}) or {}
+        comp = page_props.get("componentProps", {}) or {}
+        fsr = comp.get("facetedSearchResponse") or {}
+        raw_ads = (fsr.get("ads") or {}).get("details") or []
         urls = self._detail_urls(html)
         out = []
         for raw in raw_ads:
@@ -278,6 +291,34 @@ class AvitoAdapter(SiteAdapter):
             if lid is not None:
                 ad["url"] = urls.get(str(lid)) or ad.get("url")
             out.append(ad)
+        kept = self._filter_category(out, category)
+        if len(kept) != len(out):
+            self.log_sponsored += len(out) - len(kept)
+        return kept
+
+    # ------------------------------------------------------------- filtre
+    def _filter_category(self, ads: list[dict], category: str) -> list[dict]:
+        """Ecarte les annonces qui n'appartiennent pas a la categorie demandee.
+
+        Avito injecte des annonces sponsorisees d'autres categories dans les
+        pages de resultats (immobilier, services a la personne...). On
+        compare le premier mot du slug de categorie (dans l'URL ou dans le
+        nom de la categorie) a celui de la categorie demandee.
+        """
+        if not category:
+            return ads
+        key = _first_word(category.rstrip("/").split("/")[-1])
+        if not key:
+            return ads
+        out = []
+        for ad in ads:
+            url = ad.get("url") or ""
+            m = re.search(r"/fr/[^/]+/([^/]+)/", url)
+            if m and _first_word(m.group(1)) == key:
+                out.append(ad)
+                continue
+            if _first_word(ad.get("category") or "") == key:
+                out.append(ad)
         return out
 
     def slices(self, category: str, client=None) -> list[tuple[str, str]]:
@@ -326,7 +367,10 @@ class AvitoAdapter(SiteAdapter):
     def total_ads(self, html: str) -> Optional[int]:
         try:
             data = self._next_data(html)
-            fsr = data["props"]["pageProps"]["componentProps"]["facetedSearchResponse"]
+            props = data.get("props", {}) or {}
+            page_props = props.get("pageProps", {}) or {}
+            comp = page_props.get("componentProps", {}) or {}
+            fsr = comp.get("facetedSearchResponse") or {}
             return (fsr.get("count") or {}).get("total")
         except Exception:
             return None

@@ -85,6 +85,7 @@ class Progress:
             "blocked": 0,
             "errors": 0,
             "db_errors": 0,
+            "dropped": 0,
             "total": total or 0,
             "slices_total": 0,
             "slices_done": 0,

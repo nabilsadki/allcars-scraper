@@ -121,7 +121,7 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
                 total = site.total_ads(html)
                 if total and verbose:
                     print(f"  catalogue : {total} annonces", flush=True)
-            ads = site.parse_listing(html)
+            ads = site.parse_listing(html, category)
             if ads:
                 break
             if attempt < 3:
@@ -254,7 +254,12 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
         progress.finish("error" if error else "success", error)
 
     dt = time.time() - t0
+    dropped = int(getattr(site, "log_sponsored", 0) or 0)
+    progress.update(dropped=dropped)
     if not quiet:
+        if dropped:
+            print(f"  {dropped} annonces hors categorie ecartees "
+                  f"(publicites sponsorisees)", flush=True)
         print(f"\nTermine : {n_listed} annonces listees"
               + (f", {n_details} fiches detail" if details else "")
               + f" | {client.stats['requests']} requetes HTTP"

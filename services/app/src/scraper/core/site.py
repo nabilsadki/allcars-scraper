@@ -79,8 +79,13 @@ class SiteAdapter(ABC):
         """URL de la page de resultats pour un decalage donne."""
 
     @abstractmethod
-    def parse_listing(self, html: str) -> list[dict]:
-        """Extrait la liste des annonces d'une page de resultats."""
+    def parse_listing(self, html: str, category: str = "") -> list[dict]:
+        """Extrait la liste des annonces d'une page de resultats.
+
+        `category` est le chemin demande : il permet a l'adaptateur de
+        ecarter les annonces qui n'ont rien a voir (publicites
+        sponsorisees d'autres categories).
+        """
 
     @abstractmethod
     def detail_url(self, ad: dict) -> Optional[str]:

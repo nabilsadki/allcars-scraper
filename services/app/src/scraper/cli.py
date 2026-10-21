@@ -166,6 +166,43 @@ def cmd_score(args) -> int:
     return 0
 
 
+def cmd_clean(args) -> int:
+    """Supprime les annonces qui n'appartiennent pas a la categorie attendue.
+
+    Les pages de resultats d'Avito injectent des annonces sponsorisees
+    d'autres categories : ce sont les annonces dont le nom de categorie
+    ne commence pas par le prefixe attendu ("Voiture" par defaut).
+    """
+    db = _db(args)
+    site = _site(args)
+    prefix = args.keep or "Voiture"
+    like = prefix + "%"
+    junk = db.query(
+        "SELECT ad_id, title, category FROM ads WHERE site = %s "
+        "AND (category IS NULL OR category NOT LIKE %s)", (site.name, like))
+    ids = [r["ad_id"] for r in junk]
+    print(f"  {len(ids)} annonce(s) hors categorie '{like}'")
+    for r in junk[:20]:
+        print(f"    - {r['ad_id']} | {r['category'] or 'sans categorie'} | "
+              f"{(r['title'] or '')[:50]}")
+    if len(junk) > 20:
+        print(f"    ... et {len(junk) - 20} autres")
+    if not ids or args.dry_run:
+        db.close()
+        return 0
+    marks = ",".join(["%s"] * len(ids))
+    db.cur.execute(f"DELETE FROM ad_images WHERE site = %s AND ad_id IN ({marks})",
+                   [site.name] + ids)
+    db.cur.execute(f"DELETE FROM ad_versions WHERE site = %s AND ad_id IN ({marks})",
+                   [site.name] + ids)
+    db.cur.execute(f"DELETE FROM ads WHERE site = %s AND ad_id IN ({marks})",
+                   [site.name] + ids)
+    db.conn.commit()
+    print(f"  {len(ids)} annonce(s) supprimee(s)")
+    db.close()
+    return 0
+
+
 def cmd_stats(args) -> int:
     db = Database()
     rows = db.query("""
@@ -220,6 +257,13 @@ def main(argv=None) -> int:
 
     s5 = sub.add_parser("stats", help="statistiques par site")
     s5.set_defaults(func=cmd_stats)
+
+    s7 = sub.add_parser("clean", help="supprimer les annonces hors categorie")
+    s7.add_argument("--site", default="avito")
+    s7.add_argument("--keep", default="Voiture",
+                    help="prefixe du nom de categorie a conserver")
+    s7.add_argument("--dry-run", action="store_true")
+    s7.set_defaults(func=cmd_clean)
 
     s6 = sub.add_parser("sites", help="liste des sites supportes")
     s6.set_defaults(func=cmd_sites)
