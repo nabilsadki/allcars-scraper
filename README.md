@@ -399,7 +399,20 @@ Volumes Docker (persistants, sur `/mnt/4TB`) :
 
 ---
 
-## 10. Reprise de l'ancien projet
+## 10. Développement
+
+* **Chaque modification est commitée et poussée** sur `main`
+  (`https://github.com/nabilsadki/avito-scraper`). Un hook `post-commit`
+  local pousse automatiquement apres chaque commit.
+* Pour pulls : `git pull --rebase`
+* Secrets : ne jamais commiter le `.env` (déjà ignoré) ; utiliser
+  `.env.example` comme modèle
+
+```bash
+git add -A && git commit -m "description courte" && git push
+```
+
+## 11. Reprise de l'ancien projet
 
 L'ancien système (à `/var/www/html/selenium`, et le Symfony
 `/mnt/Ubundata/html/voitures-maroc-sy`) faisait :
