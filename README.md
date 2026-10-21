@@ -203,7 +203,8 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   annonces listees / detail / inserees / modifiees, requetes, blocages,
   statut). L''erreur d'un run en echec s'affiche en cliquant sur le statut.
   La colonne categorie est masquee quand chaque site n'a que peu de
-  categories. + les derniers logs du conteneur.
+  categories. Le tableau se **filtre** (site, statut, mode) et se **trie**
+  en cliquant sur un en-tete. + les derniers logs du conteneur.
 
 Fonctionnement :
 

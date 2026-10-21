@@ -415,6 +415,14 @@ def _detail(site: str, ad_id: int):
     return render_template("detail.html", ad=ad, images=images, versions=versions)
 
 
+@app.route("/favicon.ico")
+def favicon():
+    """Les navigateurs demandent /favicon.ico d'office."""
+    return send_from_directory(
+        os.path.join(os.path.dirname(__file__), "static"), "favicon.svg",
+        mimetype="image/svg+xml")
+
+
 @app.route("/images/<path:filename>")
 def images(filename: str):
     return send_from_directory(IMAGES_DIR, filename)
@@ -502,13 +510,28 @@ def _container_state() -> str:
         return "unknown"
 
 
-def _runs_history(limit: int = 50) -> list[dict]:
-    """Historique des runs (table scrape_runs)."""
-    rows = query(
+def _runs_history(limit: int = 50, site: str = "", status: str = "",
+                  mode: str = "") -> list[dict]:
+    """Historique des runs (table scrape_runs), filtre par site/statut/mode."""
+    where = []
+    params: list = []
+    if site:
+        where.append("site = %s")
+        params.append(site)
+    if status:
+        where.append("status = %s")
+        params.append(status)
+    if mode:
+        where.append("mode = %s")
+        params.append(mode)
+    sql = (
         "SELECT id, started_at, finished_at, site, category, mode, ads_listed, "
         "ads_details, ads_inserted, ads_updated, ads_unchanged, ads_disappeared, "
-        "http_requests, blocked, status, error FROM scrape_runs "
-        "ORDER BY id DESC LIMIT %s", (limit,))
+        "http_requests, blocked, status, error FROM scrape_runs"
+        + (" WHERE " + " AND ".join(where) if where else "")
+        + " ORDER BY id DESC LIMIT %s")
+    params.append(limit)
+    rows = query(sql, tuple(params))
     for r in rows:
         start = r.get("started_at")
         end = r.get("finished_at")
@@ -516,6 +539,8 @@ def _runs_history(limit: int = 50) -> list[dict]:
             r["duration"] = int((end - start).total_seconds())
         else:
             r["duration"] = None
+        # timestamp pour le tri (Jinja n'appelle pas les methodes)
+        r["started_ts"] = int(start.timestamp()) if start else 0
     return rows
 
 
@@ -555,7 +580,10 @@ def tracking():
     state = progress_reader.pick_primary(states, container_state)
     alerts = progress_reader.alerts(state, container_state, states)
     job = progress_reader.read_job()
-    runs = _runs_history(50)
+    f_site = (request.args.get("site") or "").strip()
+    f_status = (request.args.get("status") or "").strip()
+    f_mode = (request.args.get("mode") or "").strip()
+    runs = _runs_history(50, f_site, f_status, f_mode)
     counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
                    "MAX(scraped_at) dernier FROM ads GROUP BY site")
     c_label, c_css = progress_reader.container_status(container_state, state)
@@ -569,6 +597,7 @@ def tracking():
         container_label=c_label, container_css=c_css,
         hide_category=_hide_category_column(runs),
         sites=all_sites, job_categories=job_categories, job_modes=job_modes,
+        f_site=f_site, f_status=f_status, f_mode=f_mode,
         container_name=dockerctl.CONTAINER_NAME)
 
 

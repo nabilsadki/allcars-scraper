@@ -116,29 +116,72 @@
 <!-- ------------------------------------------------------------ historique -->
 <div class="panel">
   <div class="panel-title">Scrapes passés ({{ runs|length }})</div>
-  <table class="runs">
+
+  <form class="runfilters" method="get" action="/tracking">
+    <label>Site
+      <select name="site" onchange="this.form.submit()">
+        <option value="">tous</option>
+        {% for s in sites %}
+        <option value="{{ s.name }}" {% if f_site == s.name %}selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Statut
+      <select name="status" onchange="this.form.submit()">
+        <option value="">tous</option>
+        {% for st in ['success', 'error', 'stopped', 'running'] %}
+        <option value="{{ st }}" {% if f_status == st %}selected{% endif %}>{{ st }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Mode
+      <select name="mode" onchange="this.form.submit()">
+        <option value="">tous</option>
+        {% for m in ['list', 'rescan', 'details'] %}
+        <option value="{{ m }}" {% if f_mode == m %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if f_site or f_status or f_mode %}
+      <a class="reset" href="/tracking">Réinitialiser</a>
+    {% endif %}
+    <span class="muted small">clic sur un en-tête pour trier</span>
+  </form>
+
+  <table class="runs" id="runs-table">
     <thead>
-      <tr><th>#</th><th>Site</th><th>Début</th><th>Durée</th><th>Mode</th>
-          {% if not hide_category %}<th>Catégorie</th>{% endif %}
-          <th>Listées</th><th>Détail</th><th>Insérées</th><th>Modif.</th>
-          <th>Requêtes</th><th>Blocages</th><th>Statut</th></tr>
+      <tr>
+        <th class="sortable" data-sort="id" data-type="num">#</th>
+        <th class="sortable" data-sort="site">Site</th>
+        <th class="sortable" data-sort="started" data-type="num">Début</th>
+        <th class="sortable" data-sort="duration" data-type="num">Durée</th>
+        <th class="sortable" data-sort="mode">Mode</th>
+        {% if not hide_category %}<th class="sortable" data-sort="category">Catégorie</th>{% endif %}
+        <th class="sortable" data-sort="listed" data-type="num">Listées</th>
+        <th class="sortable" data-sort="details" data-type="num">Détail</th>
+        <th class="sortable" data-sort="inserted" data-type="num">Insérées</th>
+        <th class="sortable" data-sort="updated" data-type="num">Modif.</th>
+        <th class="sortable" data-sort="requests" data-type="num">Requêtes</th>
+        <th class="sortable" data-sort="blocked" data-type="num">Blocages</th>
+        <th class="sortable" data-sort="status">Statut</th>
+      </tr>
     </thead>
     <tbody>
       {% for r in runs %}
       <tr>
-        <td>{{ r.id }}</td>
-        <td><span class="sitebadge s-{{ r.site or 'unknown' }}">{{ (r.site or '?')|site_label }}</span></td>
-        <td class="small">{{ r.started_at|datefr(true) }}</td>
-        <td class="small">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
-        <td class="small">{{ r.mode }}</td>
-        {% if not hide_category %}<td class="small">{{ r.category or '—' }}</td>{% endif %}
-        <td>{{ r.ads_listed }}</td>
-        <td>{{ r.ads_details }}</td>
-        <td>{{ r.ads_inserted }}</td>
-        <td>{{ r.ads_updated }}</td>
-        <td>{{ r.http_requests }}</td>
-        <td class="{{ 'bad' if r.blocked else '' }}">{{ r.blocked }}</td>
-        <td>
+        <td data-v="{{ r.id }}">{{ r.id }}</td>
+        <td data-v="{{ r.site or '' }}"><span class="sitebadge s-{{ r.site or 'unknown' }}">{{ (r.site or '?')|site_label }}</span></td>
+        <td class="small" data-v="{{ r.started_ts }}">{{ r.started_at|datefr(true) }}</td>
+        <td class="small" data-v="{{ r.duration if r.duration else 0 }}">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
+        <td class="small" data-v="{{ r.mode or '' }}">{{ r.mode }}</td>
+        {% if not hide_category %}<td class="small" data-v="{{ r.category or '' }}">{{ r.category or '—' }}</td>{% endif %}
+        <td data-v="{{ r.ads_listed }}">{{ r.ads_listed }}</td>
+        <td data-v="{{ r.ads_details }}">{{ r.ads_details }}</td>
+        <td data-v="{{ r.ads_inserted }}">{{ r.ads_inserted }}</td>
+        <td data-v="{{ r.ads_updated }}">{{ r.ads_updated }}</td>
+        <td data-v="{{ r.http_requests }}">{{ r.http_requests }}</td>
+        <td data-v="{{ r.blocked }}" class="{{ 'bad' if r.blocked else '' }}">{{ r.blocked }}</td>
+        <td data-v="{{ r.status or '' }}">
           {% if r.error %}
             <details class="errpop">
               <summary><span class="st st-{{ r.status }}">{{ r.status }}</span></summary>
@@ -150,7 +193,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="13" class="muted">Aucun scrap enregistre.</td></tr>
+      <tr><td colspan="13" class="muted">Aucun scrap ne correspond au filtre.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -326,6 +369,39 @@ async function refresh() {
     }
   } catch (e) { /* le serveur est momentanement injoignable */ }
 }
+
+// ---------------------------------------------- tri du tableau des scrapes
+(function () {
+  const table = document.getElementById('runs-table');
+  if (!table) return;
+  const tbody = table.tBodies[0];
+  table.querySelectorAll('th.sortable').forEach((th) => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      const numeric = th.dataset.type === 'num';
+      const asc = th.dataset.dir !== 'asc';
+      table.querySelectorAll('th.sortable').forEach((o) => {
+        o.classList.remove('asc', 'desc');
+        delete o.dataset.dir;
+      });
+      th.classList.add(asc ? 'asc' : 'desc');
+      th.dataset.dir = asc ? 'asc' : 'desc';
+      const rows = Array.from(tbody.rows);
+      rows.sort((a, b) => {
+        const va = a.cells[th.cellIndex]?.dataset.v ?? '';
+        const vb = b.cells[th.cellIndex]?.dataset.v ?? '';
+        let cmp;
+        if (numeric) {
+          cmp = (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+        } else {
+          cmp = String(va).localeCompare(String(vb), 'fr');
+        }
+        return asc ? cmp : -cmp;
+      });
+      rows.forEach((r) => tbody.appendChild(r));
+    });
+  });
+})();
 
 async function refreshLogs() {
   try {

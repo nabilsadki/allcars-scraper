@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="13" fill="#171a21"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="11.5" fill="none" stroke="#2a2f3a" stroke-width="3"/>
+  <!-- carosserie -->
+  <path d="M12 40v-6.2c0-2.1 1-4 2.7-5.2l5.6-4c1.3-.9 2.9-1.4 4.6-1.4h13.2c1.9 0 3.7.6 5.1 1.7l5.2 4c1.5 1.2 2.6 3 2.6 5V40"
+        fill="none" stroke="#4c8dff" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- vitre -->
+  <path d="M22.5 26.5h8v6h-11.5zm10.5 0h7.2c1 0 1.9.3 2.7.9l3.8 3.1h-13.7z"
+        fill="#4c8dff" opacity=".45"/>
+  <!-- bas de caisse -->
+  <path d="M12 40h40" fill="none" stroke="#4c8dff" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- roues -->
+  <circle cx="21" cy="42" r="6" fill="#0f1115" stroke="#8b93a3" stroke-width="3"/>
+  <circle cx="43" cy="42" r="6" fill="#0f1115" stroke="#8b93a3" stroke-width="3"/>
+  <circle cx="21" cy="42" r="1.8" fill="#8b93a3"/>
+  <circle cx="43" cy="42" r="1.8" fill="#8b93a3"/>
+</svg>

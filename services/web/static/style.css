@@ -273,6 +273,15 @@ table.runs td { padding: 5px 7px; border-bottom: 1px solid var(--line); }
 .st-stopped { color: var(--warn); border-color: rgba(255,170,51,.45); }
 .st-running { color: var(--accent); border-color: rgba(76,141,255,.45); }
 
+/* -------------------------------------- filtres + tri de l'historique */
+.runfilters { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 10px; }
+.runfilters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.runfilters .reset { font-size: 13px; color: var(--muted); align-self: center; }
+table.runs th.sortable { cursor: pointer; user-select: none; }
+table.runs th.sortable:hover { color: var(--txt); }
+table.runs th.sortable.asc::after { content: " ▲"; color: var(--accent); font-size: 9px; }
+table.runs th.sortable.desc::after { content: " ▼"; color: var(--accent); font-size: 9px; }
+
 details.logs summary { cursor: pointer; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
 details.logs pre {
   margin: 10px 0 0; padding: 11px; background: #0b0d11; border: 1px solid var(--line);
