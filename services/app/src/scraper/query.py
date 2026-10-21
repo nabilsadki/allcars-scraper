@@ -33,7 +33,7 @@ import csv
 import json
 import sys
 
-from .db import Database
+from .core.db import Database
 
 TABLE_COLS = [
     "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand",

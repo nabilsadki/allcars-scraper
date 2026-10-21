@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any, Optional
 
@@ -123,11 +124,22 @@ def score_ratio(ad: dict, age_years: int, max_km_per_year: float = 30000,
     return _bucket(ratio, RATIO_SCORES)
 
 
+def _num(v: Any) -> Optional[float]:
+    """Convertit une valeur en nombre (tolere '90000 km', '2012', 2012...)."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    m = re.search(r"-?\d+(?:[.,]\d+)?", str(v))
+    return float(m.group(0).replace(",", ".")) if m else None
+
+
 def compute_notes(ad: dict, today: Optional[datetime] = None) -> dict:
     """Sous-notes legacy + note globale legacy."""
-    year = ad.get("year")
-    age_years = (today or datetime.now()).year - int(year) if year else 0
-    km = ad.get("mileage_km")
+    year = _num(ad.get("year"))
+    year = int(year) if year is not None else None
+    age_years = (today or datetime.now()).year - year if year else 0
+    km = _num(ad.get("mileage_km"))
     notes = {
         "annee": score_age(ad, today),
         "km": _bucket(km, KM_SCORES) if km is not None else 0,

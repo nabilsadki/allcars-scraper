@@ -371,7 +371,48 @@ HTTP, blocages Cloudflare, statut, erreur.
 
 ---
 
-## 9. Structure
+## 9. Architecture multi-sites
+
+Le scraper est **modulaire** : le coeur (pipeline, base, versionnement,
+scoring, images, CLI) ignore completely le site ; chaque site est un
+adaptateur.
+
+```
+services/app/src/scraper/
+├── core/                  # genereque, aucun site
+│   ├── http.py            # client curl_cffi : rate limiting, retry, anti-Cloudflare
+│   ├── site.py            # contrat SiteAdapter + contrat de l'annonce normalisee
+│   ├── registry.py        # enregistrement des adaptateurs
+│   ├── pipeline.py        # list / rescan / details (detection de changement, versions)
+│   ├── db.py              # MySQL (upsert versionne, multi-sites)
+│   ├── history.py         # comparaison champ par champ + diff
+│   ├── scoring.py         # legacy + v2
+│   ├── market.py          # prix median par segment
+│   ├── catalog.py         # referentiel marques/modeles
+│   └── schema.py          # DDL
+├── sites/                 # un fichier par site
+│   ├── avito.py           # Next.js (__NEXT_DATA__) + API GraphQL
+│   └── tomobila.py        # WordPress (tableau d'attributs)
+├── cli.py                 # list | rescan | details | score | images | stats | sites
+├── query.py               # CLI de consultation
+└── images.py              # telechargeur d'images
+```
+
+**Ajouter un site** : ecrire `sites/mon_site.py` avec une classe qui herite de
+`SiteAdapter` (5 methodes : `listing_url`, `parse_listing`, `detail_url`,
+`parse_detail`, et en option `total_ads` / `enrich` / `image_url`), puis
+l'enregistrer dans `sites/__init__.py`. Rien d'autre a changer : pipeline,
+versionnement, scoring, images et CLI sont reutilisables tels quels.
+
+```bash
+docker compose run --rm app sites
+docker compose run --rm app list --site tomobila --category "achat-voiture-occasion" --details --db
+```
+
+En base, la cle primaire est composite `(site, ad_id)` : plusieurs sites
+coexistent dans la meme table, filtrable par `site`.
+
+## 10. Structure
 
 ```
 /mnt/4TB/scraper-avito/
@@ -399,7 +440,7 @@ Volumes Docker (persistants, sur `/mnt/4TB`) :
 
 ---
 
-## 10. Développement
+## 11. Développement
 
 * **Chaque modification est commitée et poussée** sur `main`
   (`https://github.com/nabilsadki/avito-scraper`). Un hook `post-commit`
@@ -412,7 +453,7 @@ Volumes Docker (persistants, sur `/mnt/4TB`) :
 git add -A && git commit -m "description courte" && git push
 ```
 
-## 11. Reprise de l'ancien projet
+## 12. Reprise de l'ancien projet
 
 L'ancien système (à `/var/www/html/selenium`, et le Symfony
 `/mnt/Ubundata/html/voitures-maroc-sy`) faisait :

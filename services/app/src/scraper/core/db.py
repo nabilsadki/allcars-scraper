@@ -99,6 +99,25 @@ class Database:
                     added.append(f"{table}.{name}")
                 except Exception:
                     pass
+        # cle primaire composite (site, ad_id) : necessaire pour plusieurs sites
+        try:
+            self.cur.execute("SHOW KEYS FROM ads WHERE Key_name = 'PRIMARY'")
+            cols = [r["Column_name"] for r in self.cur.fetchall()]
+            if cols == ["ad_id"]:
+                self.cur.execute("ALTER TABLE ads DROP PRIMARY KEY, "
+                                 "ADD PRIMARY KEY (site, ad_id)")
+                added.append("ads.PK(site,ad_id)")
+        except Exception:
+            pass
+        for table, col, ddl in (
+            ("ad_images", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
+            ("ad_versions", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
+        ):
+            try:
+                self.cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+                added.append(f"{table}.{col}")
+            except Exception:
+                pass
         if added:
             self.conn.commit()
         return added
@@ -118,11 +137,11 @@ class Database:
         self.conn.commit()
 
     # ------------------------------------------------------------------ ecriture
-    def _row_from_ad(self, ad: dict) -> dict:
+    def _row_from_ad(self, ad: dict, site: str = "avito") -> dict:
         return {
             "ad_id": ad.get("ad_id"),
             "list_id": ad.get("list_id"),
-            "site": "avito",
+            "site": site,
             "category": ad.get("category"),
             "title": ad.get("title"),
             "price": ad.get("price"),
@@ -170,10 +189,11 @@ class Database:
             "note_confiance": ad.get("note_confiance"),
         }
 
-    def check(self, ad: dict) -> tuple[str, dict]:
+    def check(self, ad: dict, site: str = "avito") -> tuple[str, dict]:
         """Compare sans ecrire : ('new' | 'changed' | 'unchanged', diff)."""
         ad_id = ad.get("ad_id")
-        self.cur.execute("SELECT * FROM ads WHERE ad_id = %s", (ad_id,))
+        self.cur.execute("SELECT * FROM ads WHERE site = %s AND ad_id = %s",
+                         (site, ad_id))
         existing = self.cur.fetchone()
         if not existing:
             return "new", {}
@@ -181,7 +201,7 @@ class Database:
         changes = compare(old_state, ad, is_detail=bool(ad.get("details_fetched")))
         return ("changed" if changes else "unchanged"), changes
 
-    def upsert_ad(self, ad: dict) -> str:
+    def upsert_ad(self, ad: dict, site: str = "avito") -> str:
         """Insere ou met a jour une annonce en gerant les versions.
 
         Retourne : 'new' | 'updated' | 'unchanged'
@@ -189,12 +209,12 @@ class Database:
         ad_id = ad.get("ad_id")
         h = content_hash(ad)
         self.cur.execute(
-            "SELECT * FROM ads WHERE ad_id = %s", (ad_id,)
+            "SELECT * FROM ads WHERE site = %s AND ad_id = %s", (site, ad_id)
         )
         existing = self.cur.fetchone()
 
         if not existing:
-            row = self._row_from_ad(ad)
+            row = self._row_from_ad(ad, site)
             row["version"] = 1
             row["content_hash"] = h
             cols = list(row.keys())
@@ -205,7 +225,8 @@ class Database:
                 f"INSERT INTO ads ({names}) VALUES ({ph}) ON DUPLICATE KEY UPDATE {upd}",
                 [row[c] for c in cols],
             )
-            self._add_version(ad, existing=None, change_type="new", version=1)
+            self._add_version(ad, existing=None, change_type="new", version=1,
+                              site=site)
             self.counters["inserted"] += 1
             self.counters["versions"] += 1
             return "new"
@@ -222,15 +243,15 @@ class Database:
             #  evoluent sans que l'annonce soit modifiee)
             self.cur.execute(
                 "UPDATE ads SET last_seen_at = NOW(), seen_count = seen_count + 1, "
-                "is_active = 1 WHERE ad_id = %s",
-                (ad_id,),
+                "is_active = 1 WHERE site = %s AND ad_id = %s",
+                (site, ad_id),
             )
-            self._update_scores(ad_id, ad)
+            self._update_scores(ad_id, ad, site)
             self.counters["unchanged"] += 1
             return "unchanged"
 
         version = int(existing.get("version") or 1) + 1
-        row = self._row_from_ad(ad)
+        row = self._row_from_ad(ad, site)
         row["version"] = version
         row["content_hash"] = h
         cols = [c for c in row if c != "ad_id"]
@@ -241,12 +262,12 @@ class Database:
             [row[c] for c in cols] + [ad_id],
         )
         self._add_version(ad, existing=existing, change_type=None, version=version,
-                          changes=changes)
+                          changes=changes, site=site)
         self.counters["updated"] += 1
         self.counters["versions"] += 1
         return "updated"
 
-    def _update_scores(self, ad_id: int, ad: dict) -> None:
+    def _update_scores(self, ad_id: int, ad: dict, site: str = "avito") -> None:
         """Met a jour les colonnes de scoring (sans incrementer la version)."""
         cols = ["note", "note_year", "note_km", "note_ratio", "note_cv",
                 "note_sunroof", "note_fuel", "note_gear", "note_specs",
@@ -264,15 +285,16 @@ class Database:
             return
         try:
             self.cur.execute(
-                f"UPDATE ads SET {', '.join(sets)} WHERE ad_id = %s",
-                vals + [ad_id],
+                f"UPDATE ads SET {', '.join(sets)} WHERE site = %s AND ad_id = %s",
+                vals + [site, ad_id],
             )
         except Exception:
             pass
 
     def _add_version(self, ad: dict, existing: Optional[dict],
                      change_type: Optional[str], version: int,
-                     changes: Optional[dict] = None) -> None:
+                     changes: Optional[dict] = None,
+                     site: str = "avito") -> None:
         """Archive la version courante + le diff avec la version precedente."""
         if existing is None:
             d = {}
@@ -289,9 +311,10 @@ class Database:
             )
         }
         self.cur.execute(
-            "INSERT INTO ad_versions (ad_id, version, change_type, diff_json, "
-            "snapshot_json, content_hash, details_fetched) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+            "INSERT INTO ad_versions (site, ad_id, version, change_type, diff_json, "
+            "snapshot_json, content_hash, details_fetched) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
             (
+                site,
                 ad.get("ad_id"),
                 version,
                 ctype,
@@ -343,40 +366,44 @@ class Database:
             }
         return src  # deja un dict d'annonce
 
-    def mark_disappeared(self, ad_ids: list[int]) -> int:
+    def mark_disappeared(self, ad_ids: list[int], site: str = "avito") -> int:
         """Marque comme inactives les annonces non vues lors d'un run complet."""
         if not ad_ids:
             return 0
         n = 0
         for ad_id in ad_ids:
             self.cur.execute(
-                "SELECT ad_id, version, is_active FROM ads WHERE ad_id = %s AND is_active = 1",
-                (ad_id,),
+                "SELECT ad_id, version, is_active FROM ads WHERE site = %s "
+                "AND ad_id = %s AND is_active = 1",
+                (site, ad_id),
             )
             row = self.cur.fetchone()
             if not row:
                 continue
             version = int(row.get("version") or 1) + 1
             self.cur.execute(
-                "UPDATE ads SET is_active = 0, version = %s WHERE ad_id = %s",
-                (version, ad_id),
+                "UPDATE ads SET is_active = 0, version = %s WHERE site = %s AND ad_id = %s",
+                (version, site, ad_id),
             )
             self.cur.execute(
-                "INSERT INTO ad_versions (ad_id, version, change_type, diff_json, "
-                "snapshot_json) VALUES (%s,%s,'disappeared',%s,%s)",
-                (ad_id, version, json.dumps({"is_active": {"old": 1, "new": 0}}),
+                "INSERT INTO ad_versions (site, ad_id, version, change_type, diff_json, "
+                "snapshot_json) VALUES (%s,%s,%s,'disappeared',%s,%s)",
+                (site, ad_id, version,
+                 json.dumps({"is_active": {"old": 1, "new": 0}}),
                  json.dumps({"is_active": 0}, ensure_ascii=False)),
             )
             n += 1
         self.counters["disappeared"] += n
         return n
 
-    def upsert_images(self, ad_id: int, images: list[dict]) -> None:
+    def upsert_images(self, ad_id: int, images: list[dict],
+                      site: str = "avito") -> None:
         for i, img in enumerate(images or []):
             self.cur.execute(
-                "INSERT INTO ad_images (ad_id, link, link_full, is_main) VALUES (%s,%s,%s,%s) "
+                "INSERT INTO ad_images (site, ad_id, link, link_full, is_main) "
+                "VALUES (%s,%s,%s,%s,%s) "
                 "ON DUPLICATE KEY UPDATE link_full=VALUES(link_full), is_main=VALUES(is_main)",
-                (ad_id, img.get("url"), img.get("url_full_hd"), 1 if i == 0 else 0),
+                (site, ad_id, img.get("url"), img.get("url_full_hd"), 1 if i == 0 else 0),
             )
 
     def touch_run(self, run: dict) -> None:
@@ -412,16 +439,17 @@ class Database:
     def count_ads(self) -> int:
         return self.query("SELECT COUNT(*) AS n FROM ads")[0]["n"]
 
-    def known_ad_ids(self, category: str = None) -> list[int]:
+    def known_ad_ids(self, category: str = None, site: str = "avito") -> list[int]:
         """Ad_ids deja connus (pour detecter les disparitions)."""
         if category:
             rows = self.query(
-                "SELECT ad_id FROM ads WHERE site = 'avito' AND is_active = 1 "
+                "SELECT ad_id FROM ads WHERE site = %s AND is_active = 1 "
                 "AND (category = %s OR %s IS NULL)",
-                (category, category),
+                (site, category, category),
             )
         else:
-            rows = self.query("SELECT ad_id FROM ads WHERE site = 'avito' AND is_active = 1")
+            rows = self.query(
+                "SELECT ad_id FROM ads WHERE site = %s AND is_active = 1", (site,))
         return [r["ad_id"] for r in rows]
 
 

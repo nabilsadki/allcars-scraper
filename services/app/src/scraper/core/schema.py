@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS ads (
 
 CREATE TABLE IF NOT EXISTS ad_images (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    site          VARCHAR(32)  NOT NULL DEFAULT 'avito',
     ad_id         BIGINT       NOT NULL,
     link          VARCHAR(1024) NOT NULL,
     link_full     VARCHAR(1024) NULL,
@@ -104,14 +105,15 @@ CREATE TABLE IF NOT EXISTS ad_images (
     sha1          CHAR(40)     NULL,
     downloaded_at DATETIME     NULL,
     created       DATETIME     DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_ad_link (ad_id, link(255)),
-    KEY idx_ad (ad_id),
+    UNIQUE KEY uniq_ad_link (site, ad_id, link(255)),
+    KEY idx_ad (site, ad_id),
     KEY idx_local (path_local(120))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Historique : une ligne par version de l'annonce
 CREATE TABLE IF NOT EXISTS ad_versions (
     id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    site            VARCHAR(32) NOT NULL DEFAULT 'avito',
     ad_id           BIGINT      NOT NULL,
     version         INT         NOT NULL,
     change_type     VARCHAR(32) NOT NULL,
@@ -120,8 +122,8 @@ CREATE TABLE IF NOT EXISTS ad_versions (
     content_hash    CHAR(64)    NULL,
     details_fetched TINYINT(1)  DEFAULT 0,
     created         DATETIME    DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_ad_version (ad_id, version),
-    KEY idx_ad (ad_id),
+    UNIQUE KEY uniq_ad_version (site, ad_id, version),
+    KEY idx_ad (site, ad_id),
     KEY idx_type (change_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

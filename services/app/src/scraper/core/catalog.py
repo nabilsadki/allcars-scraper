@@ -44,6 +44,13 @@ query ($keyword: String, $brandId: String, $categoryId: Int) {
 """
 
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/data/catalog.json")
+
+
+def catalog_path_for(site: str) -> str:
+    """Un cache par site."""
+    base = os.environ.get("CATALOG_PATH", "/data/catalog.json")
+    root, ext = os.path.splitext(base)
+    return f"{root}-{site}{ext}"
 CATALOG_TTL = int(os.environ.get("CATALOG_TTL", str(60 * 60 * 24 * 7)))  # 7 jours
 
 
@@ -111,17 +118,31 @@ class Catalog:
         return data.get("data", {})
 
     def fetch(self, force: bool = False) -> dict:
-        """Charge (ou rafraichit) le referentiel marques/modeles."""
+        """Charge (ou rafraichit) le referentiel marques/modeles.
+
+        Le referentiel est fourni par le site (self.fetcher) ; par defaut
+        on utilise l'API GraphQL Avito.
+        """
         if not force:
             cached = self._load_cache()
             if cached:
                 self._data = cached
                 self._build_index()
                 return cached
-        self.client.log("  chargement du catalogue marques/modeles (GraphQL)...")
+        fetcher = getattr(self, "fetcher", None) or self._fetch_avito
+        self.client.log("  chargement du catalogue marques/modeles...")
+        out = fetcher()
+        out.setdefault("fetched_at", time.time())
+        self._save_cache(out)
+        self._data = out
+        self._build_index()
+        return out
+
+    def _fetch_avito(self) -> dict:
+        """Referentiel marques/modeles via l'API GraphQL Avito."""
         brands = self._gql(BRANDS_QUERY, {"keyword": "", "categoryId": CATEGORY_ID})
         raw = brands.get("getGenericBrands", {}).get("brands", [])
-        out = {"fetched_at": time.time(), "brands": {}}
+        out = {"brands": {}}
         for b in raw:
             label = b["label"]
             entry = {"id": b["value"], "label": label, "models": {}}
@@ -134,12 +155,7 @@ class Catalog:
             except Exception as e:
                 self.client.log(f"    ! modeles {label}: {e}")
             out["brands"][b["value"]] = entry
-            self.client.log(
-                f"    {label}: {len(entry['models'])} modeles"
-            )
-        self._save_cache(out)
-        self._data = out
-        self._build_index()
+            self.client.log(f"    {label}: {len(entry['models'])} modeles")
         return out
 
     # ------------------------------------------------------------------ index

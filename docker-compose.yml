@@ -64,7 +64,7 @@ services:
     # usage :
     #   docker compose run --rm app list   --category "..." --db
     #   docker compose run --rm app rescan --category "..." --details
-    entrypoint: ["python3", "-m", "avito.cli"]
+    entrypoint: ["python3", "-m", "scraper.cli"]
 
   # -------------------------------------------------------------- outils
   tools:
@@ -86,7 +86,7 @@ services:
     volumes:
       - scraped_data:/data
       - ./services/app/config:/app/config:ro
-    entrypoint: ["python3", "-m", "avito.query"]
+    entrypoint: ["python3", "-m", "scraper.query"]
 
   # ---------------------------------------------------------------- web
   web:

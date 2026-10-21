@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from typing import Any, Optional
 
 # Champs "significatifs" : l'etat commercial de l'annonce.
@@ -48,10 +49,20 @@ DIFF_FIELDS = [
 
 
 def _norm_value(v: Any) -> Any:
+    """Normalise une valeur pour comparaison (str "2012" == int 2012)."""
     if isinstance(v, (dict, list)):
         return json.dumps(v, ensure_ascii=False, sort_keys=True, default=str)
     if isinstance(v, bool):
         return int(v)
+    if isinstance(v, (int, float)):
+        return v
+    if isinstance(v, str):
+        s = v.strip()
+        if re.fullmatch(r"-?\d+", s):
+            return int(s)
+        if re.fullmatch(r"-?\d+\.\d+", s):
+            return float(s)
+        return s
     return v
 
 
