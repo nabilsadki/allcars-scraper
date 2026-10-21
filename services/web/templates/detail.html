@@ -45,8 +45,10 @@
           <th>Puissance fiscale</th><td>{{ ad.fiscal_power or '-' }}</td></tr>
       <tr><th>Vendeur</th><td>{{ ad.seller or '-' }}{% if ad.seller_type %} ({{ ad.seller_type }}){% endif %}</td>
           <th>Téléphone</th><td>{% if ad.phone %}<a href="tel:{{ ad.phone }}">{{ ad.phone }}</a>{% else %}-{% endif %}</td></tr>
-      <tr><th>Publié le</th><td>{{ ad.publish_date or '-' }}</td>
+      <tr><th>Publié le</th><td>{{ ad.publish_date|datefr(true) }}</td>
           <th>Photos</th><td>{{ ad.nb_images or 0 }}</td></tr>
+      <tr><th>Dernière mise à jour</th><td>{{ ad.last_seen_at|datefr(true) }}</td>
+          <th>Dernier scrape</th><td>{{ ad.scraped_at|datefr(true) }}</td></tr>
       <tr><th>Version</th><td>v{{ ad.version }} ({{ ad.seen_count }} passages)</td>
           <th>Statut</th><td>{{ 'active' if ad.is_active else 'disparue du catalogue' }}</td></tr>
     </table>

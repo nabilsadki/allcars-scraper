@@ -48,7 +48,7 @@ COLUMNS = [
     "site", "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand", "model",
     "city", "area", "note", "note_etat", "note_achat", "note_global",
     "note_confiance", "version", "is_active", "seller", "phone",
-    "publish_date", "nb_images",
+    "publish_date", "last_seen_at", "nb_images",
 ]
 
 SORTABLE = {
@@ -80,6 +80,33 @@ def query(sql, params=()):
 
 
 SITE_LABELS = {"avito": "Avito.ma", "tomobila": "Tomobila.ma"}
+
+
+def _datefr(value, with_time: bool = False) -> str:
+    """Formate une date : '21/10/2026' (ou '21/10 à 12h46')."""
+    if not value:
+        return "-"
+    if isinstance(value, str):
+        value = _parse_date(value)
+        if value is None:
+            return "-"
+    fmt = "%d/%m/%Y à %Hh%M" if with_time else "%d/%m/%Y"
+    try:
+        return value.strftime(fmt)
+    except Exception:
+        return "-"
+
+
+def _parse_date(value: str):
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(str(value)[:19], fmt)
+        except ValueError:
+            continue
+    return None
+
+
+app.jinja_env.filters["datefr"] = _datefr
 
 
 def site_label(site: str) -> str:
@@ -176,6 +203,10 @@ def build_filters() -> tuple[str, list]:
         where.append("phone IS NOT NULL")
     if request.args.get("active_only") == "1":
         where.append("is_active = 1")
+    if request.args.get("with_photos") == "1":
+        where.append("nb_images > 0")
+    if request.args.get("with_price") == "1":
+        where.append("price IS NOT NULL")
     return " AND ".join(where), params
 
 

@@ -59,6 +59,8 @@
     <label>Note globale ≥ <input type="number" step="0.1" name="min_note_global" value="{{ request.args.get('min_note_global','') }}"></label>
     <label>Confiance ≥ <input type="number" step="1" name="min_confiance" value="{{ request.args.get('min_confiance','') }}"></label>
     <label class="chk"><input type="checkbox" name="with_phone" value="1" {% if request.args.get('with_phone')=='1' %}checked{% endif %}> avec téléphone</label>
+    <label class="chk"><input type="checkbox" name="with_photos" value="1" {% if request.args.get('with_photos')=='1' %}checked{% endif %}> avec photos</label>
+    <label class="chk"><input type="checkbox" name="with_price" value="1" {% if request.args.get('with_price')=='1' %}checked{% endif %}> avec prix</label>
     <label class="chk"><input type="checkbox" name="active_only" value="1" {% if request.args.get('active_only')=='1' %}checked{% endif %}> actives</label>
     <label>Par page
       <select name="per_page">
@@ -96,6 +98,10 @@
       {% if r.km %}· {{ '{:,}'.format(r.km).replace(',', ' ') }} km{% endif %}
     </div>
     <div class="meta">{{ r.city or '' }}{% if r.gear %} · {{ r.gear }}{% endif %}{% if r.fuel %} · {{ r.fuel }}{% endif %}</div>
+    <div class="meta dates">
+      <span title="date de publication de l'annonce sur le site">📅 {{ r.publish_date|datefr }}</span>
+      <span title="dernière mise à jour (dernier scrape de l'annonce)">🔄 {{ r.last_seen_at|datefr(true) }}</span>
+    </div>
     <div class="scores">
       {% if r.note_global is not none %}
         <span class="note" title="note globale (état 65 % + achat 35 %)">★ {{ r.note_global }}</span>
