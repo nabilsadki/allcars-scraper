@@ -208,6 +208,7 @@ SITE_HUES = {
     "renew": 340,       # rose
     "otoclic": 186,     # cyan
     "leguideauto": 45,  # jaune
+    "moteur": 300,     # magenta
 }
 
 

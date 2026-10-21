@@ -499,6 +499,7 @@ HTTP, blocages Cloudflare, statut, erreur.
 | renew | `sites/renew.py` | SPA **Nuxt** : etat `window.__NUXT__` (format devalue) | 412 | **1 pour tout le catalogue** |
 | otoclic | `sites/otoclic.py` | WordPress + plugin Apus (taxonomies dans les classes CSS) | ~150 | 1/page (12) |
 | leguideauto | `sites/leguideauto.py` | HTML (tableau d'attributs) | 2 934 | 1/page (10) |
+| moteur | `sites/moteur.py` | PHP sur mesure, cartes `ads-index-card` (icônes Font Awesome pour année/boîte/carburant/km) | 124 796 | 1/page (30) |
 
 Points notables :
 
@@ -514,6 +515,11 @@ Points notables :
 * **otoclic** encode les taxonomies dans les classes CSS de la carte
   (`listing_make-peugeot listing_fuel_type-diesel listing_feature-abs ...`),
   et la galerie complete dans un attribut `data-images`
+* **moteur.ma** : les cartes donnent l'annee, la boite, le carburant et le km
+  via des icônes Font Awesome (`fa-calendar`, `fa-cog`, `fa-tachometer`,
+  `fa-road`), la date de publication via `data-time`, et la page detail un
+  bloc "Informations Vehicule" (marque, modele, carrosserie, couleur, portes,
+  puissance fiscale) + la galerie + le telephone
 * le `ad_id` est une **chaine** (VARCHAR 64) : certains sites utilisent un
   identifiant alphanumerique (`dITj3MBMiY`) ou un slug
 

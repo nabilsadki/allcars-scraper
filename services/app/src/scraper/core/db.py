@@ -36,21 +36,37 @@ class Database:
         self.cfg.update(overrides)
         self.conn = pymysql.connect(**self.cfg)
         self.cur = self.conn.cursor()
-        # plusieurs scrapes ecrivent en meme temps : en READ COMMITTED
-        # InnoDB prend beaucoup moins de verrous de trou (gap locks), ce qui
-        # supprime la plupart des "lock wait timeout" / deadlocks.
-        # Le delai d'attente est court : on rejoue vite plutot que d'etre
-        # bloque 50 s sur une transaction concurrente.
-        try:
-            self.cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
-            self.cur.execute("SET SESSION innodb_lock_wait_timeout = 10")
-        except Exception:
-            pass
+        self._session_setup()
         # compteurs de la session
         self.counters = {
             "inserted": 0, "updated": 0, "unchanged": 0,
             "versions": 0, "disappeared": 0,
         }
+
+    def _session_setup(self) -> None:
+        """Reglages de session (isolation, delai d'attente des verrous).
+
+        READ COMMITTED : plusieurs scrapes ecrivent en meme temps, InnoDB
+        prend beaucoup moins de verrous de trou (gap locks) -> moins de
+        "lock wait timeout" / deadlocks.
+        Le delai d'attente est court : on rejoue vite plutot que d'etre
+        bloque 50 s sur une transaction concurrente.
+        """
+        try:
+            self.cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+            self.cur.execute("SET SESSION innodb_lock_wait_timeout = 10")
+        except Exception:
+            pass
+
+    def reconnect(self) -> None:
+        """Retablit la connexion (MySQL redemarre, reseau coupe...)."""
+        try:
+            self.conn.close()
+        except Exception:
+            pass
+        self.conn = pymysql.connect(**self.cfg)
+        self.cur = self.conn.cursor()
+        self._session_setup()
 
     # ------------------------------------------------------------------ base
     def ensure_schema(self) -> None:
@@ -258,6 +274,13 @@ class Database:
         for attempt in range(8):
             try:
                 return self._upsert_ad(ad, site)
+            except pymysql.err.InterfaceError:
+                # connexion perdue (MySQL redemarre, reseau coupe) : on se
+                # reconnecte et on rejoue l'ecriture
+                if attempt >= 7:
+                    raise
+                self.reconnect()
+                continue
             except pymysql.err.OperationalError as e:
                 code = e.args[0] if e.args else 0
                 if code in (1213, 1205) and attempt < 7:
