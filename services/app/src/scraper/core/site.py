@@ -95,6 +95,14 @@ class SiteAdapter(ABC):
         """Nombre total d'annonces du catalogue (si la page l'expose)."""
         return None
 
+    def slices(self, category: str, client=None) -> list[tuple[str, str]]:
+        """Decoupe la categorie en tranches : [(libelle, chemin_url), ...].
+
+        Utile quand le site plafonne la pagination : chaque tranche a son
+        propre plafond, donc on couvre plus de annonces.
+        """
+        return [(category, category)]
+
     def enrich(self, ad: dict, client) -> dict:
         """Enrichissement optionnel (marque/modele via catalogue, etc.)."""
         return ad

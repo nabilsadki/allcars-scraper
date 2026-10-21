@@ -157,6 +157,15 @@ def normalize_ad(raw: dict) -> dict:
     )
 
 
+def _slugify(text: str) -> str:
+    """'Casablanca' -> 'casablanca', 'Aïn Sebaa' -> 'ain_sebaa'."""
+    import unicodedata
+    text = unicodedata.normalize("NFKD", text or "")
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()
+    return text.replace("-", "_")
+
+
 def _as_int(v: Any) -> Optional[int]:
     if v is None:
         return None
@@ -225,23 +234,24 @@ class AvitoAdapter(SiteAdapter):
         return fetch
 
     def enrich(self, ad: dict, client) -> dict:
-        """Deduit marque/modele du titre via le catalogue GraphQL."""
-        cache = getattr(client, "_avito_catalog", None)
-        if cache is None:
+        """Deduit marque/modele du titre via le catalogue GraphQL.
+
+        Le catalogue (et son index) est memorise sur le client : sans cela
+        l'index (7 000 modeles) serait reconstruit a chaque annonce.
+        """
+        cat = getattr(client, "_avito_catalog_obj", None)
+        if cat is None:
+            from ..core.catalog import Catalog, catalog_path_for
+            cat = Catalog(client, path=catalog_path_for(self.name))
             try:
-                cat = self.catalog_fetcher(client)
-                cache = cat()
-                try:
-                    setattr(client, "_avito_catalog", cache)
-                except Exception:
-                    pass
+                cat.fetch()          # charge le cache disque s'il existe
             except Exception:
-                cache = {"brands": {}}
-        from ..core.catalog import Catalog
-        c = Catalog(client)
-        c._data = cache
-        c._build_index()
-        brand, model = c.parse_brand_model(ad.get("title") or "")
+                return ad
+            try:
+                setattr(client, "_avito_catalog_obj", cat)
+            except Exception:
+                pass
+        brand, model = cat.parse_brand_model(ad.get("title") or "")
         if brand:
             ad["brand"], ad["model"] = brand, model
         return ad
@@ -266,6 +276,44 @@ class AvitoAdapter(SiteAdapter):
             if lid is not None:
                 ad["url"] = urls.get(str(lid)) or ad.get("url")
             out.append(ad)
+        return out
+
+    def slices(self, category: str, client=None) -> list[tuple[str, str]]:
+        """Decoupe la categorie en tranches (une par ville).
+
+        Avito plafonne la pagination a ~3 966 annonces par tranche ; en
+        filtrant par ville on couvre l'ensemble du catalogue.
+        Le chemin attendu est du type "maroc/voitures-a-vendre".
+        """
+        if not client:
+            return [(category, category)]
+        try:
+            html = client.get(f"{BASE}/fr/{category}")
+            data = self._next_data(html)
+            fsr = data["props"]["pageProps"]["componentProps"]["facetedSearchResponse"]
+            cities = []
+            for f in fsr.get("filters") or []:
+                if f.get("key") != "city":
+                    continue
+                for v in f.get("values") or []:
+                    name = v.get("value")
+                    cnt = v.get("count")
+                    if not name or cnt in (None, "0"):
+                        continue
+                    cities.append((str(name), int(cnt)))
+                break
+        except Exception:
+            return [(category, category)]
+        if not cities:
+            return [(category, category)]
+        # on garde les grandes villes d'abord (le plus d'annonces)
+        cities.sort(key=lambda x: -x[1])
+        root, _, cat = category.partition("/")
+        out = []
+        for name, _cnt in cities:
+            slug = _slugify(name)
+            out.append((name, f"{root}/{slug}/{cat}"))
+        out.append((category, category))   # la categorie globale en dernier
         return out
 
     def total_ads(self, html: str) -> Optional[int]:

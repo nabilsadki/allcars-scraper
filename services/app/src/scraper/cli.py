@@ -45,8 +45,16 @@ def cmd_sites(args) -> int:
     return 0
 
 
-def cmd_list(args) -> int:
+def _site(args):
+    """Recupere l'adaptateur et applique les options."""
     site = get_site(args.site)
+    if getattr(args, "no_slices", False):
+        site.use_slices = False
+    return site
+
+
+def cmd_list(args) -> int:
+    site = _site(args)
     db = _db(args) if args.db else None
     client = _client(args)
     started = datetime.now()
@@ -72,7 +80,7 @@ def cmd_list(args) -> int:
 
 
 def cmd_rescan(args) -> int:
-    site = get_site(args.site)
+    site = _site(args)
     db = _db(args)
     client = _client(args)
     try:
@@ -101,7 +109,7 @@ def cmd_rescan(args) -> int:
 
 
 def cmd_details(args) -> int:
-    site = get_site(args.site)
+    site = _site(args)
     db = _db(args)
     client = _client(args)
     try:
@@ -181,6 +189,8 @@ def main(argv=None) -> int:
         sp.add_argument("--delay", type=float, default=1.5)
         sp.add_argument("--jitter", type=float, default=0.8)
         sp.add_argument("--no-brand", action="store_true")
+        sp.add_argument("--no-slices", action="store_true",
+                        help="ne pas decouper la categorie en tranches")
         sp.add_argument("--quiet", action="store_true")
         return sp
 

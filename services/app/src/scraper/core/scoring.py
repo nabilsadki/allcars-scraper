@@ -99,7 +99,7 @@ def score_cv(ad: dict) -> int:
 
 
 def score_age(ad: dict, today: Optional[datetime] = None) -> int:
-    year = ad.get("year")
+    year = _num(ad.get("year"))
     if not year:
         return 0
     current = (today or datetime.now()).year
@@ -211,7 +211,8 @@ def _weighted_mean(scores: dict, weights: dict) -> tuple[Optional[float], float]
 
 
 def compute_notes_v2(ad: dict, market: Any = None,
-                     config: Optional[dict] = None) -> dict:
+                     config: Optional[dict] = None,
+                     today: Optional[datetime] = None) -> dict:
     """Notes v2 : etat, achat, global, confiance + detail des criteres.
 
     market : objet optionnel exposant le prix median du segment
@@ -224,6 +225,9 @@ def compute_notes_v2(ad: dict, market: Any = None,
 
     legacy = compute_notes(ad)
     age_years = legacy["age_years"]
+    year_num = _num(ad.get("year"))
+    if year_num:
+        age_years = (today or datetime.now()).year - int(year_num)
 
     # ---------------------------------------------------------- axe etat
     achat_info: dict[str, Any] = {}

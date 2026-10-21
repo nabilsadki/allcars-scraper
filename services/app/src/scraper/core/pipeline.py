@@ -75,13 +75,34 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
                  page_size: int = 38, verbose: bool = True):
     """Parcourt les pages de liste d'une categorie.
 
-    Rend des annonces normalisees. Gere la pagination de facon generique :
-    l'offset est incremente du nombre d'annonces vues (les sites n'ont pas
-    tous la meme taille de page).
+    Rend des annonces normalisees. La categorie peut etre decoupee en
+    tranches (`site.slices`) : c'est necessaire quand le site plafonne la
+    pagination (Avito : ~3 966 annonces par tranche).
     """
+    total_seen = 0
+    if getattr(site, "use_slices", True) and hasattr(site, "slices"):
+        slices = site.slices(category, client)
+    else:
+        slices = [(category, category)]
+    if len(slices) > 1:
+        print(f"  {len(slices)} tranches", flush=True)
+    for label, path in slices:
+        if limit and total_seen >= limit:
+            return
+        for ad in _iter_slice(site, client, path, limit, total_seen, page_size, verbose):
+            total_seen += 1
+            yield ad
+            if limit and total_seen >= limit:
+                return
+
+
+def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
+                 already: int, page_size: int, verbose: bool):
+    """Parcourt les pages d'une seule tranche."""
     offset = 0
     seen = 0
     total = None
+    seen_ids: set = set()
     while True:
         url = site.listing_url(category, offset)
         ads = []
@@ -100,18 +121,24 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
                 client.log(f"  ! page vide ({attempt}/3) - nouvel essai")
         if not ads:
             break
+        # la taille de page varie (38 puis 35) : on ne s'arrete que si la page
+        # ne fait plus Borneo de progrès (memes annonces renvoyees)
+        page_ids = {a.get("ad_id") for a in ads}
+        if page_ids and page_ids <= seen_ids:
+            client.log("  ! page sans nouvelles annonces - fin du balayage")
+            break
+        seen_ids |= page_ids
         for ad in ads:
             yield ad
             seen += 1
-            if limit and seen >= limit:
+            if limit and (already + seen) >= limit:
                 if verbose:
-                    print(f"  plafond atteint ({seen})", flush=True)
+                    print(f"  plafond atteint ({already + seen})", flush=True)
                 return
         offset += len(ads)
         if total and offset >= total:
             break
-        if len(ads) < page_size and not getattr(site, "page_size_fixed", False):
-            break
+
 
 
 def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
