@@ -49,7 +49,7 @@ COLUMNS = [
     "site", "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand", "model",
     "city", "area", "note", "note_etat", "note_achat", "note_global",
     "note_confiance", "version", "is_active", "seller", "phone",
-    "publish_date", "last_seen_at", "nb_images",
+    "publish_date", "last_seen_at", "nb_images", "details_fetched",
 ]
 
 #: tris disponibles : cle -> clause ORDER BY
@@ -277,6 +277,8 @@ def build_filters() -> tuple[str, list]:
         where.append("nb_images > 0")
     if request.args.get("with_price") == "1":
         where.append("price IS NOT NULL")
+    if request.args.get("with_details") == "1":
+        where.append("details_fetched = 1")
     return " AND ".join(where), params
 
 

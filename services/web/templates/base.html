@@ -17,7 +17,7 @@
     {% for key in ['site','city','brand','model','fuel','gear','category',
                    'min_price','max_price','min_year','max_year','max_km',
                    'min_note_etat','min_note_achat','min_note_global','min_confiance',
-                   'with_phone','with_photos','with_price','active_only'] %}
+                   'with_phone','with_photos','with_price','with_details','active_only'] %}
       {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
     {% endfor %}
     <select name="sort" title="Trier les annonces">

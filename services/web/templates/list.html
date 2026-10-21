@@ -61,6 +61,7 @@
     <label class="chk"><input type="checkbox" name="with_phone" value="1" {% if request.args.get('with_phone')=='1' %}checked{% endif %}> avec téléphone</label>
     <label class="chk"><input type="checkbox" name="with_photos" value="1" {% if request.args.get('with_photos')=='1' %}checked{% endif %}> avec photos</label>
     <label class="chk"><input type="checkbox" name="with_price" value="1" {% if request.args.get('with_price')=='1' %}checked{% endif %}> avec prix</label>
+    <label class="chk"><input type="checkbox" name="with_details" value="1" {% if request.args.get('with_details')=='1' %}checked{% endif %}> fiche complète</label>
     <label class="chk"><input type="checkbox" name="active_only" value="1" {% if request.args.get('active_only')=='1' %}checked{% endif %}> actives</label>
     <label>Par page
       <select name="per_page">
@@ -87,6 +88,11 @@
       {% endif %}
       {% if r.is_premium %}<span class="badge">Premium</span>{% endif %}
       {% if not r.is_active %}<span class="badge off">disparue</span>{% endif %}
+      {% if r.details_fetched %}
+        <span class="badge detail full" title="Annonce scrapée entièrement : la page détail a été récupérée (specs, téléphone, description complète)">détail ✓</span>
+      {% else %}
+        <span class="badge detail part" title="Annonce connue uniquement via la page de liste : la page détail n'a pas encore été récupérée">liste</span>
+      {% endif %}
     </div>
     <div class="price">
       {% if r.price %}{{ '{:,}'.format(r.price).replace(',', ' ') }} DH{% else %}<em>sur demande</em>{% endif %}

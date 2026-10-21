@@ -66,6 +66,10 @@ footer { text-align: center; color: var(--muted); padding: 26px; font-size: 13px
   color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 5px;
 }
 .badge.off { background: var(--bad); left: auto; right: 6px; }
+/* etat du scrap : fiche complete (page detail) ou simple liste */
+.badge.detail { top: auto; bottom: 6px; left: 6px; font-size: 10px; padding: 2px 6px; }
+.badge.detail.full { background: rgba(46,204,113,.92); color: #06240f; }
+.badge.detail.part { background: rgba(139,147,163,.9); color: #14171d; }
 
 /* badge du site d'origine (avito, tomobila, ...) */
 .sitebadge {
