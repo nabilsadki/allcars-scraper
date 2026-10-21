@@ -45,7 +45,7 @@ DB = {
 IMAGES_DIR = os.environ.get("IMAGES_DIR", "/data/images")
 
 COLUMNS = [
-    "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand", "model",
+    "site", "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand", "model",
     "city", "area", "note", "note_etat", "note_achat", "note_global",
     "note_confiance", "version", "is_active", "seller", "phone",
     "publish_date", "nb_images",
@@ -79,6 +79,17 @@ def query(sql, params=()):
         conn.close()
 
 
+SITE_LABELS = {"avito": "Avito.ma", "tomobila": "Tomobila.ma"}
+
+
+def site_label(site: str) -> str:
+    """Libelle lisible du site ('avito' -> 'Avito.ma')."""
+    return SITE_LABELS.get((site or "").lower(), site or "?")
+
+
+app.jinja_env.filters["site_label"] = site_label
+
+
 def pager_items(page: int, pages: int, window: int = 2) -> list:
     """Numeros de page a afficher dans le pager.
 
@@ -103,7 +114,7 @@ def pager_items(page: int, pages: int, window: int = 2) -> list:
 
 # ------------------------------------------------------------------ filtres
 def build_filters() -> tuple[str, list]:
-    where = ["site = 'avito'"]
+    where = ["1=1"]
     params: list = []
 
     def eq(col, val):
@@ -116,6 +127,7 @@ def build_filters() -> tuple[str, list]:
             where.append(f"{col} {op} %s")
             params.append(float(val) if "." in str(val) else int(val))
 
+    eq("site", request.args.get("site"))
     eq("city", request.args.get("city"))
     eq("brand", request.args.get("brand"))
     eq("fuel", request.args.get("fuel"))
@@ -175,9 +187,24 @@ def index():
     )
 
 
+@app.route("/ad/<site>/<int:ad_id>")
+def detail_site(site: str, ad_id: int):
+    """Fiche d'une annonce (cle composite : site + ad_id)."""
+    return _detail(site, ad_id)
+
+
 @app.route("/ad/<int:ad_id>")
 def detail(ad_id: int):
-    rows = query("SELECT * FROM ads WHERE ad_id = %s", (ad_id,))
+    """Fiche d'une annonce, site non precise (on prend la plus recente)."""
+    rows = query("SELECT site FROM ads WHERE ad_id = %s "
+                 "ORDER BY scraped_at DESC LIMIT 1", (ad_id,))
+    if not rows:
+        abort(404)
+    return _detail(rows[0]["site"], ad_id)
+
+
+def _detail(site: str, ad_id: int):
+    rows = query("SELECT * FROM ads WHERE site = %s AND ad_id = %s", (site, ad_id))
     if not rows:
         abort(404)
     ad = rows[0]
@@ -200,7 +227,8 @@ def detail(ad_id: int):
 
     images = query(
         "SELECT id, link, link_full, path_local, variant, bytes, is_main "
-        "FROM ad_images WHERE ad_id = %s ORDER BY is_main DESC, id", (ad_id,))
+        "FROM ad_images WHERE site = %s AND ad_id = %s "
+        "ORDER BY is_main DESC, id", (site, ad_id))
     for im in images:
         if im.get("path_local") and os.path.exists(im["path_local"]):
             im["local_url"] = "/images/" + im["path_local"].split("/images/", 1)[-1]
@@ -209,7 +237,8 @@ def detail(ad_id: int):
 
     versions = query(
         "SELECT version, change_type, diff_json, snapshot_json, created "
-        "FROM ad_versions WHERE ad_id = %s ORDER BY version DESC", (ad_id,))
+        "FROM ad_versions WHERE site = %s AND ad_id = %s "
+        "ORDER BY version DESC", (site, ad_id))
     for v in versions:
         try:
             v["diff"] = json.loads(v.pop("diff_json") or "{}")
@@ -224,12 +253,28 @@ def images(filename: str):
     return send_from_directory(IMAGES_DIR, filename)
 
 
+@app.route("/imgthumb/<site>/<int:ad_id>")
+def imgthumb_site(site: str, ad_id: int):
+    """Vignette d'une annonce (site + ad_id)."""
+    return _imgthumb(site, ad_id)
+
+
 @app.route("/imgthumb/<int:ad_id>")
 def imgthumb(ad_id: int):
     """Vignette de l'annonce : image locale si telechargee, sinon l'URL distante."""
     rows = query(
+        "SELECT site FROM ads WHERE ad_id = %s "
+        "ORDER BY scraped_at DESC LIMIT 1", (ad_id,))
+    if not rows:
+        abort(404)
+    return _imgthumb(rows[0]["site"], ad_id)
+
+
+def _imgthumb(site: str, ad_id: int):
+    rows = query(
         "SELECT link, link_full, path_local FROM ad_images "
-        "WHERE ad_id = %s ORDER BY is_main DESC, id LIMIT 1", (ad_id,))
+        "WHERE site = %s AND ad_id = %s "
+        "ORDER BY is_main DESC, id LIMIT 1", (site, ad_id))
     if not rows:
         abort(404)
     im = rows[0]

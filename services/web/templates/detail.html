@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ ad.title[:60] }} — Avito{% endblock %}
+{% block title %}{{ ad.title[:60] }} — {{ ad.site|site_label }}{% endblock %}
 {% block content %}
 
 <a class="back" href="/">← retour au catalogue</a>
@@ -22,6 +22,10 @@
   <section class="infos">
     {% set v2 = ad.notes_v2 or {} %}
     <h1>{{ ad.title }}</h1>
+    <div class="sub">
+      <span class="sitebadge s-{{ ad.site }}">{{ ad.site|site_label }}</span>
+      <span class="muted small">annonce #{{ ad.ad_id }}{% if ad.version %} · version {{ ad.version }}{% endif %}</span>
+    </div>
     <div class="price big">
       {% if ad.price %}{{ '{:,}'.format(ad.price).replace(',', ' ') }} DH{% else %}<em>sur demande</em>{% endif %}
     </div>

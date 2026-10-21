@@ -4,6 +4,13 @@
 <form class="filters" method="get" action="/">
   <input type="hidden" name="sort" value="{{ request.args.get('sort','date') }}">
   <div class="row">
+    <label>Site
+      <select name="site">
+        <option value="">tous les sites</option>
+        <option value="avito" {% if request.args.get('site')=='avito' %}selected{% endif %}>Avito.ma</option>
+        <option value="tomobila" {% if request.args.get('site')=='tomobila' %}selected{% endif %}>Tomobila.ma</option>
+      </select>
+    </label>
     <label>Ville
       <select name="city">
         <option value="">toutes</option>
@@ -59,10 +66,10 @@
 
 <div class="grid">
 {% for r in rows %}
-  <a class="card" href="/ad/{{ r.ad_id }}">
+  <a class="card" href="/ad/{{ r.site }}/{{ r.ad_id }}">
     <div class="thumb">
       {% if r.nb_images %}
-        <img loading="lazy" src="/imgthumb/{{ r.ad_id }}" alt="">
+        <img loading="lazy" src="/imgthumb/{{ r.site }}/{{ r.ad_id }}" alt="">
       {% else %}
         <div class="noimg">pas de photo</div>
       {% endif %}
@@ -74,6 +81,7 @@
     </div>
     <div class="title">{{ r.title }}</div>
     <div class="meta">
+      <span class="sitebadge s-{{ r.site }}">{{ r.site|site_label }}</span>
       {{ r.brand or '?' }} {{ r.model or '' }} {% if r.year %}· {{ r.year }}{% endif %}
       {% if r.km %}· {{ '{:,}'.format(r.km).replace(',', ' ') }} km{% endif %}
     </div>
