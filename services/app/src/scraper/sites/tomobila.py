@@ -61,7 +61,6 @@ class TomobilaAdapter(SiteAdapter):
                 url=url,
                 category="Voiture d'occasion",
             )
-            ad["_raw_html"] = html
             out.append(ad)
         # prix / ville / kilométrage sont lus dans le texte de la page
         self._enrich_from_html(out, html)

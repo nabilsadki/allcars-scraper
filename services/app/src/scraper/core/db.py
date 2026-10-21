@@ -208,7 +208,11 @@ class Database:
             "cond": ad.get("cond"),
             "fiscal_power": ad.get("fiscal_power"),
             "options_json": json.dumps(ad.get("options") or {}, ensure_ascii=False),
-            "raw_json": json.dumps(ad, ensure_ascii=False, default=str),
+            # les champs prives ("_raw_html"...) ne sont jamais stockes :
+            # ils gonfleraient la base de plusieurs Go
+            "raw_json": json.dumps(
+                {k: v for k, v in ad.items() if not k.startswith("_")},
+                ensure_ascii=False, default=str),
             "nb_images": ad.get("nb_images", 0),
             "is_premium": int(bool(ad.get("is_premium"))),
             "is_urgent": int(bool(ad.get("is_urgent"))),

@@ -35,6 +35,10 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      # pas de replication ici : le binlog ne sert a rien et grossissait
+      # le repertoire de donnees de 1 Go par tranche d'ecriture
+      - --skip-log-bin
+      - --binlog-expire-logs-seconds=3600
     volumes:
       # les donnees MySQL vivent dans le dossier du projet (disque 4 To),
       # pas dans un volume Docker sur le disque racine
