@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY app.py .
+COPY app.py dockerctl.py progress.py ./
 COPY templates/ /app/templates/
 COPY static/ /app/static/
 

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Suivi du scrap — Avito{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Suivi du scrap</h1>
+  <div class="head-right">
+    <span id="status-badge" class="status s-{{ container_state }}">{{ container_state }}</span>
+    <span class="muted small">conteneur : {{ container_name }}</span>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------ alertes -->
+<div id="alerts">
+  {% for a in alerts %}
+  <div class="alert alert-{{ a.level }}">
+    <strong>{{ a.title }}</strong>
+    {% if a.detail %}<span>{{ a.detail }}</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ---------------------------------------------------------- pilotage -->
+<div class="panel">
+  <div class="panel-title">Pilotage</div>
+  <form id="job-form" class="jobform" onsubmit="return false;">
+    <label>Site
+      <select name="site" id="f-site">
+        <option value="avito" {% if job.site=='avito' %}selected{% endif %}>Avito.ma</option>
+        <option value="tomobila" {% if job.site=='tomobila' %}selected{% endif %}>Tomobila.ma</option>
+      </select>
+    </label>
+    <label>Catégorie
+      <input type="text" name="category" id="f-category" value="{{ job.category }}">
+    </label>
+    <label>Mode
+      <select name="mode" id="f-mode">
+        <option value="list" {% if job.mode=='list' %}selected{% endif %}>list (pages de liste)</option>
+        <option value="rescan" {% if job.mode=='rescan' %}selected{% endif %}>rescan (détection de changements)</option>
+        <option value="details" {% if job.mode=='details' %}selected{% endif %}>details (fiches manquantes)</option>
+      </select>
+    </label>
+    <label>Delay (s) <input type="number" step="0.1" name="delay" id="f-delay" value="{{ job.delay }}"></label>
+    <label>Jitter (s) <input type="number" step="0.1" name="jitter" id="f-jitter" value="{{ job.jitter }}"></label>
+    <label>Plafond <input type="number" name="limit" id="f-limit" value="{{ job.limit }}" placeholder="0 = tout"></label>
+    <label class="chk"><input type="checkbox" name="details_flag" id="f-details" {% if job.details %}checked{% endif %}> fiches détail</label>
+    <label class="chk"><input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}> découpe en tranches</label>
+    <div class="btns">
+      <button type="button" id="btn-start" class="btn-ok">Démarrer</button>
+      <button type="button" id="btn-stop" class="btn-bad">Arrêter</button>
+      <button type="button" id="btn-restart">Relancer</button>
+    </div>
+  </form>
+  <div id="action-msg" class="muted small"></div>
+</div>
+
+<!-- ---------------------------------------------------------- progression -->
+<div class="panel">
+  <div class="panel-title">Progression en cours
+    <span id="live-dot" class="dot {{ 'on' if state and state.running else 'off' }}"></span>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress"><div id="bar" class="bar" style="width:{{ state.percent if state and state.percent else 0 }}%"></div></div>
+    <div class="progress-legend">
+      <span id="p-percent">{{ '%.1f'|format(state.percent) if state and state.percent is not none else '—' }} %</span>
+      <span id="p-counts">{{ state.listed if state else 0 }} / {{ state.total if state and state.total else '—' }} annonces</span>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><small>Temps écoulé</small><b id="s-elapsed">{{ state.elapsed_seconds|duree if state else '—' }}</b></div>
+    <div class="stat"><small>Temps restant</small><b id="s-eta">{{ state.eta_seconds|duree if state and state.eta_seconds else '—' }}</b></div>
+    <div class="stat"><small>Vitesse</small><b id="s-rate">{{ state.rate_per_min if state else '—' }}<span class="u"> /min</span></b></div>
+    <div class="stat"><small>Requêtes HTTP</small><b id="s-req">{{ state.requests if state else 0 }}</b></div>
+    <div class="stat"><small>Blocages serveur</small><b id="s-block" class="{{ 'bad' if state and state.blocked else '' }}">{{ state.blocked if state else 0 }}</b></div>
+    <div class="stat"><small>Erreurs réseau</small><b id="s-err">{{ state.errors if state else 0 }}</b></div>
+    <div class="stat"><small>Nouvelles / modif.</small><b id="s-ins">{{ state.inserted if state else 0 }} / {{ state.updated if state else 0 }}</b></div>
+    <div class="stat"><small>Tranche en cours</small><b id="s-slice">{{ state.current_slice if state and state.current_slice else '—' }}</b></div>
+    <div class="stat"><small>Tranches</small><b id="s-slices">{{ state.slices_done if state else 0 }} / {{ state.slices_total if state else 0 }}</b></div>
+    <div class="stat"><small>Mode</small><b id="s-mode">{{ state.mode if state else '—' }}</b></div>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------- catalogue -->
+<div class="panel">
+  <div class="panel-title">Base de données</div>
+  <table class="kv" style="max-width:640px">
+    {% for c in counts %}
+    <tr><th>{{ c.site }}</th><td>{{ '{:,}'.format(c.n).replace(',', ' ') }} annonces — {{ c.actives }} actives — dernier scrape {{ c.dernier }}</td></tr>
+    {% else %}
+    <tr><td class="muted">Aucune annonce.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<!-- ------------------------------------------------------------ historique -->
+<div class="panel">
+  <div class="panel-title">Scrapes passés ({{ runs|length }})</div>
+  <table class="runs">
+    <thead>
+      <tr><th>#</th><th>Début</th><th>Durée</th><th>Mode</th><th>Catégorie</th>
+          <th>Listées</th><th>Détail</th><th>Insérées</th><th>Modif.</th>
+          <th>Requêtes</th><th>Blocages</th><th>Statut</th></tr>
+    </thead>
+    <tbody>
+      {% for r in runs %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td class="small">{{ r.started_at }}</td>
+        <td class="small">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
+        <td class="small">{{ r.mode }}</td>
+        <td class="small">{{ r.category or '—' }}</td>
+        <td>{{ r.ads_listed }}</td>
+        <td>{{ r.ads_details }}</td>
+        <td>{{ r.ads_inserted }}</td>
+        <td>{{ r.ads_updated }}</td>
+        <td>{{ r.http_requests }}</td>
+        <td class="{{ 'bad' if r.blocked else '' }}">{{ r.blocked }}</td>
+        <td><span class="st st-{{ r.status }}">{{ r.status }}</span>
+            {% if r.error %}<div class="small bad" title="{{ r.error }}">{{ r.error[:80] }}</div>{% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="12" class="muted">Aucun scrap enregistre.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ------------------------------------------------------------- logs -->
+<details class="panel logs">
+  <summary>Derniers logs du scraper</summary>
+  <pre id="logs">chargement…</pre>
+</details>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const fmt = (sec) => {
+  if (sec === null || sec === undefined) return '—';
+  sec = Math.max(0, Math.round(sec));
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.floor(sec / 60) + 'min';
+  return Math.floor(sec / 3600) + 'h' + String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+};
+
+function payload() {
+  return {
+    site: $('#f-site').value,
+    category: $('#f-category').value,
+    mode: $('#f-mode').value,
+    delay: $('#f-delay').value,
+    jitter: $('#f-jitter').value,
+    limit: $('#f-limit').value,
+    details: $('#f-details').checked,
+    slices: $('#f-slices').checked,
+  };
+}
+
+async function action(url, label) {
+  $('#action-msg').textContent = label + '…';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload()),
+    });
+    const data = await res.json();
+    $('#action-msg').textContent = data.ok ? (data.message || 'OK') : ('Erreur : ' + (data.error || '?'));
+    refresh();
+    setTimeout(refresh, 1200);
+  } catch (e) {
+    $('#action-msg').textContent = 'Erreur : ' + e;
+  }
+}
+
+$('#btn-start').onclick = () => action('/api/scrape/start', 'Démarrage');
+$('#btn-stop').onclick = () => action('/api/scrape/stop', 'Arrêt');
+$('#btn-restart').onclick = () => action('/api/scrape/restart', 'Relance');
+
+function renderAlerts(alerts) {
+  const box = $('#alerts');
+  box.innerHTML = (alerts || []).map(a =>
+    `<div class="alert alert-${a.level}"><strong></strong><span></span></div>`).join('');
+  const nodes = box.querySelectorAll('.alert');
+  (alerts || []).forEach((a, i) => {
+    if (!nodes[i]) return;
+    nodes[i].querySelector('strong').textContent = a.title;
+    nodes[i].querySelector('span').textContent = a.detail || '';
+  });
+}
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/progress');
+    const data = await res.json();
+    const s = data.state;
+    renderAlerts(data.alerts);
+    const badge = $('#status-badge');
+    badge.textContent = data.container;
+    badge.className = 'status s-' + data.container;
+    if (!s) {
+      $('#live-dot').className = 'dot off';
+      return;
+    }
+    const pct = s.percent === null || s.percent === undefined ? 0 : s.percent;
+    $('#bar').style.width = Math.min(100, pct) + '%';
+    $('#p-percent').textContent = (s.percent === null || s.percent === undefined) ? '—' : Number(s.percent).toFixed(1) + ' %';
+    $('#p-counts').textContent = s.listed + ' / ' + (s.total || '—') + ' annonces';
+    $('#s-elapsed').textContent = fmt(s.elapsed_seconds);
+    $('#s-eta').textContent = s.eta_seconds === null || s.eta_seconds === undefined ? '—' : fmt(s.eta_seconds);
+    $('#s-rate').innerHTML = (s.rate_per_min || 0) + '<span class="u"> /min</span>';
+    $('#s-req').textContent = s.requests;
+    $('#s-block').textContent = s.blocked;
+    $('#s-err').textContent = s.errors;
+    $('#s-ins').textContent = s.inserted + ' / ' + s.updated;
+    $('#s-slice').textContent = s.current_slice || '—';
+    $('#s-slices').textContent = (s.slices_done || 0) + ' / ' + (s.slices_total || 0);
+    $('#s-mode').textContent = s.mode || '—';
+    $('#live-dot').className = 'dot ' + (s.running ? 'on' : 'off');
+  } catch (e) { /* le serveur est momentanement injoignable */ }
+}
+
+async function refreshLogs() {
+  try {
+    const res = await fetch('/api/scrape/logs?tail=80');
+    const data = await res.json();
+    $('#logs').textContent = (data.lines || []).join('\n') || '(aucun log)';
+  } catch (e) { /* ignore */ }
+}
+
+refresh();
+refreshLogs();
+setInterval(refresh, 3000);
+setInterval(refreshLogs, 10000);
+</script>
+
+{% endblock %}

@@ -205,6 +205,8 @@ class AvitoAdapter(SiteAdapter):
         "maroc/informatique",
     ]
     page_size_fixed = False
+    #: total global du catalogue (renseigne par slices())
+    global_total: int = 0
 
     # ------------------------------------------------------------- catalogue
     def catalog_fetcher(self, client):
@@ -291,6 +293,11 @@ class AvitoAdapter(SiteAdapter):
             html = client.get(f"{BASE}/fr/{category}")
             data = self._next_data(html)
             fsr = data["props"]["pageProps"]["componentProps"]["facetedSearchResponse"]
+            # total global du catalogue (pour la barre de progression)
+            try:
+                self.global_total = int((fsr.get("count") or {}).get("total") or 0)
+            except Exception:
+                self.global_total = 0
             cities = []
             for f in fsr.get("filters") or []:
                 if f.get("key") != "city":

@@ -112,12 +112,18 @@ class Database:
         for table, col, ddl in (
             ("ad_images", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
             ("ad_versions", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
+            ("scrape_runs", "site", "VARCHAR(32) NULL"),
         ):
             try:
                 self.cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
                 added.append(f"{table}.{col}")
             except Exception:
                 pass
+        try:
+            self.cur.execute("UPDATE scrape_runs SET site = 'avito' "
+                             "WHERE site IS NULL")
+        except Exception:
+            pass
         if added:
             self.conn.commit()
         return added
@@ -406,15 +412,76 @@ class Database:
                 (site, ad_id, img.get("url"), img.get("url_full_hd"), 1 if i == 0 else 0),
             )
 
+    def start_run(self, run: dict) -> int:
+        """Ouvre une ligne d'historique (status=running) et renvoie son id."""
+        self.cur.execute(
+            "INSERT INTO scrape_runs (started_at, site, category, mode, status) "
+            "VALUES (%s,%s,%s,%s,'running')",
+            (
+                _to_dt(run.get("started_at")) or datetime.now(),
+                run.get("site") or "avito",
+                run.get("category"),
+                run.get("mode"),
+            ),
+        )
+        self.conn.commit()
+        return int(self.cur.lastrowid)
+
+    def update_run(self, run_id: int, run: dict) -> None:
+        """Met a jour les compteurs d'un run en cours (historique live)."""
+        if not run_id:
+            return
+        self.cur.execute(
+            "UPDATE scrape_runs SET ads_listed = %s, ads_details = %s, "
+            "ads_inserted = %s, ads_updated = %s, ads_unchanged = %s, "
+            "http_requests = %s, blocked = %s WHERE id = %s",
+            (
+                run.get("ads_listed", 0),
+                run.get("ads_details", 0),
+                run.get("ads_inserted", 0),
+                run.get("ads_updated", 0),
+                run.get("ads_unchanged", 0),
+                run.get("http_requests", 0),
+                run.get("blocked", 0),
+                run_id,
+            ),
+        )
+        self.conn.commit()
+
+    def finish_run(self, run_id: int, run: dict) -> None:
+        """Met a jour la ligne d'historique a la fin du run."""
+        self.cur.execute(
+            "UPDATE scrape_runs SET finished_at = %s, ads_listed = %s, "
+            "ads_details = %s, ads_inserted = %s, ads_updated = %s, "
+            "ads_unchanged = %s, ads_disappeared = %s, http_requests = %s, "
+            "blocked = %s, status = %s, error = %s WHERE id = %s",
+            (
+                _to_dt(run.get("finished_at")) or datetime.now(),
+                run.get("ads_listed", 0),
+                run.get("ads_details", 0),
+                run.get("ads_inserted", 0),
+                run.get("ads_updated", 0),
+                run.get("ads_unchanged", 0),
+                run.get("ads_disappeared", 0),
+                run.get("http_requests", 0),
+                run.get("blocked", 0),
+                run.get("status") or "success",
+                (run.get("error") or "")[:2000] or None,
+                run_id,
+            ),
+        )
+        self.conn.commit()
+
     def touch_run(self, run: dict) -> None:
         self.cur.execute(
-            "INSERT INTO scrape_runs (started_at, finished_at, category, mode, ads_listed, "
-            "ads_details, ads_inserted, ads_updated, ads_unchanged, ads_disappeared, "
-            "http_requests, blocked, status, error) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "INSERT INTO scrape_runs (started_at, finished_at, site, category, mode, "
+            "ads_listed, ads_details, ads_inserted, ads_updated, ads_unchanged, "
+            "ads_disappeared, http_requests, blocked, status, error) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 _to_dt(run.get("started_at")) or datetime.now(),
                 _to_dt(run.get("finished_at")),
+                run.get("site") or "avito",
                 run.get("category"),
                 run.get("mode"),
                 run.get("ads_listed", 0),

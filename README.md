@@ -154,6 +154,61 @@ sudo tailscale serve --bg --https=8444 8080
 # https://nabyl-ms-7d46.taild3ce02.ts.net:8444/
 ```
 
+### Persistance de l'interface
+
+L'interface doit rester accessible : les services `db` et `web` ont la
+politique de redemarrage `unless-stopped` (ils se relancent tout seuls si le
+poste redemarre, Docker demarrant au boot).
+
+En complement, une unite systemd utilisateur assure le demarrage de la pile :
+
+```bash
+systemctl --user enable --now nabyl.avito-web.service
+systemctl --user status nabyl.avito-web.service
+```
+
+Le service `scraper` (lui) reste en `restart: "no"` : **aucun scrap n'est
+relance automatiquement**, c'est l'interface qui le pilote.
+
+## 3c. Page de suivi (`/tracking`)
+
+Deuxieme page de l'interface, accessible depuis la barre de navigation
+(lien dans les deux sens) et par URL directe : `http://127.0.0.1:8080/tracking`.
+
+* **Progression en direct** : barre de progression (annonces vues / total du
+  catalogue), pourcentage, **temps ecoule**, **temps restant (estimation)**,
+  vitesse (annonces/min), tranche en cours, requetes HTTP, blocages, erreurs
+  reseau. Rafraichissement automatique toutes les 3 s (le reste aussi quand
+  l'onglet est ouvert).
+* **Pilotage** : demarrer / arreter / relancer le scrap en cours, avec le
+  choix du site, de la categorie, du mode (`list`, `rescan`, `details`),
+  de la cadence (delay / jitter), du plafond et de la decoupe en tranches.
+* **Alertes** : erreur du run, **blocage serveur (Cloudflare)** detecte
+  (403/429/503 ou challenge), erreurs reseau, arret manuel, conteneur arrete
+  alors que le suivi annonce un run en cours.
+* **Historique** : tous les scrapes passes (debut, duree, mode, categorie,
+  annonces listees / detail / inserees / modifiees, requetes, blocages,
+  statut, message d'erreur) + les derniers logs du conteneur.
+
+Fonctionnement :
+
+* le scraper ecrit `/data/progress/<site>.json` (volume partage) a chaque
+  lot d'annonces : c'est la source de la progression live ;
+* les runs sont aussi enregistres en base (`scrape_runs`) : une ligne est
+  ouverte au debut du run (statut `running`) et completee a la fin ;
+* l'interface pilote le conteneur `avito-scraper` via le socket Docker
+  (`/var/run/docker.sock`) : `docker stop` / `docker start` ;
+* les parametres du job sont ecrits dans `/data/scrape_job.json` et lus au
+  demarrage du conteneur : on peut changer de categorie sans reconstruire.
+
+```bash
+# creer le conteneur du scraper (sans le lancer)
+docker compose create scraper
+# le lancer / l'arreter en ligne de commande
+docker compose up -d scraper
+docker compose stop scraper
+```
+
 ## 4. L'outil de consultation
 
 ```bash

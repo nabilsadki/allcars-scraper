@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
     started_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
     finished_at   DATETIME NULL,
+    site          VARCHAR(32)  NULL,
     category      VARCHAR(255) NULL,
     mode          VARCHAR(64)  NULL,
     ads_listed    INT DEFAULT 0,

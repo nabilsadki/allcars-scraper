@@ -21,6 +21,7 @@ from datetime import datetime
 from .core.db import Database
 from .core.http import HttpClient
 from .core.pipeline import run_details, run_list, run_rescan
+from .core.progress import install_signal_handlers
 from .core.registry import available_sites, get_site, site_info
 from .core.scoring import compute_notes, compute_notes_v2, load_config
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
@@ -58,15 +59,19 @@ def cmd_list(args) -> int:
     db = _db(args) if args.db else None
     client = _client(args)
     started = datetime.now()
+    run_id = None
+    if db:
+        run_id = db.start_run({"started_at": started, "site": site.name,
+                               "category": args.category,
+                               "mode": "details" if args.details else "list"})
     try:
         res = run_list(site, client, db, category=args.category, limit=args.limit,
                        details=args.details, out=args.out, quiet=args.quiet,
-                       start=started)
+                       start=started, run_id=run_id)
     finally:
         if db:
-            db.touch_run({
-                "started_at": started, "finished_at": datetime.now(),
-                "category": args.category, "mode": "details" if args.details else "list",
+            db.finish_run(run_id, {
+                "finished_at": datetime.now(),
                 "ads_listed": res.get("listed", 0), "ads_details": res.get("details", 0),
                 "ads_inserted": db.counters["inserted"], "ads_updated": db.counters["updated"],
                 "ads_unchanged": db.counters["unchanged"],
@@ -83,20 +88,22 @@ def cmd_rescan(args) -> int:
     site = _site(args)
     db = _db(args)
     client = _client(args)
+    started = datetime.now()
+    run_id = db.start_run({"started_at": started, "site": site.name,
+                           "category": args.category, "mode": "rescan"})
     try:
         res = run_rescan(site, client, db, category=args.category, limit=args.limit,
                          details=args.details, mark_missing=args.mark_missing,
-                         quiet=args.quiet)
+                         quiet=args.quiet, run_id=run_id)
     except Exception as e:
         err = f"{type(e).__name__}: {e}"
-        db.touch_run({"started_at": datetime.now(), "category": args.category,
-                      "mode": "rescan", "status": "error", "error": err})
+        db.finish_run(run_id, {"finished_at": datetime.now(), "status": "error",
+                               "error": err})
         db.close()
         print(f"  ERREUR : {err}", file=sys.stderr)
         return 1
-    db.touch_run({
-        "started_at": res.get("started"), "finished_at": datetime.now(),
-        "category": args.category, "mode": "rescan",
+    db.finish_run(run_id, {
+        "finished_at": datetime.now(),
         "ads_listed": res.get("seen", 0), "ads_details": res.get("details", 0),
         "ads_inserted": res.get("new", 0), "ads_updated": res.get("changed", 0),
         "ads_unchanged": res.get("unchanged", 0),
@@ -218,6 +225,7 @@ def main(argv=None) -> int:
     s6.set_defaults(func=cmd_sites)
 
     args = p.parse_args(argv)
+    install_signal_handlers()
     return args.func(args)
 
 

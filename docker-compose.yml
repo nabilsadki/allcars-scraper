@@ -1,11 +1,17 @@
 # ---------------------------------------------------------------------------
-#  Scraper avito.ma — tout tourne en Docker (DB + scraper + outils).
+#  Scraper avito.ma — tout tourne en Docker (DB + scraper + outils + web).
 #
-#  IMPORTANT : aucun service n'est lance automatiquement.
-#  - restart: "no" partout
+#  Persistance de l'interface : les services `db` et `web` ont la politique
+#  de redemarrage "unless-stopped" : ils se relancent tout seuls au redemarrage
+#  du poste (Docker demarre au boot), l'interface reste donc toujours
+#  accessible.
+#
+#  IMPORTANT : aucun SCRAP n'est lance automatiquement.
+#  - `app`, `tools` et `scraper` restent en restart: "no"
 #  - pas de service cron / scheduler
-#  Le DB se lance a la demande :  docker compose up -d db
-#  Le scraper se lance a la demande : docker compose run --rm app scrape list ...
+#  Le scrap se lance depuis l'interface (page /tracking) ou en ligne de commande :
+#      docker compose run --rm app list --category "..." --db
+#      docker compose up -d scraper      # service pilote par l'interface
 #  Les volumes (donnees MySQL + dumps) persistent sur /mnt/4TB.
 # ---------------------------------------------------------------------------
 
@@ -18,7 +24,8 @@ services:
       context: ./services/db
     image: avito-scraper-db:latest
     container_name: avito-db
-    restart: "no"
+    # la base doit suivre l'interface (qui doit rester accessible)
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-avito}
@@ -88,12 +95,16 @@ services:
       - ./services/app/config:/app/config:ro
     entrypoint: ["python3", "-m", "scraper.query"]
 
-  # ---------------------------------------------------------------- web
-  web:
+  # --------------------------------------------------------- scraper piloté
+  # Service lance/arrete depuis l'interface web (page /tracking).
+  # Il n'est jamais relance automatiquement : restart "no".
+  #   docker compose create scraper   -> cree le conteneur (sans le lancer)
+  #   demarrage / arret : boutons de la page /tracking
+  scraper:
     build:
-      context: ./services/web
-    image: avito-scraper-web:latest
-    container_name: avito-web
+      context: ./services/app
+    image: avito-scraper-app:latest
+    container_name: ${SCRAPER_CONTAINER:-avito-scraper}
     restart: "no"
     depends_on:
       db:
@@ -104,9 +115,43 @@ services:
       DB_NAME: ${DB_NAME:-avito}
       DB_USER: ${DB_USER:-avito}
       DB_PASSWORD: ${DB_PASSWORD:-avito}
-      IMAGES_DIR: /data/images
+      SCORING_CONFIG: /app/config/scoring.json
+      PROGRESS_DIR: /data/progress
+      SCRAPE_JOB_FILE: /data/scrape_job.json
     volumes:
       - scraped_data:/data
+      - ./services/app/config:/app/config:ro
+    entrypoint: ["python3", "-m", "scraper.run_job"]
+
+  # ---------------------------------------------------------------- web
+  web:
+    build:
+      context: ./services/web
+    image: avito-scraper-web:latest
+    container_name: avito-web
+    # l'interface doit rester accessible (elle survit au redemarrage du PC)
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-avito}
+      DB_USER: ${DB_USER:-avito}
+      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      IMAGES_DIR: /data/images
+      PROGRESS_DIR: /data/progress
+      SCRAPE_JOB_FILE: /data/scrape_job.json
+      DOCKER_SOCKET: /var/run/docker.sock
+      SCRAPER_CONTAINER: ${SCRAPER_CONTAINER:-avito-scraper}
+    volumes:
+      - scraped_data:/data
+      # socket Docker : permet a l'interface de piloter le conteneur scraper
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      # groupe "docker" de l'hote (pour l'acces au socket)
+      - "${DOCKER_GID:-999}"
     ports:
       # accessible depuis le reseau local + le tailnet (via tailscale serve)
       - "127.0.0.1:${WEB_PORT:-8080}:8080"

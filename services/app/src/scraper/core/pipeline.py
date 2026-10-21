@@ -27,6 +27,7 @@ from .catalog import Catalog
 from .db import Database
 from .history import compare
 from .market import MarketStats
+from .progress import Progress
 from .scoring import compute_notes, compute_notes_v2, load_config
 from .site import SiteAdapter
 
@@ -72,7 +73,8 @@ def _catalog(site: SiteAdapter, client, verbose: bool = True):
 
 
 def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
-                 page_size: int = 38, verbose: bool = True):
+                 page_size: int = 38, verbose: bool = True,
+                 progress: Optional[Progress] = None):
     """Parcourt les pages de liste d'une categorie.
 
     Rend des annonces normalisees. La categorie peut etre decoupee en
@@ -86,9 +88,14 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
         slices = [(category, category)]
     if len(slices) > 1:
         print(f"  {len(slices)} tranches", flush=True)
-    for label, path in slices:
+    if progress is not None:
+        progress.update(slices_total=len(slices),
+                        total=getattr(site, "global_total", 0) or progress.state.get("total", 0))
+    for idx, (label, path) in enumerate(slices):
         if limit and total_seen >= limit:
             return
+        if progress is not None:
+            progress.update(current_slice=label, slices_done=idx)
         for ad in _iter_slice(site, client, path, limit, total_seen, page_size, verbose):
             total_seen += 1
             yield ad
@@ -170,7 +177,7 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
 def run_list(site: SiteAdapter, client, db: Optional[Database], *,
              category: str, limit: int = 0, details: bool = False,
              out: str = "", quiet: bool = False,
-             start: Optional[datetime] = None) -> dict:
+             start: Optional[datetime] = None, run_id: Optional[int] = None) -> dict:
     """Scrape une categorie et ecrit en base."""
     started = start or datetime.now()
     t0 = time.time()
@@ -186,8 +193,10 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
     n_listed = n_details = 0
     out_fh = open(out, "w", encoding="utf-8") if out else None
     error = None
+    progress = Progress(site.name, mode="list", category=category)
     try:
-        for ad in iter_listing(site, client, category, limit, verbose=not quiet):
+        for ad in iter_listing(site, client, category, limit, verbose=not quiet,
+                               progress=progress):
             n_listed += 1
             if catalog is not None and not ad.get("brand"):
                 ad = site.enrich(ad, client)
@@ -203,6 +212,18 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
                 # commit par lots : un run interrompu ne perd pas tout
                 if n_listed % 50 == 0:
                     db.commit()
+            if n_listed % 10 == 0:
+                progress.update(listed=n_listed, details=n_details)
+                progress.stats(client, db)
+            if n_listed % 100 == 0 and db is not None:
+                db.update_run(run_id, {
+                    "ads_listed": n_listed, "ads_details": n_details,
+                    "ads_inserted": db.counters["inserted"],
+                    "ads_updated": db.counters["updated"],
+                    "ads_unchanged": db.counters["unchanged"],
+                    "http_requests": client.stats["requests"],
+                    "blocked": client.stats["blocked"],
+                })
             if not quiet and n_listed % 25 == 0:
                 print(f"  ... {n_listed} annonces", flush=True)
         if db is not None:
@@ -215,6 +236,9 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
     finally:
         if out_fh:
             out_fh.close()
+        progress.update(listed=n_listed, details=n_details)
+        progress.stats(client, db)
+        progress.finish("error" if error else "success", error)
 
     dt = time.time() - t0
     if not quiet:
@@ -229,7 +253,8 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
 
 def run_rescan(site: SiteAdapter, client, db: Database, *,
                category: str, limit: int = 0, details: bool = True,
-               mark_missing: bool = False, quiet: bool = False) -> dict:
+               mark_missing: bool = False, quiet: bool = False,
+               run_id: Optional[int] = None) -> dict:
     """Re-scraping intelligent : la liste detecte, la fiche detail confirme."""
     started = datetime.now()
     t0 = time.time()
@@ -243,8 +268,10 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
     known_before = set(db.known_ad_ids(site.name))
     seen: set = set()
     n_new = n_changed = n_unchanged = n_details = n_candidates = 0
+    progress = Progress(site.name, mode="rescan", category=category)
 
-    for ad in iter_listing(site, client, category, limit, verbose=not quiet):
+    for ad in iter_listing(site, client, category, limit, verbose=not quiet,
+                           progress=progress):
         ad_id = ad.get("ad_id")
         if ad_id is not None:
             seen.add(ad_id)
@@ -276,11 +303,26 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
         db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
         if len(seen) % 50 == 0:
             db.commit()          # commit par lots
+        if len(seen) % 10 == 0:
+            progress.update(listed=len(seen), details=n_details,
+                            unchanged=n_unchanged)
+            progress.stats(client, db)
+        if len(seen) % 100 == 0:
+            db.update_run(run_id, {
+                "ads_listed": len(seen), "ads_details": n_details,
+                "ads_inserted": db.counters["inserted"],
+                "ads_updated": db.counters["updated"],
+                "ads_unchanged": db.counters["unchanged"],
+                "http_requests": client.stats["requests"],
+                "blocked": client.stats["blocked"],
+            })
         if not quiet and len(seen) % 25 == 0:
             print(f"  ... {len(seen)} annonces vues "
                   f"({n_new} nouvelles, {n_changed} modifiees)", flush=True)
 
     db.commit()
+    progress.update(listed=len(seen), details=n_details, unchanged=n_unchanged)
+    progress.stats(client, db)
 
     # disparitions : uniquement si le run a couvert TOUTE la categorie
     total = getattr(client, "catalog_total", None)
@@ -294,6 +336,7 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
         print(f"  run partiel ({len(seen)}/{total or '?'}) : pas de marquage")
 
     dt = time.time() - t0
+    progress.finish("success")
     if not quiet:
         print(f"\nRescan termine : {len(seen)} annonces vues | {n_new} nouvelles | "
               f"{n_changed} modifiees (version creee) | {n_unchanged} inchangees | "
@@ -327,6 +370,8 @@ def run_details(site: SiteAdapter, client, db: Database, *,
     if not quiet:
         print(f"  {len(rows)} annonces a completer", flush=True)
     n = 0
+    progress = Progress(site.name, mode="details", category=category)
+    progress.update(total=len(rows))
     for r in rows:
         ad = fetch_detail(site, client, {
             "ad_id": r["ad_id"], "url": r["link"],
@@ -339,7 +384,13 @@ def run_details(site: SiteAdapter, client, db: Database, *,
         db.upsert_ad(ad, site=site.name)
         db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
         n += 1
+        if n % 5 == 0:
+            progress.update(details=n)
+            progress.stats(client, db)
     db.commit()
+    progress.update(details=n)
+    progress.stats(client, db)
+    progress.finish("success")
     if not quiet:
         print(f"  {n} fiches completees", flush=True)
     return {"details": n}
