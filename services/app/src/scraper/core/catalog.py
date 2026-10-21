@@ -51,6 +51,32 @@ def catalog_path_for(site: str) -> str:
     base = os.environ.get("CATALOG_PATH", "/data/catalog.json")
     root, ext = os.path.splitext(base)
     return f"{root}-{site}{ext}"
+
+
+def shared_catalog(client) -> Optional["Catalog"]:
+    """Referentiel marques/modeles partage par tous les sites.
+
+    C'est un dictionnaire de marques et de modeles de voitures : il sert a
+    tout le monde. On le charge depuis le cache disque (le premier site
+    qui l'a telecharge l'a deja mis en cache).
+    """
+    cat = getattr(client, "_shared_catalog_obj", None)
+    if cat is not None:
+        return cat
+    for path in (catalog_path_for("avito"), CATALOG_PATH):
+        try:
+            if not os.path.exists(path):
+                continue
+            cat = Catalog(client, path=path)
+            cat.fetch()          # lit le cache, pas de reseau
+            try:
+                setattr(client, "_shared_catalog_obj", cat)
+            except Exception:
+                pass
+            return cat
+        except Exception:
+            continue
+    return None
 CATALOG_TTL = int(os.environ.get("CATALOG_TTL", str(60 * 60 * 24 * 7)))  # 7 jours
 
 

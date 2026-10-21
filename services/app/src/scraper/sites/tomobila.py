@@ -79,6 +79,28 @@ class TomobilaAdapter(SiteAdapter):
         m = re.search(r'([\d\s]+)\s*(?:v|result|annonce)', html, re.I)
         return None
 
+    def enrich(self, ad: dict, client) -> dict:
+        """Deduit marque / modele du titre via le referentiel partage.
+
+        Le site ne remplit pas toujours la marque dans sa fiche : on
+        complete avec le dictionnaire marques/modeles (conserve en cache).
+        """
+        if ad.get("brand") and ad.get("model"):
+            return ad
+        try:
+            from ..core.catalog import shared_catalog
+            cat = shared_catalog(client)
+            if cat is None:
+                return ad
+            brand, model = cat.parse_brand_model(ad.get("title") or "")
+            if brand and not ad.get("brand"):
+                ad["brand"] = brand
+            if model and not ad.get("model"):
+                ad["model"] = model
+        except Exception:
+            pass
+        return ad
+
     # -------------------------------------------------------------- detail
     def detail_url(self, ad: dict) -> Optional[str]:
         return ad.get("url")
@@ -144,7 +166,8 @@ class TomobilaAdapter(SiteAdapter):
 # Libelles du site -> cles normalisees
 _ATTRIBUTES = {
     "marque": "brand",
-    "modèle": "model",
+    "modèle": "model",     # e accent grave (libelle du site)
+    "modéle": "model",     # e accent aigu (libelle du site)
     "modele": "model",
     "mise en circulation": "year",
     "ville": "city",

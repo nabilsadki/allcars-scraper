@@ -198,7 +198,8 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
         for ad in iter_listing(site, client, category, limit, verbose=not quiet,
                                progress=progress):
             n_listed += 1
-            if catalog is not None and not ad.get("brand"):
+            if not ad.get("brand"):
+                # l'adaptateur gere lui-meme son referentiel (cache sur le client)
                 ad = site.enrich(ad, client)
             if details:
                 ad = fetch_detail(site, client, ad)
@@ -275,7 +276,7 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
         ad_id = ad.get("ad_id")
         if ad_id is not None:
             seen.add(ad_id)
-        if catalog is not None and not ad.get("brand"):
+        if not ad.get("brand"):
             ad = site.enrich(ad, client)
 
         # 1) detection SANS ecriture : la page de liste suffit
@@ -378,7 +379,7 @@ def run_details(site: SiteAdapter, client, db: Database, *,
             "brand": r.get("brand"), "model": r.get("model")})
         if not ad.get("details_fetched"):
             continue
-        if catalog is not None and not ad.get("brand"):
+        if not ad.get("brand"):
             ad = site.enrich(ad, client)
         _apply_notes(ad, market=market, config=config)
         db.upsert_ad(ad, site=site.name)

@@ -112,6 +112,29 @@ def pager_items(page: int, pages: int, window: int = 2) -> list:
     return out
 
 
+def model_options(brand: str = "", site: str = "") -> list[dict]:
+    """Modeles disponibles, groupes par marque.
+
+    Si une marque est donnee, seuls ses modeles sont renvoyes.
+    """
+    where = ["model IS NOT NULL", "model <> ''"]
+    params: list = []
+    if brand:
+        where.append("brand = %s")
+        params.append(brand)
+    if site:
+        where.append("site = %s")
+        params.append(site)
+    rows = query(
+        "SELECT brand, model, COUNT(*) n FROM ads WHERE " + " AND ".join(where) +
+        " GROUP BY brand, model ORDER BY brand, n DESC", tuple(params))
+    groups: dict[str, list] = {}
+    for r in rows:
+        brand_name = r["brand"] or "(sans marque)"
+        groups.setdefault(brand_name, []).append(r["model"])
+    return [{"brand": b, "models": m} for b, m in sorted(groups.items())]
+
+
 # ------------------------------------------------------------------ filtres
 def build_filters() -> tuple[str, list]:
     where = ["1=1"]
@@ -130,6 +153,7 @@ def build_filters() -> tuple[str, list]:
     eq("site", request.args.get("site"))
     eq("city", request.args.get("city"))
     eq("brand", request.args.get("brand"))
+    eq("model", request.args.get("model"))
     eq("fuel", request.args.get("fuel"))
     eq("gear", request.args.get("gear"))
     eq("category", request.args.get("category"))
@@ -178,6 +202,8 @@ def index():
         opts[col] = [r[col] for r in query(
             f"SELECT DISTINCT {col} FROM ads WHERE {col} IS NOT NULL "
             f"ORDER BY {col}")]
+    opts["models"] = model_options(request.args.get("brand", ""),
+                                   request.args.get("site", ""))
 
     pages = max(1, (total + per_page - 1) // per_page)
     return render_template(
@@ -282,6 +308,14 @@ def _imgthumb(site: str, ad_id: int):
         return send_from_directory(
             IMAGES_DIR, im["path_local"].split("/images/", 1)[-1])
     return redirect(im.get("link_full") or im["link"], code=302)
+
+
+@app.route("/api/models")
+def api_models():
+    """Modeles disponibles, groupes par marque (pour le selecteur dynamique)."""
+    brand = (request.args.get("brand") or "").strip()
+    site = (request.args.get("site") or "").strip()
+    return jsonify({"brand": brand, "groups": model_options(brand, site)})
 
 
 @app.route("/api/ads")

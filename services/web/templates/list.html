@@ -18,9 +18,19 @@
       </select>
     </label>
     <label>Marque
-      <select name="brand">
+      <select name="brand" id="f-brand">
         <option value="">toutes</option>
         {% for b in opts.brand %}<option value="{{ b }}" {% if request.args.get('brand')==b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Modèle
+      <select name="model" id="f-model">
+        <option value="">tous</option>
+        {% for g in opts.models %}
+          <optgroup label="{{ g.brand }}">
+            {% for m in g.models %}<option value="{{ m }}" {% if request.args.get('model')==m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </optgroup>
+        {% endfor %}
       </select>
     </label>
     <label>Carburant
@@ -116,5 +126,39 @@
   {% endfor %}
 </nav>
 {% endif %}
+
+<script>
+// le selecteur de modeles suit la marque : on recharge les options via l'API
+(function () {
+  const brandSel = document.querySelector('#f-brand');
+  const modelSel = document.querySelector('#f-model');
+  const siteSel = document.querySelector('select[name=site]');
+  if (!brandSel || !modelSel) return;
+  brandSel.addEventListener('change', async () => {
+    const current = modelSel.value;
+    try {
+      const url = '/api/models?brand=' + encodeURIComponent(brandSel.value) +
+                  '&site=' + encodeURIComponent(siteSel ? siteSel.value : '');
+      const res = await fetch(url);
+      const data = await res.json();
+      modelSel.innerHTML = '<option value="">tous</option>';
+      for (const g of data.groups) {
+        const og = document.createElement('optgroup');
+        og.label = g.brand;
+        for (const m of g.models) {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          og.appendChild(opt);
+        }
+        modelSel.appendChild(og);
+      }
+      if (current && Array.from(modelSel.options).some(o => o.value === current)) {
+        modelSel.value = current;
+      }
+    } catch (e) { /* le selecteur garde sa valeur precedente */ }
+  });
+})();
+</script>
 
 {% endblock %}
