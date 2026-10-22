@@ -2,42 +2,44 @@
 {% block title %}{{ ad.title[:60] }} — {{ ad.site|site_label }}{% endblock %}
 {% block content %}
 
-<a class="back" href="/">← retour au catalogue</a>
+<a class="inline-block text-muted hover:text-txt no-underline mb-3" href="/">← retour au catalogue</a>
 
-<div class="detail">
-  <section class="photos" id="gallery">
+<div class="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6">
+  <section class="photos grid grid-cols-2 gap-2 content-start" id="gallery">
     {% for im in images %}
-      <a href="{{ im.local_url or im.link_full or im.link }}" class="photo"
+      <a href="{{ im.local_url or im.link_full or im.link }}" class="photo block cursor-zoom-in"
          data-full="{{ im.link_full or im.link }}" data-local="{{ im.local_url or '' }}">
         {% if im.local_url %}
-          <img loading="lazy" src="{{ im.local_url }}">
+          <img loading="lazy" src="{{ im.local_url }}" class="w-full rounded-lg border border-line block">
         {% else %}
-          <img loading="lazy" src="{{ im.link_full or im.link }}">
+          <img loading="lazy" src="{{ im.link_full or im.link }}" class="w-full rounded-lg border border-line block">
         {% endif %}
       </a>
     {% else %}
-      <p class="noimg">Aucune photo</p>
+      <p class="text-muted">Aucune photo</p>
     {% endfor %}
   </section>
 
   <section class="infos">
     {% set v2 = ad.notes_v2 or {} %}
-    <h1>{{ ad.title }}</h1>
-    <div class="sub">
-      <span class="sitebadge" style="--site-hue: {{ ad.site|site_hue }}">{{ ad.site|site_label }}</span>
-      <span class="muted small">annonce #{{ ad.ad_id }}{% if ad.version %} · version {{ ad.version }}{% endif %}</span>
+    <h1 class="text-[21px] font-semibold leading-snug m-0 mb-1.5">{{ ad.title }}</h1>
+    <div class="flex flex-wrap items-center gap-2 mb-3 text-muted">
+      <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border"
+            style="--site-hue: {{ ad.site|site_hue }}">{{ ad.site|site_label }}</span>
+      <span class="text-[12px]">annonce #{{ ad.ad_id }}{% if ad.version %} · version {{ ad.version }}{% endif %}</span>
     </div>
-    <div class="price big">
-      {% if ad.price %}{{ '{:,}'.format(ad.price).replace(',', ' ') }} DH{% else %}<em>sur demande</em>{% endif %}
+    <div class="text-accent-txt text-[26px] font-bold mb-2">
+      {% if ad.price %}{{ '{:,}'.format(ad.price).replace(',', ' ') }} DH{% else %}<em class="text-muted font-normal text-[15px]">sur demande</em>{% endif %}
     </div>
-    <div class="sub">{{ ad.brand or '' }} {{ ad.model or '' }}
+    <div class="text-muted mb-4">
+      {{ ad.brand or '' }} {{ ad.model or '' }}
       {% if ad.year %} · {{ ad.year }}{% endif %}
       {% if ad.km %} · {{ '{:,}'.format(ad.km).replace(',', ' ') }} km{% endif %}
       {% if ad.fuel %} · {{ ad.fuel }}{% endif %}
       {% if ad.gear %} · {{ ad.gear }}{% endif %}
     </div>
 
-    <table class="kv">
+    <table class="kv w-full text-[13px] border-collapse">
       <tr><th>Ville</th><td>{{ ad.city or '-' }}{% if ad.area %} ({{ ad.area }}){% endif %}</td>
           <th>Portes</th><td>{{ ad.doors or '-' }}</td></tr>
       <tr><th>Origine</th><td>{{ ad.origin or '-' }}</td>
@@ -45,95 +47,96 @@
       <tr><th>État</th><td>{{ ad.cond or '-' }}</td>
           <th>Puissance fiscale</th><td>{{ ad.fiscal_power or '-' }}</td></tr>
       <tr><th>Vendeur</th><td>{{ ad.seller or '-' }}{% if ad.seller_type %} ({{ ad.seller_type }}){% endif %}</td>
-          <th>Téléphone</th><td>{% if ad.phone %}<a href="tel:{{ ad.phone }}">{{ ad.phone }}</a>{% else %}-{% endif %}</td></tr>
+          <th>Téléphone</th><td>{% if ad.phone %}<a class="text-accent" href="tel:{{ ad.phone }}">{{ ad.phone }}</a>{% else %}-{% endif %}</td></tr>
       <tr><th>Publié le</th><td>{{ ad.publish_date|datefr(true) }}</td>
           <th>Photos</th><td>{{ ad.nb_images or 0 }}</td></tr>
       <tr><th>Dernière mise à jour</th><td>{{ ad.last_seen_at|datefr(true) }}</td>
           <th>Dernier scrape</th><td>{{ ad.scraped_at|datefr(true) }}</td></tr>
       <tr><th>Données</th><td>
           {% if ad.details_fetched %}
-            <span class="sitebadge s-avito">fiche complète ✓</span>
-            page détail scrapée
+            <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: 145">fiche complète ✓</span>
+            <span class="ml-1">page détail scrapée</span>
           {% else %}
-            <span class="sitebadge s-tomobila">liste seule</span>
-            page détail pas encore récupérée
+            <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: 24">liste seule</span>
+            <span class="ml-1">page détail pas encore récupérée</span>
           {% endif %}
         </td>
-          <th>Version</th><td>v{{ ad.version }} ({{ ad.seen_count }} passages)</td>
-          <th>Statut</th><td>{{ 'active' if ad.is_active else 'disparue du catalogue' }}</td></tr>
+          <th>Version</th><td>v{{ ad.version }} ({{ ad.seen_count }} passages)</td></tr>
+      <tr><th>Statut</th><td>{{ 'active' if ad.is_active else 'disparue du catalogue' }}</td>
+          <th></th><td></td></tr>
     </table>
 
     {% if ad.description %}
-    <h3>Description</h3>
-    <pre class="desc">{{ ad.description }}</pre>
+    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Description</h3>
+    <pre class="desc whitespace-pre-wrap bg-panel border border-line rounded-lg p-3 text-[13px] leading-relaxed font-mono">{{ ad.description }}</pre>
     {% endif %}
 
     {% if ad.options %}
-    <h3>Équipements</h3>
-    <div class="opts">
+    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Équipements</h3>
+    <div class="flex flex-wrap gap-1.5">
       {% for k, v in ad.options.items() %}
-        {% if v %}<span class="opt">{{ k }}</span>{% endif %}
+        {% if v %}<span class="opt bg-panel2 border border-line rounded px-2 py-0.5 text-xs">{{ k }}</span>{% endif %}
       {% endfor %}
     </div>
     {% endif %}
 
     {% if v2.get('flags') %}
-    <div class="flags">
-      {% for f in v2['flags'] %}<span class="flag">⚠ {{ f }}</span>{% endfor %}
+    <div class="flex flex-wrap gap-2 my-3">
+      {% for f in v2['flags'] %}<span class="flag bg-accent/15 border border-warn/50 text-warn rounded-md px-2 py-0.5 text-[12.5px]">⚠ {{ f }}</span>{% endfor %}
     </div>
     {% endif %}
 
-    <h3>Scoring</h3>
-    <div class="scores-detail">
-      <div class="scorebox v2">
-        <div class="sbtitle">Scoring v2 — aide aux acheteurs</div>
-        <div class="sbmain">
-          <div><span class="big">{{ ad.note_global or '-' }}</span><small>global</small></div>
-          <div><span class="big">{{ ad.note_etat or '-' }}</span><small>état</small></div>
-          <div><span class="big">{{ ad.note_achat or '-' }}</span><small>achat</small></div>
-          <div><span class="big">{{ ad.note_confiance or '-' }}%</span><small>confiance</small></div>
+    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Scoring</h3>
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="scorebox bg-panel border border-line rounded-xl p-3">
+        <div class="sbtitle text-[12px] text-muted mb-2">Scoring v2 — aide aux acheteurs</div>
+        <div class="flex flex-wrap gap-4">
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_global or '-' }}</span><small class="text-[11px] text-muted">global</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_etat or '-' }}</span><small class="text-[11px] text-muted">état</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_achat or '-' }}</span><small class="text-[11px] text-muted">achat</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_confiance or '-' }}%</span><small class="text-[11px] text-muted">confiance</small></div>
         </div>
       </div>
-      <div class="scorebox legacy">
-        <div class="sbtitle">Scoring legacy (inchangé)</div>
-        <div class="sbmain">
-          <div><span class="big">{{ ad.note or '-' }}</span><small>global</small></div>
-          <div><span class="big">{{ ad.note_year or '-' }}</span><small>année</small></div>
-          <div><span class="big">{{ ad.note_km or '-' }}</span><small>km</small></div>
-          <div><span class="big">{{ ad.note_ratio or '-' }}</span><small>ratio</small></div>
-          <div><span class="big">{{ ad.note_cv or '-' }}</span><small>cv</small></div>
-          <div><span class="big">{{ ad.note_fuel or '-' }}</span><small>carburant</small></div>
-          <div><span class="big">{{ ad.note_gear or '-' }}</span><small>boîte</small></div>
-          <div><span class="big">{{ ad.note_specs or '-' }}</span><small>équipements</small></div>
+      <div class="scorebox bg-panel border border-line rounded-xl p-3">
+        <div class="sbtitle text-[12px] text-muted mb-2">Scoring legacy (inchangé)</div>
+        <div class="flex flex-wrap gap-4">
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note or '-' }}</span><small class="text-[11px] text-muted">global</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_year or '-' }}</span><small class="text-[11px] text-muted">année</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_km or '-' }}</span><small class="text-[11px] text-muted">km</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_ratio or '-' }}</span><small class="text-[11px] text-muted">ratio</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_cv or '-' }}</span><small class="text-[11px] text-muted">cv</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_fuel or '-' }}</span><small class="text-[11px] text-muted">carburant</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_gear or '-' }}</span><small class="text-[11px] text-muted">boîte</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_specs or '-' }}</span><small class="text-[11px] text-muted">équipements</small></div>
         </div>
       </div>
     </div>
 
     {% if v2.get('detail_etat') or v2.get('detail_achat') %}
-    <div class="breakdown">
+    <div class="grid md:grid-cols-2 gap-4 mt-4">
       <div class="bcol">
-        <h4>Critères d'état</h4>
-        <table>
+        <h4 class="text-[12px] uppercase tracking-wider text-muted m-0 mb-1.5">Critères d'état</h4>
+        <table class="w-full text-[12.5px] border-collapse">
           {% for k, v in (v2.get('detail_etat') or {}).items() %}
-          <tr><td>{{ k }}</td><td>{{ v if v is not none else '—' }}</td></tr>
+          <tr class="border-b border-line"><td class="py-0.5">{{ k }}</td><td class="py-0.5 text-right text-accent-txt font-semibold">{{ v if v is not none else '—' }}</td></tr>
           {% endfor %}
         </table>
       </div>
       <div class="bcol">
-        <h4>Critères d'achat</h4>
-        <table>
+        <h4 class="text-[12px] uppercase tracking-wider text-muted m-0 mb-1.5">Critères d'achat</h4>
+        <table class="w-full text-[12.5px] border-collapse">
           {% for k, v in (v2.get('detail_achat') or {}).items() %}
-          <tr><td>{{ k.replace('_', ' ') }}</td><td>{{ v if v is not none else '—' }}</td></tr>
+          <tr class="border-b border-line"><td class="py-0.5">{{ k.replace('_', ' ') }}</td><td class="py-0.5 text-right text-accent-txt font-semibold">{{ v if v is not none else '—' }}</td></tr>
           {% endfor %}
         </table>
         {% if v2.get('achat_info') %}
-        <p class="muted small">
+        <p class="text-muted text-[12px] mt-2">
           années de vie restantes : {{ v2.achat_info.get('annees_restantes', '?') }} ·
           coût par année restante : {{ '{:,}'.format(v2.achat_info.get('par_annee_restante', 0)).replace(',', ' ') }} DH
         </p>
         {% endif %}
         {% if v2.get('marche') %}
-        <p class="muted small">
+        <p class="text-muted text-[12px] mt-1">
           prix = {{ v2.marche.get('ratio') }}× la moyenne du segment
           ({{ v2.marche.get('reference') }}, {{ v2.marche.get('n') }} annonces)
         </p>
@@ -143,37 +146,43 @@
     {% endif %}
 
     {% if versions %}
-    <h3>Historique ({{ versions|length }} version(s))</h3>
-    <table class="vers">
-      <tr><th>Version</th><th>Type</th><th>Date</th><th>Changements</th></tr>
+    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Historique ({{ versions|length }} version(s))</h3>
+    <table class="vers w-full text-[12.5px] border-collapse">
+      <tr><th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Version</th>
+          <th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Type</th>
+          <th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Date</th>
+          <th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Changements</th></tr>
       {% for v in versions %}
       <tr>
-        <td>v{{ v.version }}</td>
-        <td><span class="ctype c-{{ v.change_type }}">{{ v.change_type }}</span></td>
-        <td>{{ v.created }}</td>
-        <td>
+        <td class="py-1 px-2 border-b border-line">v{{ v.version }}</td>
+        <td class="py-1 px-2 border-b border-line">
+          <span class="ctype inline-block px-1.5 py-0.5 rounded bg-panel2 border border-line text-[11px]
+            {% if v.change_type == 'new' %}text-ok{% elif v.change_type == 'disappeared' %}text-bad{% endif %}">{{ v.change_type }}</span>
+        </td>
+        <td class="py-1 px-2 border-b border-line">{{ v.created }}</td>
+        <td class="py-1 px-2 border-b border-line">
           {% if v.diff %}
             {% for k, val in v.diff.items() %}
-              <div class="d"><b>{{ k }}</b>: {{ val.get('old') }} → {{ val.get('new') }}</div>
+              <div class="text-[12px]"><b>{{ k }}</b>: {{ val.get('old') }} → {{ val.get('new') }}</div>
             {% endfor %}
-          {% else %}<span class="muted">—</span>{% endif %}
+          {% else %}<span class="text-muted">—</span>{% endif %}
         </td>
       </tr>
       {% endfor %}
     </table>
     {% endif %}
 
-    <p class="link"><a href="{{ ad.link }}" target="_blank">Voir l'annonce sur {{ ad.site|site_label }} ↗</a></p>
+    <p class="mt-5"><a class="text-accent" href="{{ ad.link }}" target="_blank">Voir l'annonce sur {{ ad.site|site_label }} ↗</a></p>
   </section>
 </div>
 
 <!-- ------------------------------------------------------- lightbox -->
-<div id="lightbox" class="lightbox" hidden>
-  <button class="lb-close" title="Fermer (Echap)">✕</button>
-  <button class="lb-nav lb-prev" title="Photo précédente">‹</button>
-  <img id="lb-img" src="" alt="">
-  <button class="lb-nav lb-next" title="Photo suivante">›</button>
-  <div class="lb-count"></div>
+<div id="lightbox" class="lightbox fixed inset-0 z-200 hidden bg-black/95 flex items-center justify-center gap-3.5 p-8">
+  <button class="lb-close absolute top-3.5 right-4.5 w-9 h-9 rounded-lg bg-panel border border-line text-txt cursor-pointer text-xl leading-none hover:border-accent">✕</button>
+  <button class="lb-nav lb-prev absolute top-1/2 -translate-y-1/2 left-3.5 w-11 h-15 rounded-lg bg-panel border border-line text-txt cursor-pointer text-3xl leading-none hover:border-accent">‹</button>
+  <img id="lb-img" src="" alt="" class="max-w-[86vw] max-h-[86vh] object-contain rounded-lg shadow-2xl">
+  <button class="lb-nav lb-next absolute top-1/2 -translate-y-1/2 right-3.5 w-11 h-15 rounded-lg bg-panel border border-line text-txt cursor-pointer text-3xl leading-none hover:border-accent">›</button>
+  <div class="lb-count absolute bottom-4 left-1/2 -translate-x-1/2 text-muted text-[13px] bg-panel border border-line rounded-full px-3 py-1"></div>
 </div>
 
 <script>
@@ -198,12 +207,14 @@
 
   function open(i) {
     show(i);
-    box.hidden = false;
+    box.classList.remove('hidden');
+    box.classList.add('flex');
     document.body.style.overflow = 'hidden';
   }
 
   function close() {
-    box.hidden = true;
+    box.classList.add('hidden');
+    box.classList.remove('flex');
     document.body.style.overflow = '';
   }
 
@@ -219,7 +230,7 @@
   box.querySelector('.lb-next').addEventListener('click', (e) => { e.stopPropagation(); show(index + 1); });
   box.addEventListener('click', (e) => { if (e.target === box) close(); });
   document.addEventListener('keydown', (e) => {
-    if (box.hidden) return;
+    if (box.classList.contains('hidden')) return;
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowLeft') show(index - 1);
     else if (e.key === 'ArrowRight') show(index + 1);

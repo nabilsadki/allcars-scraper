@@ -22,3 +22,7 @@ logs/
 .DS_Store
 Thumbs.db
 *.swp
+
+# node (build Tailwind local)
+node_modules/
+package-lock.json

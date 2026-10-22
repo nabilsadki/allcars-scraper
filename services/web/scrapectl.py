@@ -166,7 +166,7 @@ def logs(site: str, tail: int = 120) -> list[str]:
     return [ln for ln in lines if ln.strip()]
 
 
-def list_containers(prefix: str = "avito") -> list[dict]:
+def list_containers(prefix: str = "allcars") -> list[dict]:
     """Etat de tous les conteneurs du projet (prefixe de nom).
 
     Retourne une liste : nom, etat, image, statut, age, site (pour les

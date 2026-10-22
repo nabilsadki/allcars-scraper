@@ -1,40 +1,57 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}All Cars — catalogue{% endblock %}</title>
 <link rel="icon" href="/static/favicon.svg?v={{ asset_version('favicon.svg') }}" type="image/svg+xml">
-<link rel="alternate icon" href="/static/favicon.svg">
-<link rel="apple-touch-icon" href="/static/favicon.svg">
-<link rel="stylesheet" href="/static/style.css?v={{ asset_version('style.css') }}">
+<link rel="alternate icon" href="/static/favicon.svg?v={{ asset_version('favicon.svg') }}">
+<link rel="apple-touch-icon" href="/static/favicon.svg?v={{ asset_version('favicon.svg') }}">
+<link rel="stylesheet" href="/static/tailwind.css?v={{ asset_version('tailwind.css') }}">
 <script>
 // applique le theme avant le rendu (pas de flash)
 (function () {
   try {
     if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.classList.remove('dark');
       document.documentElement.classList.add('light');
     }
   } catch (e) {}
 })();
 </script>
 </head>
-<body>
-<header class="topbar">
-  <a class="brand" href="/">🚗 All Cars <span class="sub">catalogue</span></a>
-  <nav class="mainnav">
-    <a href="/" class="{{ 'on' if request.path == '/' else '' }}">Catalogue</a>
-    <a href="/tracking" class="{{ 'on' if request.path == '/tracking' else '' }}">Suivi du scrap</a>
-    <button type="button" id="theme-toggle" class="theme-toggle"
-            title="Basculer le theme clair / sombre">🌙</button>
-  </nav>
+<body class="min-h-screen bg-bg text-txt font-sans antialiased">
+
+<header class="sticky top-0 z-30 bg-panel border-b border-line">
+  <div class="mx-auto max-w-[1400px] px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+    <a class="brand font-bold text-[17px] text-txt hover:no-underline shrink-0" href="/">
+      🚗 All Cars <span class="font-normal text-[13px] text-muted">catalogue</span>
+    </a>
+
+    <nav class="mainnav flex items-center gap-1.5 ml-auto">
+      <a href="/" class="px-3 py-1.5 rounded-lg text-sm text-muted border border-transparent hover:text-txt hover:border-line hover:no-underline
+                {% if request.path == '/' %}!text-txt !bg-panel2 !border-line{% endif %}">Catalogue</a>
+      <a href="/tracking" class="px-3 py-1.5 rounded-lg text-sm text-muted border border-transparent hover:text-txt hover:border-line hover:no-underline
+                {% if request.path == '/tracking' %}!text-txt !bg-panel2 !border-line{% endif %}">Suivi du scrap</a>
+      <button type="button" id="theme-toggle" title="Basculer le theme clair / sombre"
+              class="theme-toggle w-[34px] h-[30px] rounded-lg bg-panel2 border border-line text-muted hover:text-txt hover:border-accent cursor-pointer text-[15px] leading-none">🌙</button>
+    </nav>
+  </div>
 </header>
-<main>
+
+<main class="mx-auto max-w-[1400px] px-4 py-5">
 {% block content %}{% endblock %}
 </main>
-<footer>Scraper avito.ma — HTTP sans navigateur · données locales</footer>
 
-<div id="loader" class="loader"><div class="spinner"></div><span>Chargement…</span></div>
+<footer class="text-center text-muted py-6 text-[13px]">
+  All Cars — scraper multi-sites · données locales
+</footer>
+
+<div id="loader" class="loader fixed inset-0 z-[100] hidden items-center justify-center gap-3 bg-veil backdrop-blur-[2px] text-txt">
+  <div class="spinner w-[26px] h-[26px] rounded-full border-[3px] border-accent/25 border-t-accent"></div>
+  <span>Chargement…</span>
+</div>
+
 <script>
 // bascule du theme (clair / sombre), memorise dans le navigateur
 (function () {
@@ -42,6 +59,7 @@
   if (!btn) return;
   const apply = (light) => {
     document.documentElement.classList.toggle('light', light);
+    document.documentElement.classList.toggle('dark', !light);
     btn.textContent = light ? '☀' : '🌙';
     btn.title = light ? 'Passer en theme sombre' : 'Passer en theme clair';
   };
@@ -55,16 +73,16 @@
   });
 })();
 
-// loader : affiche un voile tant qu'une action (formulaire, lien) est en cours
+// loader : voile tant qu'une action (formulaire, lien) est en cours
 (function () {
   const loader = document.getElementById('loader');
-  const show = () => loader && loader.classList.add('on');
+  const show = () => { if (loader) loader.classList.remove('hidden'); loader.classList.add('flex'); };
+  const hide = () => { if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); } };
   document.addEventListener('submit', show, true);
   document.addEventListener('click', (e) => {
     const a = e.target.closest && e.target.closest('a');
     if (a && !a.target && a.getAttribute('href')) show();
   });
-  const hide = () => loader && loader.classList.remove('on');
   window.addEventListener('pageshow', hide);
   window.addEventListener('load', hide);
   setTimeout(hide, 20000);

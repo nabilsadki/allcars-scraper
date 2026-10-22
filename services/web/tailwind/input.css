@@ -1,0 +1,76 @@
+/* All Cars — feuille de style Tailwind (source)
+ *
+ * Les couleurs sont des variables CSS : le theme clair/sombre ne change
+ * que la classe `light` sur <html>, tout le reste suit.
+ */
+@import "tailwindcss";
+
+/* sources scannees par Tailwind (les templates du projet) */
+@source "../templates";
+
+@theme {
+  --color-bg: #0f1115;
+  --color-panel: #171a21;
+  --color-panel2: #1e222b;
+  --color-line: #2a2f3a;
+  --color-txt: #e7eaf0;
+  --color-muted: #8b93a3;
+  --color-accent: #4c8dff;
+  --color-accent-txt: #85b4ff;
+  --color-ok: #2ecc71;
+  --color-warn: #ffaa33;
+  --color-bad: #ff5555;
+  --color-veil: rgba(15, 17, 21, .78);
+  --color-onaccent: #ffffff;
+
+  --font-sans: -apple-system, "Segoe UI", Roboto, "Noto Sans", Ubuntu, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.light {
+  --color-bg: #f2f5f9;
+  --color-panel: #ffffff;
+  --color-panel2: #eaeef4;
+  --color-line: #d3dae5;
+  --color-txt: #161a21;
+  --color-muted: #5d6675;
+  --color-accent: #1f6feb;
+  --color-accent-txt: #14509f;
+  --color-ok: #12823c;
+  --color-warn: #9a5b00;
+  --color-bad: #c62828;
+  --color-veil: rgba(242, 245, 249, .8);
+  --color-onaccent: #ffffff;
+}
+
+/* ------------------------------------------------------------- animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes barflow { from { background-position: 0 0; } to { background-position: 24px 0; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+
+.spinner { animation: spin .8s linear infinite; }
+.pulse-dot { animation: pulse 1.6s infinite; }
+.bar-live {
+  background-image: linear-gradient(45deg, rgba(255, 255, 255, .16) 25%, transparent 25%,
+    transparent 50%, rgba(255, 255, 255, .16) 50%, rgba(255, 255, 255, .16) 75%, transparent 75%);
+  background-size: 24px 24px;
+  animation: barflow 1.1s linear infinite;
+}
+
+/* ------------------------------------------------- couleur par site (badge) */
+.sitebadge {
+  background: hsl(var(--site-hue, 214) 72% 58% / .16);
+  border-color: hsl(var(--site-hue, 214) 72% 58% / .5);
+  color: hsl(var(--site-hue, 214) 85% 74%);
+}
+.light .sitebadge {
+  background: hsl(var(--site-hue, 214) 72% 45% / .12);
+  border-color: hsl(var(--site-hue, 214) 72% 45% / .45);
+  color: hsl(var(--site-hue, 214) 72% 32%);
+}
+
+/* ------------------------------------------- tri du tableau des scrapes */
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--color-txt); }
+th.sortable.asc::after { content: " \25B2"; color: var(--color-accent); font-size: 9px; }
+th.sortable.desc::after { content: " \25BC"; color: var(--color-accent); font-size: 9px; }

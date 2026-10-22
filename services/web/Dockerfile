@@ -1,3 +1,14 @@
+FROM node:22-alpine AS css
+
+# --- compilation Tailwind (une seule fois, au build de l'image)
+WORKDIR /build
+RUN npm install --no-audit --no-fund @tailwindcss/cli@4
+COPY tailwind/ /build/tailwind/
+COPY templates/ /build/templates/
+RUN npx @tailwindcss/cli -i /build/tailwind/input.css -o /build/tailwind.css --minify \
+    && wc -c /build/tailwind.css
+
+
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -15,6 +26,8 @@ RUN pip install -r requirements.txt
 COPY app.py progress.py scrapectl.py ./
 COPY templates/ /app/templates/
 COPY static/ /app/static/
+# la feuille Tailwind compilee
+COPY --from=css /build/tailwind.css /app/static/tailwind.css
 
 # --- CLI docker + plugin compose (pour piloter les scrapes depuis l'interface)
 ARG DOCKER_VERSION=29.1.3

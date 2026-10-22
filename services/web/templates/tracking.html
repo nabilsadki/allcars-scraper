@@ -2,155 +2,206 @@
 {% block title %}Suivi du scrap — All Cars{% endblock %}
 {% block content %}
 
-<div class="page-head">
-  <h1>Suivi du scrap</h1>
-  <div class="head-right">
-    <span id="status-badge" class="status {{ container_css }}">{% if container_state == 'running' %}<span class="spin"></span>{% endif %}{{ container_label }}</span>
-    <span class="muted small">conteneur : <span id="container-name">{{ container_name }}</span></span>
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+  <h1 class="text-[21px] font-semibold m-0">Suivi du scrap</h1>
+  <div class="flex items-center gap-3">
+    <span id="status-badge" class="status inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border bg-panel2 border-line text-muted">
+      {% if container_state == 'running' %}<span class="spinner w-2.5 h-2.5 rounded-full border-2 border-current border-t-transparent"></span>{% endif %}{{ container_label }}
+    </span>
+    <span class="text-muted text-[12px]">conteneur : <span id="container-name">{{ container_name }}</span></span>
   </div>
 </div>
 
-<!-- ------------------------------------------------------------ alertes -->
-<div id="alerts">
+{# ------------------------------------------------------------- alertes #}
+<div id="alerts" class="flex flex-col gap-2 mb-3">
   {% for a in alerts %}
-  <div class="alert alert-{{ a.level }}">
+  <div class="alert flex flex-wrap items-baseline gap-2 rounded-lg px-3.5 py-2.5 text-[13.5px] border bg-panel border-line
+              {% if a.level == 'error' %}!border-bad/55 !bg-bad/12 !text-[#ffb3b3]{% elif a.level == 'warn' %}!border-warn/50 !bg-warn/10 !text-[#ffd79a]{% endif %}">
     <strong>{{ a.title }}</strong>
     {% if a.detail %}<span>{{ a.detail }}</span>{% endif %}
   </div>
   {% endfor %}
 </div>
 
-<!-- ------------------------------------------------------ etat des conteneurs -->
-<div class="panel" id="containers-panel">
-  <div class="panel-title">Conteneurs
-    <span class="muted small" id="containers-count"></span>
+{# --------------------------------------------- etat de tous les conteneurs #}
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5" id="containers-panel">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
+    Conteneurs <span class="muted small normal-case tracking-normal text-[12px]" id="containers-count"></span>
   </div>
-  <div class="cont-list" id="cont-list">
-    <p class="muted small">Chargement…</p>
+  <div class="flex flex-col gap-1.5" id="cont-list">
+    <p class="text-muted text-[12px]">Chargement…</p>
   </div>
 </div>
 
-<!-- ---------------------------------------------------------- pilotage -->
-<div class="panel">
-  <div class="panel-title">Pilotage</div>
-  <form id="job-form" class="jobform" onsubmit="return false;">
-    <label>Site
-      <select name="site" id="f-site">
+{# ------------------------------------------------------------ pilotage #}
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Pilotage</div>
+  <form id="job-form" class="flex flex-wrap items-end gap-3" onsubmit="return false;">
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Site
+      <select name="site" id="f-site" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         {% for s in sites %}
         <option value="{{ s.name }}" {% if job.site == s.name %}selected{% endif %}>{{ s.label }}</option>
         {% endfor %}
       </select>
     </label>
-    <label>Catégorie
-      <input type="text" name="category" id="f-category" list="dl-categories" value="{{ job.category }}">
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Catégorie
+      <input type="text" name="category" id="f-category" list="dl-categories" value="{{ job.category }}"
+             class="w-60 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
       <datalist id="dl-categories">
         {% for c in job_categories %}<option value="{{ c }}">{% endfor %}
       </datalist>
     </label>
-    <label>Mode
-      <select name="mode" id="f-mode">
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Mode
+      <select name="mode" id="f-mode" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         {% for m in job_modes %}
         <option value="{{ m }}" {% if job.mode == m %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </select>
     </label>
-    <label>Delay (s) <input type="number" step="0.1" name="delay" id="f-delay" value="{{ job.delay }}"></label>
-    <label>Jitter (s) <input type="number" step="0.1" name="jitter" id="f-jitter" value="{{ job.jitter }}"></label>
-    <label>Plafond <input type="number" name="limit" id="f-limit" value="{{ job.limit }}" placeholder="0 = tout"></label>
-    <label class="chk"><input type="checkbox" name="details_flag" id="f-details" {% if job.details %}checked{% endif %}> fiches détail</label>
-    <label class="chk"><input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}> découpe en tranches</label>
-    <div class="btns">
-      <button type="button" id="btn-start" class="btn-ok" {% if container_state == 'running' %}disabled{% endif %}>Démarrer</button>
-      <button type="button" id="btn-stop" class="btn-bad" {% if container_state != 'running' %}disabled{% endif %}>Arrêter</button>
-      <button type="button" id="btn-restart" {% if container_state == 'running' %}disabled{% endif %}>Relancer</button>
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Delay (s)
+      <input type="number" step="0.1" name="delay" id="f-delay" value="{{ job.delay }}"
+             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+    </label>
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Jitter (s)
+      <input type="number" step="0.1" name="jitter" id="f-jitter" value="{{ job.jitter }}"
+             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+    </label>
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Plafond
+      <input type="number" name="limit" id="f-limit" value="{{ job.limit }}" placeholder="0 = tout"
+             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+    </label>
+    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
+      <input type="checkbox" name="details_flag" id="f-details" {% if job.details %}checked{% endif %}
+             class="accent-accent w-4 h-4"> fiches détail
+    </label>
+    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
+      <input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}
+             class="accent-accent w-4 h-4"> découpe en tranches
+    </label>
+    <div class="flex gap-2 ml-auto">
+      <button type="button" id="btn-start"
+              class="btn-ok border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ok/10"
+              {% if container_state == 'running' %}disabled{% endif %}>Démarrer</button>
+      <button type="button" id="btn-stop"
+              class="btn-bad border border-bad text-bad bg-bad/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-bad/10"
+              {% if container_state != 'running' %}disabled{% endif %}>Arrêter</button>
+      <button type="button" id="btn-restart"
+              class="border border-line text-txt bg-panel2 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed"
+              {% if container_state == 'running' %}disabled{% endif %}>Relancer</button>
     </div>
   </form>
-  <div id="action-msg" class="muted small"></div>
+  <div id="action-msg" class="text-muted text-[12px] mt-2"></div>
 </div>
 
-<!-- ---------------------------------------------------------- progression -->
+{# ---------------------------------------------------------- progression #}
 {% for st in states %}
-<div class="panel site-run" data-site="{{ st.site }}">
-  <div class="panel-title site-head" title="Cliquer pour afficher / masquer le detail">
-    <span class="sitebadge" style="--site-hue: {{ st.site|site_hue }}">{{ st.site|site_label }}</span>
-    {% if st.running %}
-      Progression en cours
-    {% elif st.status == 'success' %}
-      Progression terminée le {{ st.finished_at|datefr(true) }}
-    {% elif st.status == 'stopped' %}
-      Progression arrêtée le {{ st.finished_at|datefr(true) }}
-    {% else %}
-      Progression {{ st.status }} le {{ st.finished_at|datefr(true) }}
-    {% endif %}
-    <span class="dot {{ 'on' if st.running else 'off' }}" data-f="dot"></span>
-    <span class="muted small" data-f="badge">{{ st.mode }}</span>
-    <span class="status s-unknown" data-f="cstate" data-site="{{ st.site }}">…</span>
-    <span class="site-chevron" aria-hidden="true">▾</span>
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5 site-run" data-site="{{ st.site }}">
+  <div class="site-head flex flex-wrap items-center gap-2 mb-2.5 cursor-pointer select-none" title="Cliquer pour afficher / masquer le detail">
+    <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: {{ st.site|site_hue }}">{{ st.site|site_label }}</span>
+    <span class="text-muted text-[13px]">
+      {% if st.running %}
+        Progression en cours
+      {% elif st.status == 'success' %}
+        Progression terminée le {{ st.finished_at|datefr(true) }}
+      {% elif st.status == 'stopped' %}
+        Progression arrêtée le {{ st.finished_at|datefr(true) }}
+      {% else %}
+        Progression {{ st.status }} le {{ st.finished_at|datefr(true) }}
+      {% endif %}
+    </span>
+    <span class="dot w-2 h-2 rounded-full inline-block bg-muted {{ 'pulse-dot bg-ok' if st.running else '' }}" data-f="dot"></span>
+    <span class="text-muted text-[12px]" data-f="badge">{{ st.mode }}</span>
+    <span class="status ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border border-line bg-panel2 text-muted" data-f="cstate" data-site="{{ st.site }}">…</span>
+    <span class="site-chevron hidden lg:inline text-muted text-[13px] transition-transform" aria-hidden="true">▾</span>
   </div>
 
-  <div class="progress-wrap">
-    <div class="progress {{ 'live' if st.running else '' }}" data-f="pwrap">
-      <div class="bar {{ 'live' if st.running else '' }}" data-f="bar" style="width:{{ st.percent if st.percent else 0 }}%"></div>
+  <div class="mb-3.5">
+    <div class="progress h-4 bg-panel2 border border-line rounded-lg overflow-hidden {{ 'live border-accent/55' if st.running else '' }}" data-f="pwrap">
+      <div class="bar h-full bg-gradient-to-r from-[#2f7fe0] to-accent transition-all duration-500 {{ 'bar-live' if st.running else '' }}"
+           data-f="bar" style="width:{{ st.percent if st.percent else 0 }}%"></div>
     </div>
-    <div class="progress-legend">
-      <span data-f="percent">{{ '%.1f'|format(st.percent) if st.percent is not none else '—' }} %</span>
-      <span data-f="counts">{{ st.listed }} / {{ st.total if st.total else '—' }} annonces</span>
+    <div class="flex justify-between text-[13px] mt-1.5">
+      <span class="text-accent-txt font-bold" data-f="percent">{{ '%.1f'|format(st.percent) if st.percent is not none else '—' }} %</span>
+      <span class="text-muted" data-f="counts">{{ st.listed }} / {{ st.total if st.total else '—' }} annonces</span>
     </div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><small>Temps écoulé</small><b data-f="elapsed">{{ st.elapsed_seconds|duree }}</b></div>
-    <div class="stat"><small>Temps restant</small><b data-f="eta">{{ st.eta_seconds|duree if st.eta_seconds else '—' }}</b></div>
-    <div class="stat"><small>Vitesse</small><b data-f="rate">{{ st.rate_per_min }}<span class="u"> /min</span></b></div>
-    <div class="stat"><small>Requêtes HTTP</small><b data-f="req">{{ st.requests }}</b></div>
-    <div class="stat"><small>Blocages serveur</small><b data-f="block" class="{{ 'bad' if st.blocked else '' }}">{{ st.blocked }}</b></div>
-    <div class="stat"><small>Erreurs réseau</small><b data-f="err">{{ st.errors }}</b></div>
-    <div class="stat"><small>Nouvelles / modif.</small><b data-f="ins">{{ st.inserted }} / {{ st.updated }}</b></div>
-    <div class="stat"><small>Inchangées</small><b data-f="unch">{{ st.unchanged }}</b></div>
-    <div class="stat"><small>Tranche en cours</small><b data-f="slice">{{ st.current_slice or '—' }}</b></div>
-    <div class="stat"><small>Tranches</small><b data-f="slices">{{ st.slices_done }} / {{ st.slices_total }}</b></div>
-    <div class="stat"><small>Mode</small><b data-f="mode">{{ st.mode }}</b></div>
+  <div class="stats hidden lg:grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5" data-f="stats">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Temps écoulé</small><b class="text-[16px]" data-f="elapsed">{{ st.elapsed_seconds|duree }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Temps restant</small><b class="text-[16px]" data-f="eta">{{ st.eta_seconds|duree if st.eta_seconds else '—' }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Vitesse</small><b class="text-[16px]" data-f="rate">{{ st.rate_per_min }}<span class="u text-[11px] text-muted font-normal"> /min</span></b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Requêtes HTTP</small><b class="text-[16px]" data-f="req">{{ st.requests }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Blocages serveur</small><b class="text-[16px] {{ 'text-bad' if st.blocked else '' }}" data-f="block">{{ st.blocked }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Erreurs réseau</small><b class="text-[16px]" data-f="err">{{ st.errors }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Nouvelles / modif.</small><b class="text-[16px]" data-f="ins">{{ st.inserted }} / {{ st.updated }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Inchangées</small><b class="text-[16px]" data-f="unch">{{ st.unchanged }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Tranche en cours</small><b class="text-[16px]" data-f="slice">{{ st.current_slice or '—' }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Tranches</small><b class="text-[16px]" data-f="slices">{{ st.slices_done }} / {{ st.slices_total }}</b></div>
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+      <small class="text-muted text-[11px] uppercase tracking-wide">Mode</small><b class="text-[16px]" data-f="mode">{{ st.mode }}</b></div>
   </div>
 </div>
 {% else %}
-<div class="panel"><p class="muted">Aucun scrap enregistre pour le moment.</p></div>
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5"><p class="text-muted m-0">Aucun scrap enregistre pour le moment.</p></div>
 {% endfor %}
 
-<!-- ------------------------------------------------------------- catalogue -->
-<div class="panel">
-  <div class="panel-title">Base de données</div>
-  <table class="kv" style="max-width:640px">
+{# ------------------------------------------------------------- base #}
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Base de données</div>
+  <table class="w-full text-[13px] border-collapse max-w-[640px]">
     {% for c in counts %}
-    <tr><th>{{ c.site }}</th><td>{{ '{:,}'.format(c.n).replace(',', ' ') }} annonces — {{ c.actives }} actives — dernier scrape {{ c.dernier }}</td></tr>
+    <tr class="border-b border-line">
+      <th class="text-left text-muted font-medium py-1 pr-3 w-28">{{ c.site }}</th>
+      <td class="py-1">{{ '{:,}'.format(c.n).replace(',', ' ') }} annonces — {{ c.actives }} actives — dernier scrape {{ c.dernier }}</td>
+    </tr>
     {% else %}
-    <tr><td class="muted">Aucune annonce.</td></tr>
+    <tr><td class="text-muted">Aucune annonce.</td></tr>
     {% endfor %}
   </table>
 </div>
 
-<!-- ------------------------------------------------------------ historique -->
-<div class="panel">
-  <div class="panel-title">Scrapes passés ({{ runs|length }})</div>
+{# --------------------------------------------------------- historique #}
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Scrapes passés ({{ runs|length }})</div>
 
-  <form class="runfilters" method="get" action="/tracking">
-    <label>Site
-      <select name="site" onchange="this.form.submit()">
+  <form class="flex flex-wrap items-end gap-3 mb-2.5" method="get" action="/tracking">
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Site
+      <select name="site" onchange="this.form.submit()" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         <option value="">tous</option>
         {% for s in sites %}
         <option value="{{ s.name }}" {% if f_site == s.name %}selected{% endif %}>{{ s.label }}</option>
         {% endfor %}
       </select>
     </label>
-    <label>Statut
-      <select name="status" onchange="this.form.submit()">
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Statut
+      <select name="status" onchange="this.form.submit()" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         <option value="">tous</option>
         {% for st in ['success', 'error', 'stopped', 'running'] %}
         <option value="{{ st }}" {% if f_status == st %}selected{% endif %}>{{ st }}</option>
         {% endfor %}
       </select>
     </label>
-    <label>Mode
-      <select name="mode" onchange="this.form.submit()">
+    <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Mode
+      <select name="mode" onchange="this.form.submit()" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         <option value="">tous</option>
         {% for m in ['list', 'rescan', 'details'] %}
         <option value="{{ m }}" {% if f_mode == m %}selected{% endif %}>{{ m }}</option>
@@ -158,66 +209,70 @@
       </select>
     </label>
     {% if f_site or f_status or f_mode %}
-      <a class="reset" href="/tracking">Réinitialiser</a>
+      <a class="text-[13px] text-muted hover:text-txt pb-1.5" href="/tracking">Réinitialiser</a>
     {% endif %}
-    <span class="muted small">clic sur un en-tête pour trier</span>
+    <span class="text-muted text-[12px] pb-1.5">clic sur un en-tête pour trier</span>
   </form>
 
-  <table class="runs" id="runs-table">
+  <div class="overflow-x-auto">
+  <table class="runs w-full text-[13px] border-collapse" id="runs-table">
     <thead>
       <tr>
-        <th class="sortable" data-sort="id" data-type="num">#</th>
-        <th class="sortable" data-sort="site">Site</th>
-        <th class="sortable" data-sort="started" data-type="num">Début</th>
-        <th class="sortable" data-sort="duration" data-type="num">Durée</th>
-        <th class="sortable" data-sort="mode">Mode</th>
-        {% if not hide_category %}<th class="sortable" data-sort="category">Catégorie</th>{% endif %}
-        <th class="sortable" data-sort="listed" data-type="num">Listées</th>
-        <th class="sortable" data-sort="details" data-type="num">Détail</th>
-        <th class="sortable" data-sort="inserted" data-type="num">Insérées</th>
-        <th class="sortable" data-sort="updated" data-type="num">Modif.</th>
-        <th class="sortable" data-sort="requests" data-type="num">Requêtes</th>
-        <th class="sortable" data-sort="blocked" data-type="num">Blocages</th>
-        <th class="sortable" data-sort="status">Statut</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="id" data-type="num">#</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="site">Site</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="started" data-type="num">Début</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="duration" data-type="num">Durée</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="mode">Mode</th>
+        {% if not hide_category %}<th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="category">Catégorie</th>{% endif %}
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="listed" data-type="num">Listées</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="details" data-type="num">Détail</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="inserted" data-type="num">Insérées</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="updated" data-type="num">Modif.</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="requests" data-type="num">Requêtes</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="blocked" data-type="num">Blocages</th>
+        <th class="sortable text-left text-muted font-medium text-[11.5px] uppercase tracking-wide py-1.5 px-2 border-b border-line" data-sort="status">Statut</th>
       </tr>
     </thead>
     <tbody>
       {% for r in runs %}
-      <tr>
-        <td data-v="{{ r.id }}">{{ r.id }}</td>
-        <td data-v="{{ r.site or '' }}"><span class="sitebadge" style="--site-hue: {{ (r.site or '')|site_hue }}">{{ (r.site or '?')|site_label }}</span></td>
-        <td class="small" data-v="{{ r.started_ts }}">{{ r.started_at|datefr(true) }}</td>
-        <td class="small" data-v="{{ r.duration if r.duration else 0 }}">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
-        <td class="small" data-v="{{ r.mode or '' }}">{{ r.mode }}</td>
-        {% if not hide_category %}<td class="small" data-v="{{ r.category or '' }}">{{ r.category or '—' }}</td>{% endif %}
-        <td data-v="{{ r.ads_listed }}">{{ r.ads_listed }}</td>
-        <td data-v="{{ r.ads_details }}">{{ r.ads_details }}</td>
-        <td data-v="{{ r.ads_inserted }}">{{ r.ads_inserted }}</td>
-        <td data-v="{{ r.ads_updated }}">{{ r.ads_updated }}</td>
-        <td data-v="{{ r.http_requests }}">{{ r.http_requests }}</td>
-        <td data-v="{{ r.blocked }}" class="{{ 'bad' if r.blocked else '' }}">{{ r.blocked }}</td>
-        <td data-v="{{ r.status or '' }}">
+      <tr class="hover:bg-panel2/50">
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.id }}">{{ r.id }}</td>
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.site or '' }}"><span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: {{ (r.site or '')|site_hue }}">{{ (r.site or '?')|site_label }}</span></td>
+        <td class="py-1.5 px-2 border-b border-line text-[12px]" data-v="{{ r.started_ts }}">{{ r.started_at|datefr(true) }}</td>
+        <td class="py-1.5 px-2 border-b border-line text-[12px]" data-v="{{ r.duration if r.duration else 0 }}">{{ r.duration|duree if r.duration else ('en cours' if r.status == 'running' else '—') }}</td>
+        <td class="py-1.5 px-2 border-b border-line text-[12px]" data-v="{{ r.mode or '' }}">{{ r.mode }}</td>
+        {% if not hide_category %}<td class="py-1.5 px-2 border-b border-line text-[12px]" data-v="{{ r.category or '' }}">{{ r.category or '—' }}</td>{% endif %}
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.ads_listed }}">{{ r.ads_listed }}</td>
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.ads_details }}">{{ r.ads_details }}</td>
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.ads_inserted }}">{{ r.ads_inserted }}</td>
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.ads_updated }}">{{ r.ads_updated }}</td>
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.http_requests }}">{{ r.http_requests }}</td>
+        <td class="py-1.5 px-2 border-b border-line {{ 'text-bad' if r.blocked else '' }}" data-v="{{ r.blocked }}">{{ r.blocked }}</td>
+        <td class="py-1.5 px-2 border-b border-line" data-v="{{ r.status or '' }}">
           {% if r.error %}
-            <details class="errpop">
-              <summary><span class="st st-{{ r.status }}">{{ r.status }}</span></summary>
-              <pre class="errbox">{{ r.error }}</pre>
+            <details class="errpop relative inline-block">
+              <summary class="list-none cursor-pointer"><span class="st inline-block px-1.5 py-0.5 rounded text-[11.5px] bg-panel2 border border-line
+                {% if r.status == 'success' %}text-ok{% elif r.status == 'error' %}text-bad{% else %}text-warn{% endif %}">{{ r.status }}</span></summary>
+              <pre class="errbox absolute z-20 right-0 top-full mt-1 w-[70vw] max-w-[460px] p-2.5 rounded-lg bg-[#1a1013] border border-bad/50 text-[#ffc9c9] text-[12px]/[1.45] font-mono whitespace-pre-wrap break-words shadow-2xl">{{ r.error }}</pre>
             </details>
           {% else %}
-            <span class="st st-{{ r.status }}">{{ r.status }}</span>
+            <span class="st inline-block px-1.5 py-0.5 rounded text-[11.5px] bg-panel2 border border-line
+              {% if r.status == 'success' %}text-ok{% elif r.status == 'error' %}text-bad{% else %}text-warn{% endif %}">{{ r.status }}</span>
           {% endif %}
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="13" class="muted">Aucun scrap ne correspond au filtre.</td></tr>
+      <tr><td colspan="13" class="text-muted py-3">Aucun scrap ne correspond au filtre.</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 
-<!-- ------------------------------------------------------------- logs -->
-<details class="panel logs">
-  <summary>Derniers logs du scraper</summary>
-  <pre id="logs">chargement…</pre>
+{# -------------------------------------------------------------- logs #}
+<details class="bg-panel border border-line rounded-xl p-3.5">
+  <summary class="cursor-pointer text-[12px] uppercase tracking-wider text-muted">Derniers logs du scraper</summary>
+  <pre id="logs" class="mt-2.5 p-3 rounded-lg bg-[#0b0d11] border border-line text-[12px]/[1.5] font-mono text-[#c8cfdd] max-h-[340px] overflow-auto whitespace-pre-wrap break-words">chargement…</pre>
 </details>
 
 <script>
@@ -229,6 +284,16 @@ const fmt = (sec) => {
   if (sec < 60) return sec + 's';
   if (sec < 3600) return Math.floor(sec / 60) + 'min';
   return Math.floor(sec / 3600) + 'h' + String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+};
+
+// classes Tailwind des pastilles d'etat
+const STATE_CLASS = {
+  running: 'text-ok border-ok bg-ok/10',
+  done: 'text-accent-txt border-accent bg-accent/10',
+  error: 'text-bad border-bad bg-bad/10',
+  stopped: 'text-warn border-warn bg-warn/10',
+  created: 'text-warn border-warn bg-warn/10',
+  unknown: 'text-muted border-line bg-panel2',
 };
 
 function payload() {
@@ -353,8 +418,13 @@ function updateButtons(containerState) {
 
 function renderAlerts(alerts) {
   const box = $('#alerts');
-  box.innerHTML = (alerts || []).map(a =>
-    `<div class="alert alert-${a.level}"><strong></strong><span></span></div>`).join('');
+  box.innerHTML = (alerts || []).map(a => {
+    const tone = a.level === 'error'
+      ? '!border-bad/55 !bg-bad/12 !text-[#ffb3b3]'
+      : (a.level === 'warn' ? '!border-warn/50 !bg-warn/10 !text-[#ffd79a]' : '');
+    return `<div class="alert flex flex-wrap items-baseline gap-2 rounded-lg px-3.5 py-2.5 text-[13.5px] border bg-panel border-line ${tone}">`
+         + '<strong></strong><span></span></div>';
+  }).join('');
   const nodes = box.querySelectorAll('.alert');
   (alerts || []).forEach((a, i) => {
     if (!nodes[i]) return;
@@ -373,8 +443,11 @@ async function refresh() {
     const sel = $('#f-site') ? $('#f-site').value : (data.site || 'avito');
     const c = (data.containers || {})[sel] || {state: 'unknown', label: 'inconnu', css: 's-unknown'};
     const badge = $('#status-badge');
-    badge.innerHTML = (c.state === 'running' ? '<span class="spin"></span>' : '') + c.label;
-    badge.className = 'status ' + c.css;
+    badge.innerHTML = (c.state === 'running'
+        ? '<span class="spinner w-2.5 h-2.5 rounded-full border-2 border-current border-t-transparent"></span>'
+        : '') + c.label;
+    badge.className = 'status inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border ' +
+                      (STATE_CLASS[c.css && c.css.replace('s-', '')] || STATE_CLASS.unknown);
     badge.dataset.container = c.state;
     const cname = $('#container-name');
     if (cname) cname.textContent = 'allcars-scrape-' + sel;
@@ -384,7 +457,8 @@ async function refresh() {
       const s = (data.containers || {})[el.dataset.site];
       if (!s) return;
       el.textContent = s.label;
-      el.className = 'status ' + s.css;
+      el.className = 'status ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border ' +
+                    (STATE_CLASS[s.css && s.css.replace('s-', '')] || STATE_CLASS.unknown);
     });
     // un bloc de progression par site
     for (const s of (data.states || [])) {
@@ -402,11 +476,11 @@ async function refresh() {
       set('elapsed', fmt(s.elapsed_seconds));
       set('eta', (s.eta_seconds === null || s.eta_seconds === undefined) ? '—' : fmt(s.eta_seconds));
       const rate = block.querySelector('[data-f="rate"]');
-      if (rate) rate.innerHTML = (s.rate_per_min || 0) + '<span class="u"> /min</span>';
+      if (rate) rate.innerHTML = (s.rate_per_min || 0) + '<span class="u text-[11px] text-muted font-normal"> /min</span>';
       set('req', s.requests);
       set('block', s.blocked);
       const blk = block.querySelector('[data-f="block"]');
-      if (blk) blk.className = s.blocked ? 'bad' : '';
+      if (blk) blk.className = 'text-[16px] ' + (s.blocked ? 'text-bad' : '');
       set('err', s.errors);
       set('ins', s.inserted + ' / ' + s.updated);
       set('unch', s.unchanged);
@@ -414,11 +488,13 @@ async function refresh() {
       set('slices', (s.slices_done || 0) + ' / ' + (s.slices_total || 0));
       set('mode', s.mode || '—');
       const dot = block.querySelector('[data-f="dot"]');
-      if (dot) dot.className = 'dot ' + (s.running ? 'on' : 'off');
+      if (dot) dot.className = 'dot w-2 h-2 rounded-full inline-block ' + (s.running ? 'pulse-dot bg-ok' : 'bg-muted');
       // la barre n'est animee que pendant un run
-      if (bar) bar.classList.toggle('live', !!s.running);
+      if (bar) bar.classList.toggle('bar-live', !!s.running);
       const wrap = block.querySelector('[data-f="pwrap"]');
       if (wrap) wrap.classList.toggle('live', !!s.running);
+      const stats = block.querySelector('[data-f="stats"]');
+      if (stats) stats.classList.toggle('hidden', !block.classList.contains('open'));
     }
   } catch (e) { /* le serveur est momentanement injoignable */ }
 }
@@ -426,7 +502,12 @@ async function refresh() {
 // ------------------ affichage mobile : replier le detail de chaque site
 document.querySelectorAll('.site-run .site-head').forEach((head) => {
   head.addEventListener('click', () => {
-    head.closest('.site-run').classList.toggle('open');
+    const block = head.closest('.site-run');
+    block.classList.toggle('open');
+    const stats = block.querySelector('[data-f="stats"]');
+    if (stats) stats.classList.toggle('hidden', !block.classList.contains('open'));
+    const chev = head.querySelector('.site-chevron');
+    if (chev) chev.classList.toggle('rotate-180', block.classList.contains('open'));
   });
 });
 
@@ -465,13 +546,13 @@ document.querySelectorAll('.site-run .site-head').forEach((head) => {
 
 // ------------------------------------------- etat de tous les conteneurs
 const STATE_LABELS = {
-  running: ('en marche', 's-running'),
-  exited: ('arrete', 's-stopped'),
-  created: ('cree', 's-created'),
-  restarting: ('redemarre', 's-running'),
-  paused: ('en pause', 's-stopped'),
-  dead: ('mort', 's-absent'),
-  removing: ('en suppression', 's-stopped'),
+  running: ('en marche', 'running'),
+  exited: ('arrete', 'stopped'),
+  created: ('cree', 'created'),
+  restarting: ('redemarre', 'running'),
+  paused: ('en pause', 'stopped'),
+  dead: ('mort', 'unknown'),
+  removing: ('en suppression', 'stopped'),
 };
 
 async function refreshContainers() {
@@ -485,19 +566,21 @@ async function refreshContainers() {
     const up = list.filter(c => c.state === 'running').length;
     if (cnt) cnt.textContent = list.length + ' conteneur(s), ' + up + ' en marche';
     if (!list.length) {
-      box.innerHTML = '<p class="muted small">Aucun conteneur.</p>';
+      box.innerHTML = '<p class="text-muted text-[12px] m-0">Aucun conteneur.</p>';
       return;
     }
     box.innerHTML = list.map(c => {
-      const st = STATE_LABELS[c.state] || [c.state, 's-unknown'];
+      const st = STATE_LABELS[c.state] || [c.state, 'unknown'];
       const site = c.site
-        ? '<span class="sitebadge" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
+        ? '<span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
         : '';
-      return '<div class="cont">' +
-        '<span class="status ' + st[1] + '">' + st[0] + '</span>' +
-        '<span class="cont-name">' + site + '<code>' + c.name + '</code></span>' +
-        '<span class="cont-meta">' + (c.image || '') + '</span>' +
-        '<span class="cont-meta">' + (c.status || c.running_for || '') + '</span>' +
+      return '<div class="flex flex-wrap items-center gap-2.5 bg-panel2 border border-line rounded-lg px-3 py-2 text-[13px]">' +
+        '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border ' +
+          (STATE_CLASS[st[1]] || STATE_CLASS.unknown) + '">' + st[0] + '</span>' +
+        '<span class="flex items-center gap-2 font-semibold">' + site +
+          '<code class="font-mono text-[12.5px]">' + c.name + '</code></span>' +
+        '<span class="text-muted text-[12px]">' + (c.image || '') + '</span>' +
+        '<span class="text-muted text-[12px] ml-auto text-right">' + (c.status || c.running_for || '') + '</span>' +
         '</div>';
     }).join('');
   } catch (e) { /* ignore */ }
