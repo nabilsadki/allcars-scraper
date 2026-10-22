@@ -73,18 +73,18 @@
   });
 })();
 
-// loader : voile tant qu'une action (formulaire, lien) est en cours
+// loader : voile affiché pendant une vraie navigation
+// (beforeunload ne se déclenche que si la page part vraiment, contrairement
+//  a un clic sur un lien : la lightbox de la galerie est un lien, mais elle
+//  n'ouvre aucun onglet -> le voile restait bloque)
 (function () {
   const loader = document.getElementById('loader');
-  const show = () => { if (loader) loader.classList.remove('hidden'); loader.classList.add('flex'); };
+  const show = () => { if (loader) { loader.classList.remove('hidden'); loader.classList.add('flex'); } };
   const hide = () => { if (loader) { loader.classList.add('hidden'); loader.classList.remove('flex'); } };
-  document.addEventListener('submit', show, true);
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest && e.target.closest('a');
-    if (a && !a.target && a.getAttribute('href')) show();
-  });
+  window.addEventListener('beforeunload', show);
   window.addEventListener('pageshow', hide);
   window.addEventListener('load', hide);
+  // securite : si la navigation est annulee, on retire le voile
   setTimeout(hide, 20000);
 })();
 </script>
