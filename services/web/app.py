@@ -313,6 +313,40 @@ def model_options(brand: str = "", site: str = "") -> list[dict]:
 
 
 # ------------------------------------------------------------------ filtres
+#: libelles des filtres (pour les puces "filtres actifs")
+FILTER_LABELS = [
+    ("search", "Recherche"), ("site", "Site"), ("city", "Ville"),
+    ("brand", "Marque"), ("model", "Modèle"), ("fuel", "Carburant"),
+    ("gear", "Boîte"), ("min_price", "Prix min"), ("max_price", "Prix max"),
+    ("min_year", "Année min"), ("max_year", "Année max"), ("max_km", "Km max"),
+    ("min_note_etat", "Note état"), ("min_note_achat", "Note achat"),
+    ("min_note_global", "Note globale"), ("min_confiance", "Confiance"),
+    ("with_phone", "Téléphone"), ("with_photos", "Photos"),
+    ("with_price", "Prix"), ("with_details", "Fiche complète"),
+    ("active_only", "Actives"),
+]
+
+
+def active_filters() -> list[dict]:
+    """Filtres actuellement appliques (pour les puces)."""
+    out = []
+    for key, label in FILTER_LABELS:
+        value = (request.args.get(key) or "").strip()
+        if not value:
+            continue
+        rest = [(k, v) for k, v in request.args.items() if k != key]
+        # les cases a cocher n'ont pas de valeur a afficher ("1")
+        if key.startswith("with_") or key == "active_only":
+            value = ""
+        out.append({
+            "key": key,
+            "label": label,
+            "value": value,
+            "url": ("/?" + urlencode(rest)) if rest else "/",
+        })
+    return out
+
+
 def build_filters() -> tuple[str, list]:
     where = ["1=1"]
     params: list = []
@@ -403,6 +437,7 @@ def index():
         pager=pager_items(page, pages), goto=goto_pages(page, pages),
         base_qs=urlencode({k: v for k, v in request.args.to_dict().items()
                            if k != "page"}),
+        active=active_filters(),
     )
 
 

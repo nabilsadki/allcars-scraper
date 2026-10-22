@@ -2,151 +2,213 @@
 {% block content %}
 
 {# ------------------------------------------------------------- filtres #}
-<form class="bg-panel border border-line rounded-xl p-3.5 mb-5" method="get" action="/">
+<form class="bg-panel border border-line rounded-xl p-4 mb-4" method="get" action="/">
   <input type="hidden" name="sort" value="{{ request.args.get('sort','date') }}">
 
-  <div class="flex flex-wrap gap-3 mb-3">
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Recherche
-      <input type="text" name="search" placeholder="titre, description, vendeur…"
+  {# ---- entete : titre + reinitialisation ---- #}
+  <div class="flex items-center justify-between gap-3 mb-3.5">
+    <h2 class="text-[13px] uppercase tracking-wider text-muted m-0">Filtres</h2>
+    {% if active %}
+    <a class="text-[13px] text-muted hover:text-txt no-underline" href="/">Réinitialiser</a>
+    {% endif %}
+  </div>
+
+  {# ---- recherche (pleine largeur) ---- #}
+  <div class="mb-4">
+    <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5">Recherche</label>
+    <div class="relative">
+      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm pointer-events-none">🔍</span>
+      <input type="text" name="search" placeholder="titre, description, vendeur, ville…"
              value="{{ request.args.get('search','') }}"
-             class="w-72 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt placeholder:text-muted/70 focus:outline-none focus:border-accent">
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Site
-      <select name="site" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">tous les sites</option>
-        {% for s in opts.sites %}
-        <option value="{{ s.name }}" {% if request.args.get('site')==s.name %}selected{% endif %}>{{ s.label }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Ville
-      <select name="city" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">toutes</option>
-        {% for c in opts.city %}<option value="{{ c }}" {% if request.args.get('city')==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Marque
-      <select name="brand" id="f-brand" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">toutes</option>
-        {% for b in opts.brand %}<option value="{{ b }}" {% if request.args.get('brand')==b %}selected{% endif %}>{{ b }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Modèle
-      <select name="model" id="f-model" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">tous</option>
-        {% for g in opts.models %}
-          <optgroup label="{{ g.brand }}">
-            {% for m in g.models %}<option value="{{ m }}" {% if request.args.get('model')==m %}selected{% endif %}>{{ m }}</option>{% endfor %}
-          </optgroup>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Carburant
-      <select name="fuel" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">tous</option>
-        {% for f in opts.fuel %}<option value="{{ f }}" {% if request.args.get('fuel')==f %}selected{% endif %}>{{ f }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Boîte
-      <select name="gear" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">toutes</option>
-        {% for g in opts.gear %}<option value="{{ g }}" {% if request.args.get('gear')==g %}selected{% endif %}>{{ g }}</option>{% endfor %}
-      </select>
-    </label>
+             class="w-full pl-9 pr-3 bg-panel2 border border-line rounded-lg py-2 text-sm text-txt placeholder:text-muted/60 focus:outline-none focus:border-accent">
+    </div>
   </div>
 
-  <div class="flex flex-wrap gap-3 mb-3">
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Prix min
-      <input type="number" name="min_price" value="{{ request.args.get('min_price','') }}" placeholder="DH"
-             class="w-28 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Prix max
-      <input type="number" name="max_price" value="{{ request.args.get('max_price','') }}" placeholder="DH"
-             class="w-28 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Année min
-      <select name="min_year" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">toutes</option>
-        {% for y in opts.years %}<option value="{{ y }}" {% if request.args.get('min_year')|string == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Année max
-      <select name="max_year" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        <option value="">toutes</option>
-        {% for y in opts.years %}<option value="{{ y }}" {% if request.args.get('max_year')|string == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
-      </select>
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Km max
-      <input type="number" name="max_km" value="{{ request.args.get('max_km','') }}"
-             class="w-28 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
+  {# ---- filtres actifs (puces supprimables) ---- #}
+  {% if active %}
+  <div class="flex flex-wrap items-center gap-1.5 mb-4 pb-3.5 border-b border-line">
+    <span class="text-[11px] uppercase tracking-wider text-muted mr-1">Actifs</span>
+    {% for f in active %}
+    <a href="{{ f.url }}" title="Retirer ce filtre"
+       class="inline-flex items-center gap-1.5 rounded-full border border-accent/45 bg-accent/12 text-accent-txt px-2.5 py-1 text-[12.5px] hover:bg-accent/20 no-underline">
+      <span class="text-muted">{{ f.label }} :</span>{{ f.value }}<span aria-hidden="true">✕</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ---- bouton d'ouverture (mobile) ---- #}
+  <button type="button" id="filters-toggle"
+          class="lg:hidden w-full flex items-center justify-between gap-2 bg-panel2 border border-line rounded-lg px-3 py-2 text-[13px] text-txt">
+    <span>Filtres{% if active %} · {{ active|length }} actif(s){% endif %}</span>
+    <span class="text-muted" id="filters-arrow">▾</span>
+  </button>
+
+  {# ---- groupes de filtres (replies sur mobile, 2 colonnes sur grand ecran) ---- #}
+  <div id="filters-groups" class="hidden lg:grid gap-x-6 gap-y-4 xl:grid-cols-2 mt-4">
+
+  {# ---- vehicule ---- #}
+  <div>
+    <div class="text-[11px] uppercase tracking-wider text-muted mb-2">Véhicule</div>
+    <div class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Site
+        <select name="site" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">tous</option>
+          {% for st in opts.sites %}
+          <option value="{{ st.name }}" {% if request.args.get('site')==st.name %}selected{% endif %}>{{ st.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Ville
+        <select name="city" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">toutes</option>
+          {% for c in opts.city %}<option value="{{ c }}" {% if request.args.get('city')==c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Marque
+        <select name="brand" id="f-brand" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">toutes</option>
+          {% for b in opts.brand %}<option value="{{ b }}" {% if request.args.get('brand')==b %}selected{% endif %}>{{ b }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Modèle
+        <select name="model" id="f-model" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">tous</option>
+          {% for g in opts.models %}
+            <optgroup label="{{ g.brand }}">
+              {% for m in g.models %}<option value="{{ m }}" {% if request.args.get('model')==m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+            </optgroup>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Carburant
+        <select name="fuel" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">tous</option>
+          {% for f in opts.fuel %}<option value="{{ f }}" {% if request.args.get('fuel')==f %}selected{% endif %}>{{ f }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Boîte
+        <select name="gear" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">toutes</option>
+          {% for g in opts.gear %}<option value="{{ g }}" {% if request.args.get('gear')==g %}selected{% endif %}>{{ g }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
   </div>
 
-  <div class="flex flex-wrap items-end gap-3">
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Note état ≥
-      <input type="number" step="0.1" name="min_note_etat" value="{{ request.args.get('min_note_etat','') }}"
-             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Note achat ≥
-      <input type="number" step="0.1" name="min_note_achat" value="{{ request.args.get('min_note_achat','') }}"
-             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Note globale ≥
-      <input type="number" step="0.1" name="min_note_global" value="{{ request.args.get('min_note_global','') }}"
-             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Confiance ≥
-      <input type="number" step="1" name="min_confiance" value="{{ request.args.get('min_confiance','') }}"
-             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-    </label>
+  {# ---- prix / kilometrage / annee ---- #}
+  <div>
+    <div class="text-[11px] uppercase tracking-wider text-muted mb-2">Prix &amp; kilométrage</div>
+    <div class="grid gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Prix min
+        <input type="number" name="min_price" value="{{ request.args.get('min_price','') }}" placeholder="DH"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Prix max
+        <input type="number" name="max_price" value="{{ request.args.get('max_price','') }}" placeholder="DH"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Année min
+        <select name="min_year" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">toutes</option>
+          {% for y in opts.years %}<option value="{{ y }}" {% if request.args.get('min_year')|string == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Année max
+        <select name="max_year" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">toutes</option>
+          {% for y in opts.years %}<option value="{{ y }}" {% if request.args.get('max_year')|string == y|string %}selected{% endif %}>{{ y }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Km max
+        <input type="number" name="max_km" value="{{ request.args.get('max_km','') }}"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Par page
+        <select name="per_page" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          {% for n in [24, 48, 100] %}
+          <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+  </div>
 
-    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
-      <input type="checkbox" name="with_phone" value="1" {% if request.args.get('with_phone')=='1' %}checked{% endif %}
-             class="accent-accent w-4 h-4"> avec téléphone
-    </label>
-    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
-      <input type="checkbox" name="with_photos" value="1" {% if request.args.get('with_photos')=='1' %}checked{% endif %}
-             class="accent-accent w-4 h-4"> avec photos
-    </label>
-    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
-      <input type="checkbox" name="with_price" value="1" {% if request.args.get('with_price')=='1' %}checked{% endif %}
-             class="accent-accent w-4 h-4"> avec prix
-    </label>
-    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
-      <input type="checkbox" name="with_details" value="1" {% if request.args.get('with_details')=='1' %}checked{% endif %}
-             class="accent-accent w-4 h-4"> fiche complète
-    </label>
-    <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
-      <input type="checkbox" name="active_only" value="1" {% if request.args.get('active_only')=='1' %}checked{% endif %}
-             class="accent-accent w-4 h-4"> actives
-    </label>
+  {# ---- notes ---- #}
+  <div>
+    <div class="text-[11px] uppercase tracking-wider text-muted mb-2">Notes</div>
+    <div class="grid gap-2.5 grid-cols-2 sm:grid-cols-4">
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Note état ≥
+        <input type="number" step="0.1" name="min_note_etat" value="{{ request.args.get('min_note_etat','') }}"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Note achat ≥
+        <input type="number" step="0.1" name="min_note_achat" value="{{ request.args.get('min_note_achat','') }}"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Note globale ≥
+        <input type="number" step="0.1" name="min_note_global" value="{{ request.args.get('min_note_global','') }}"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Confiance ≥
+        <input type="number" step="1" name="min_confiance" value="{{ request.args.get('min_confiance','') }}"
+               class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      </label>
+    </div>
+  </div>
 
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Par page
-      <select name="per_page" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
-        {% for n in [24, 48, 100] %}
-        <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <button type="submit" class="bg-accent text-onaccent border border-accent rounded-lg px-4 py-1.5 text-sm font-medium hover:opacity-90 cursor-pointer">Appliquer</button>
-    <a class="text-[13px] text-muted hover:text-txt pb-1.5" href="/">Réinitialiser</a>
+  {# ---- options (puces) ---- #}
+  <div>
+    <div class="text-[11px] uppercase tracking-wider text-muted mb-2">Options</div>
+    <div class="flex flex-wrap gap-2">
+      <label class="cursor-pointer">
+        <input type="checkbox" name="with_phone" value="1" class="peer sr-only" {% if request.args.get('with_phone')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">📞 avec téléphone</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="checkbox" name="with_photos" value="1" class="peer sr-only" {% if request.args.get('with_photos')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">📷 avec photos</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="checkbox" name="with_price" value="1" class="peer sr-only" {% if request.args.get('with_price')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">💰 avec prix</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="checkbox" name="with_details" value="1" class="peer sr-only" {% if request.args.get('with_details')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">📄 fiche complète</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="checkbox" name="active_only" value="1" class="peer sr-only" {% if request.args.get('active_only')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">👁 actives</span>
+      </label>
+    </div>
+  </div>
+
+  </div><!-- /groupes -->
+
+  {# ---- actions ---- #}
+  <div class="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3.5 border-t border-line">
+    <span class="text-[13px] text-muted">{{ total }} annonce(s) correspondent{% if total > per_page %} — page {{ page }}/{{ pages }}{% endif %}</span>
+    <div class="flex items-center gap-2">
+      {% if active %}<a class="text-[13px] text-muted hover:text-txt px-2 py-1.5" href="/">Réinitialiser</a>{% endif %}
+      <button type="submit" class="bg-accent text-onaccent border border-accent rounded-lg px-5 py-2 text-sm font-medium hover:opacity-90 cursor-pointer">Appliquer les filtres</button>
+    </div>
   </div>
 </form>
 
@@ -174,7 +236,7 @@
       {% endfor %}
     </select>
   </form>
-  <p class="text-[13px] text-muted m-0">{{ total }} annonce(s){% if total > per_page %} — page {{ page }}/{{ pages }}{% endif %}</p>
+  <p class="text-[13px] text-muted m-0">{% if total > per_page %}page {{ page }} / {{ pages }}{% endif %}</p>
 </div>
 
 {# --------------------------------------------------------------- annonces #}
@@ -256,6 +318,18 @@
 {% endif %}
 
 <script>
+// repli des filtres sur mobile
+(function () {
+  const btn = document.getElementById('filters-toggle');
+  const box = document.getElementById('filters-groups');
+  const arrow = document.getElementById('filters-arrow');
+  if (!btn || !box) return;
+  btn.addEventListener('click', () => {
+    const hidden = box.classList.toggle('hidden');
+    if (arrow) arrow.textContent = hidden ? '▾' : '▴';
+  });
+})();
+
 // le selecteur de modeles suit la marque : on recharge les options via l'API
 (function () {
   const brandSel = document.querySelector('#f-brand');
