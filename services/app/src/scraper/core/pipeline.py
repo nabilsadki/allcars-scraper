@@ -247,7 +247,10 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
                         pass
                 # commit par lots : un run interrompu ne perd pas tout
                 if n_listed % 20 == 0:
-                    db.commit()   # transactions courtes : moins de contention
+                    try:
+                        db.commit()
+                    except Exception:
+                        db.reconnect()   # MySQL redemarre : on repart
             if n_listed % 10 == 0:
                 progress.update(listed=n_listed, details=n_details,
                                 db_errors=n_db_errors)
@@ -264,7 +267,10 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
             if not quiet and n_listed % 25 == 0:
                 print(f"  ... {n_listed} annonces", flush=True)
         if db is not None:
-            db.commit()
+            try:
+                db.commit()
+            except Exception:
+                db.reconnect()
     except Exception as e:
         error = f"{type(e).__name__}: {e}"
         print(f"  ERREUR : {error}", file=sys.stderr)
@@ -358,7 +364,10 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
             n_db_errors += 1
             client.log(f"  ! images en echec ({type(e).__name__}: {e})")
         if len(seen) % 20 == 0:
-            db.commit()          # commit par lots (transactions courtes)
+            try:
+                db.commit()      # commit par lots (transactions courtes)
+            except Exception:
+                db.reconnect()       # MySQL redemarre : on repart
         if len(seen) % 10 == 0:
             progress.update(listed=len(seen), details=n_details,
                             unchanged=n_unchanged)
@@ -376,7 +385,10 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
             print(f"  ... {len(seen)} annonces vues "
                   f"({n_new} nouvelles, {n_changed} modifiees)", flush=True)
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.reconnect()
     progress.update(listed=len(seen), details=n_details, unchanged=n_unchanged)
     progress.stats(client, db)
 

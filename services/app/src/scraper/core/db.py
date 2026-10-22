@@ -58,6 +58,24 @@ class Database:
         except Exception:
             pass
 
+    def safe_exec(self, sql: str, params: tuple = (), many: bool = False) -> None:
+        """Execute une requete, en se reconnectant si le lien est perdu.
+
+        Le serveur MySQL peut etre redemarre (changement de configuration
+        compose, mise a jour) : les scrapes en cours ne doivent pas mourir.
+        """
+        for attempt in range(4):
+            try:
+                if many:
+                    self.cur.executemany(sql, params)
+                else:
+                    self.cur.execute(sql, params)
+                return
+            except pymysql.err.InterfaceError:
+                if attempt >= 3:
+                    raise
+                self.reconnect()
+
     def reconnect(self) -> None:
         """Retablit la connexion (MySQL redemarre, reseau coupe...)."""
         try:
@@ -500,11 +518,11 @@ class Database:
                 for i, img in enumerate(images or [])]
         if not rows:
             return
-        self.cur.executemany(
+        self.safe_exec(
             "INSERT INTO ad_images (site, ad_id, link, link_full, is_main) "
             "VALUES (%s,%s,%s,%s,%s) "
             "ON DUPLICATE KEY UPDATE link_full=VALUES(link_full), is_main=VALUES(is_main)",
-            rows)
+            rows, many=True)
 
     def start_run(self, run: dict) -> int:
         """Ouvre une ligne d'historique (status=running) et renvoie son id."""
