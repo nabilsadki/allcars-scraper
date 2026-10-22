@@ -21,7 +21,7 @@ def _cfg() -> dict:
         "port": int(os.environ.get("DB_PORT", "3306")),
         "user": os.environ.get("DB_USER", "avito"),
         "password": os.environ.get("DB_PASSWORD", "avito"),
-        "database": os.environ.get("DB_NAME", "avito"),
+        "database": os.environ.get("DB_NAME", "allcars"),
         "charset": "utf8mb4",
         "autocommit": False,
         "cursorclass": DictCursor,
@@ -102,6 +102,15 @@ class Database:
     def ensure_schema(self) -> None:
         """Applique le schema (CREATE TABLE IF NOT EXISTS) + migrations."""
         cur = self.conn.cursor()
+        db_name = self.cfg.get("database") or "allcars"
+        # la base est creee et selectionnee ici (le nom vient de la
+        # configuration, plus du schema)
+        try:
+            cur.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` "
+                        "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+            cur.execute(f"USE `{db_name}`")
+        except Exception:
+            pass
         for stmt in _split_sql(SCHEMA):
             cur.execute(stmt)
         self.conn.commit()

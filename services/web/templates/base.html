@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Avito — catalogue{% endblock %}</title>
+<title>{% block title %}All Cars — catalogue{% endblock %}</title>
 <link rel="icon" href="/static/favicon.svg?v={{ asset_version('favicon.svg') }}" type="image/svg+xml">
 <link rel="alternate icon" href="/static/favicon.svg">
 <link rel="apple-touch-icon" href="/static/favicon.svg">
@@ -21,7 +21,7 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">🚗 Avito <span class="sub">catalogue</span></a>
+  <a class="brand" href="/">🚗 All Cars <span class="sub">catalogue</span></a>
   <nav class="mainnav">
     <a href="/" class="{{ 'on' if request.path == '/' else '' }}">Catalogue</a>
     <a href="/tracking" class="{{ 'on' if request.path == '/tracking' else '' }}">Suivi du scrap</a>

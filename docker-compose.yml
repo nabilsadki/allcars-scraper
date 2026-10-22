@@ -1,5 +1,6 @@
 # ---------------------------------------------------------------------------
-#  Scraper avito.ma — tout tourne en Docker (DB + scraper + outils + web).
+#  All Cars — scraper de vehicules d'occasion (multi-sites).
+#  Tout tourne en Docker (DB + scraper + outils + web).
 #
 #  Persistance de l'interface : les services `db` et `web` ont la politique
 #  de redemarrage "unless-stopped" : ils se relancent tout seuls au redemarrage
@@ -16,22 +17,22 @@
 #  Les volumes (donnees MySQL + dumps) persistent sur /mnt/4TB.
 # ---------------------------------------------------------------------------
 
-name: avito-scraper
+name: allcars-scraper
 
 services:
   # ---------------------------------------------------------------- base
   db:
     build:
       context: ./services/db
-    image: avito-scraper-db:latest
-    container_name: avito-db
+    image: allcars-scraper-db:latest
+    container_name: allcars-db
     # la base doit suivre l'interface (qui doit rester accessible)
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-avito}
-      MYSQL_USER: ${MYSQL_USER:-avito}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-avito}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-allcars}
+      MYSQL_USER: ${MYSQL_USER:-allcars}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-allcars}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -57,8 +58,8 @@ services:
   app:
     build:
       context: ./services/app
-    image: avito-scraper-app:latest
-    container_name: avito-app
+    image: allcars-scraper-app:latest
+    container_name: allcars-app
     restart: "no"
     depends_on:
       db:
@@ -66,9 +67,9 @@ services:
     environment:
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
-      DB_NAME: ${DB_NAME:-avito}
-      DB_USER: ${DB_USER:-avito}
-      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      DB_NAME: ${DB_NAME:-allcars}
+      DB_USER: ${DB_USER:-allcars}
+      DB_PASSWORD: ${DB_PASSWORD:-allcars}
       SCORING_CONFIG: /app/config/scoring.json
     volumes:
       # donnees scrapees (JSONL/CSV, images, progression) : dans le projet (4 To)
@@ -84,8 +85,8 @@ services:
   tools:
     build:
       context: ./services/app
-    image: avito-scraper-app:latest
-    container_name: avito-tools
+    image: allcars-scraper-app:latest
+    container_name: allcars-tools
     restart: "no"
     depends_on:
       db:
@@ -93,9 +94,9 @@ services:
     environment:
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
-      DB_NAME: ${DB_NAME:-avito}
-      DB_USER: ${DB_USER:-avito}
-      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      DB_NAME: ${DB_NAME:-allcars}
+      DB_USER: ${DB_USER:-allcars}
+      DB_PASSWORD: ${DB_PASSWORD:-allcars}
       SCORING_CONFIG: /app/config/scoring.json
     volumes:
       - ./data/scraped:/data
@@ -106,8 +107,8 @@ services:
   web:
     build:
       context: ./services/web
-    image: avito-scraper-web:latest
-    container_name: avito-web
+    image: allcars-scraper-web:latest
+    container_name: allcars-web
     # l'interface doit rester accessible (elle survit au redemarrage du PC)
     restart: unless-stopped
     depends_on:
@@ -116,22 +117,22 @@ services:
     environment:
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-3306}
-      DB_NAME: ${DB_NAME:-avito}
-      DB_USER: ${DB_USER:-avito}
-      DB_PASSWORD: ${DB_PASSWORD:-avito}
+      DB_NAME: ${DB_NAME:-allcars}
+      DB_USER: ${DB_USER:-allcars}
+      DB_PASSWORD: ${DB_PASSWORD:-allcars}
       IMAGES_DIR: /data/images
       PROGRESS_DIR: /data/progress
       SCRAPE_JOB_FILE: /data/scrape_job.json
       # pilotage des scrapes (un conteneur ephemere par site)
-      COMPOSE_PROJECT_DIR: /mnt/4TB/scraper-avito
+      COMPOSE_PROJECT_DIR: /mnt/4TB/allcars-scraper
       SCRAPER_SERVICE: app
-      SCRAPER_PREFIX: avito-scraper
+      SCRAPER_PREFIX: allcars-scrape
     volumes:
       - ./data/scraped:/data
       # socket Docker + projet compose : l'interface lance les scrapes avec
       # "docker compose run" (la config reste dans docker-compose.yml)
       - /var/run/docker.sock:/var/run/docker.sock
-      - /mnt/4TB/scraper-avito:/mnt/4TB/scraper-avito:ro
+      - /mnt/4TB/allcars-scraper:/mnt/4TB/allcars-scraper:ro
     group_add:
       # groupe "docker" de l'hote (pour l'acces au socket)
       - "${DOCKER_GID:-999}"

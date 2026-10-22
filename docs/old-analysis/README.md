@@ -1,3 +1,7 @@
+> **Archive** — ces scripts referencent l'ancienne arborescence
+> (`scrapper/sites/avito_http.py`) et ne sont plus executes.
+> Le code actuel est dans `services/app/src/scraper/`.
+
 # old-analysis
 
 Scripts d'exploration garde pour memoire (ils ne font plus partie du projet

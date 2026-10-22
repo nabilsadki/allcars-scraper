@@ -1,4 +1,6 @@
-# Scraper avito.ma — 100 % Docker
+# All Cars — scraper de vehicules d'occasion (multi-sites)
+
+100 % Docker, 8 sites marocains, une seule base, une seule interface.
 
 Nouvelle implémentation, sans navigateur, qui scrape les annonces de voitures
 d'Avito.ma et les stocke dans MySQL, interrogeables via un outil en ligne de
@@ -30,13 +32,34 @@ totalité du catalogue, sans navigateur.
 
 ---
 
+## 1a. Convention de nommage
+
+Le projet s'appelle **All Cars** : il scrape plusieurs sites de vehicules
+d'occasion marocains. Un site n'est donc plus un nom de projet mais une
+**donnee** de l'annonce (colonne `site`).
+
+| Element | Nom |
+|---------|-----|
+| projet compose / reseau | `allcars-scraper` |
+| dossier | `/mnt/4TB/allcars-scraper` |
+| conteneur web | `allcars-web` |
+| conteneur base | `allcars-db` |
+| conteneur de scrape | `allcars-scrape-<site>` (ex. `allcars-scrape-tomobila`) |
+| images | `allcars-scraper-app` / `-web` / `-db` |
+| base MySQL / utilisateur | `allcars` |
+| unite systemd | `nabyl.allcars-web.service` |
+
+Les noms de **sites** (avito, tomobila, globaloccaz, kifal, renew, otoclic,
+leguideauto, moteur) sont inchanges : ils sont stockes dans la colonne
+`site` de la base.
+
 ## 1b. Où sont les données
 
 **Tout est dans le dossier du projet, sur le disque 4 To** — aucun volume
 Docker (donc rien sur le disque racine) :
 
 ```
-/mnt/4TB/scraper-avito/
+/mnt/4TB/allcars-scraper/
 ├── data/
 │   ├── mysql/        base MySQL (annonces, versions, historique des runs)
 │   └── scraped/       images, catalogue, progression, jobs par site
@@ -56,7 +79,7 @@ sauvegardé ou déplacé tel quel.
 ## 2. Démarrage (manuel)
 
 ```bash
-cd /mnt/4TB/scraper-avito
+cd /mnt/4TB/allcars-scraper
 
 # 1. base de données (à démarrer seulement quand on en a besoin)
 docker compose up -d db
@@ -242,7 +265,7 @@ Chaque site a **son propre conteneur ephemere**, lance par l'interface :
 ```bash
 # depuis l'interface (page /tracking) : le site choisi demarre
 # equivalent en ligne de commande :
-docker compose run -d --rm --name avito-scraper-tomobila app list --site tomobila --db
+docker compose run -d --rm --name allcars-scrape-tomobila app list --site tomobila --db
 ```
 
 * les conteneurs sont supprimes a la fin du run (`--rm`) : il n'y a jamais
@@ -267,8 +290,8 @@ Fonctionnement :
 ```bash
 # lancer / arreter un scrape en ligne de commande
 docker compose run --rm app list --site avito --category "maroc/voitures-à_vendre" --db
-docker compose run -d --rm --name avito-scraper-avito app list --site avito --db
-docker stop avito-scraper-avito
+docker compose run -d --rm --name allcars-scrape-avito app list --site avito --db
+docker stop allcars-scrape-avito
 ```
 
 ## 4. L'outil de consultation
@@ -568,7 +591,7 @@ VARCHAR(64) (les identifiants de site ne sont pas toujours numeriques).
 ## 10. Structure
 
 ```
-/mnt/4TB/scraper-avito/
+/mnt/4TB/allcars-scraper/
 ├── docker-compose.yml      # db + app + tools, aucun auto-demarrage
 ├── .env                    # identifiants (copie de .env.example)
 ├── services/
@@ -596,7 +619,7 @@ Volumes Docker (persistants, sur `/mnt/4TB`) :
 ## 11. Développement
 
 * **Chaque modification est commitée et poussée** sur `main`
-  (`https://github.com/nabilsadki/avito-scraper`). Un hook `post-commit`
+  (`https://github.com/nabilsadki/allcars-scraper`). Un hook `post-commit`
   local pousse automatiquement apres chaque commit.
 * Pour pulls : `git pull --rebase`
 * Secrets : ne jamais commiter le `.env` (déjà ignoré) ; utiliser

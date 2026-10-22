@@ -9,14 +9,12 @@ Table `ad_images` : images (lien standard + lien full_hd).
 Table `scrape_runs` : historique des executions (pour le pilotage).
 """
 
+# la base est creee et selectionnee par db.py (nom issu de la configuration)
 SCHEMA = """
-CREATE DATABASE IF NOT EXISTS avito CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE avito;
-
 CREATE TABLE IF NOT EXISTS ads (
     ad_id           VARCHAR(64)  NOT NULL,
     list_id         BIGINT       NULL,
-    site            VARCHAR(20)  NOT NULL DEFAULT 'avito',
+    site            VARCHAR(32)  NOT NULL,
     category        VARCHAR(128) NULL,
     title           VARCHAR(512) NULL,
     price           INT          NULL,
@@ -94,7 +92,7 @@ CREATE TABLE IF NOT EXISTS ads (
 
 CREATE TABLE IF NOT EXISTS ad_images (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
-    site          VARCHAR(32)  NOT NULL DEFAULT 'avito',
+    site          VARCHAR(32)  NOT NULL,
     ad_id         BIGINT       NOT NULL,
     link          VARCHAR(1024) NOT NULL,
     link_full     VARCHAR(1024) NULL,
@@ -113,7 +111,7 @@ CREATE TABLE IF NOT EXISTS ad_images (
 -- Historique : une ligne par version de l'annonce
 CREATE TABLE IF NOT EXISTS ad_versions (
     id              BIGINT AUTO_INCREMENT PRIMARY KEY,
-    site            VARCHAR(32) NOT NULL DEFAULT 'avito',
+    site            VARCHAR(32) NOT NULL,
     ad_id           BIGINT      NOT NULL,
     version         INT         NOT NULL,
     change_type     VARCHAR(32) NOT NULL,

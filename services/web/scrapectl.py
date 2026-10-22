@@ -8,8 +8,8 @@ Chaque site a son propre conteneur, demarre a la demande et supprime
 automatiquement a la fin du run (--rm) : il n'y a jamais plus de
 conteneurs que de scrapes en cours.
 
-    avito-scraper-avito      scraper du site avito
-    avito-scraper-tomobila   scraper du site tomobila
+    allcars-scrape-avito      scraper du site avito
+    allcars-scrape-tomobila   scraper du site tomobila
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ COMPOSE_FILE = os.path.join(PROJECT_DIR, "docker-compose.yml")
 #: service compose utilise pour lancer un scrap
 SERVICE = os.environ.get("SCRAPER_SERVICE", "app")
 #: prefixe des noms de conteneurs
-NAME_PREFIX = os.environ.get("SCRAPER_PREFIX", "avito-scraper")
+NAME_PREFIX = os.environ.get("SCRAPER_PREFIX", "allcars-scrape")
 DOCKER_BIN = os.environ.get("DOCKER_BIN", "docker")
 
 #: etats considers comme "en cours"
