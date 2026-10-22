@@ -38,7 +38,7 @@ class Database:
     def __init__(self, **overrides):
         self.cfg = _cfg()
         self.cfg.update(overrides)
-        self.conn = pymysql.connect(**self.cfg)
+        self.conn = self._connect()
         self.cur = self.conn.cursor()
         self._session_setup()
         # compteurs de la session
@@ -46,6 +46,40 @@ class Database:
             "inserted": 0, "updated": 0, "unchanged": 0,
             "versions": 0, "disappeared": 0,
         }
+
+    def _connect(self):
+        """Connexion au serveur, avec quelques tentatives (demarrage en cours)."""
+        last = None
+        for attempt in range(6):
+            try:
+                return pymysql.connect(**self.cfg)
+            except pymysql.err.OperationalError as e:
+                last = e
+                time.sleep(1.0 * (attempt + 1))
+        raise last  # pragma: no cover
+
+    def _with_retry(self, fn, *args, **kwargs):
+        """Execute une operation, en se reconnectant si le lien est perdu.
+
+        Le serveur MySQL peut etre redemarre (changement de configuration
+        compose, maintenance) : on rejoue l'operation au lieu de perdre
+        le run.
+        """
+        last = None
+        for attempt in range(6):
+            try:
+                return fn(*args, **kwargs)
+            except pymysql.err.OperationalError as e:
+                code = e.args[0] if e.args else 0
+                if code not in CONNECTION_ERRORS and attempt >= 5:
+                    raise
+                last = e
+                time.sleep(1.0 * (attempt + 1))
+                try:
+                    self.reconnect()
+                except Exception:
+                    pass
+        raise last  # pragma: no cover
 
     def _session_setup(self) -> None:
         """Reglages de session (isolation, delai d'attente des verrous).
@@ -94,13 +128,16 @@ class Database:
             self.conn.close()
         except Exception:
             pass
-        self.conn = pymysql.connect(**self.cfg)
+        self.conn = self._connect()
         self.cur = self.conn.cursor()
         self._session_setup()
 
     # ------------------------------------------------------------------ base
     def ensure_schema(self) -> None:
         """Applique le schema (CREATE TABLE IF NOT EXISTS) + migrations."""
+        self._with_retry(self._ensure_schema)
+
+    def _ensure_schema(self) -> None:
         cur = self.conn.cursor()
         db_name = self.cfg.get("database") or "allcars"
         # la base est creee et selectionnee ici (le nom vient de la
@@ -230,6 +267,9 @@ class Database:
         self.conn.close()
 
     def commit(self) -> None:
+        self._with_retry(self._commit)
+
+    def _commit(self) -> None:
         self.conn.commit()
 
     # ------------------------------------------------------------------ ecriture
@@ -552,6 +592,9 @@ class Database:
 
     def start_run(self, run: dict) -> int:
         """Ouvre une ligne d'historique (status=running) et renvoie son id."""
+        return self._with_retry(self._start_run, run)
+
+    def _start_run(self, run: dict) -> int:
         self.cur.execute(
             "INSERT INTO scrape_runs (started_at, site, category, mode, status) "
             "VALUES (%s,%s,%s,%s,'running')",
@@ -569,6 +612,9 @@ class Database:
         """Met a jour les compteurs d'un run en cours (historique live)."""
         if not run_id:
             return
+        self._with_retry(self._update_run, run_id, run)
+
+    def _update_run(self, run_id: int, run: dict) -> None:
         self.cur.execute(
             "UPDATE scrape_runs SET ads_listed = %s, ads_details = %s, "
             "ads_inserted = %s, ads_updated = %s, ads_unchanged = %s, "
@@ -588,6 +634,9 @@ class Database:
 
     def finish_run(self, run_id: int, run: dict) -> None:
         """Met a jour la ligne d'historique a la fin du run."""
+        self._with_retry(self._finish_run, run_id, run)
+
+    def _finish_run(self, run_id: int, run: dict) -> None:
         self.cur.execute(
             "UPDATE scrape_runs SET finished_at = %s, ads_listed = %s, "
             "ads_details = %s, ads_inserted = %s, ads_updated = %s, "
@@ -611,6 +660,9 @@ class Database:
         self.conn.commit()
 
     def touch_run(self, run: dict) -> None:
+        self._with_retry(self._touch_run, run)
+
+    def _touch_run(self, run: dict) -> None:
         self.cur.execute(
             "INSERT INTO scrape_runs (started_at, finished_at, site, category, mode, "
             "ads_listed, ads_details, ads_inserted, ads_updated, ads_unchanged, "
@@ -638,6 +690,9 @@ class Database:
 
     # ------------------------------------------------------------------ lecture
     def query(self, sql: str, params: tuple = ()) -> list[dict]:
+        return self._with_retry(self._query, sql, params)
+
+    def _query(self, sql: str, params: tuple = ()) -> list[dict]:
         self.cur.execute(sql, params)
         return list(self.cur.fetchall())
 
