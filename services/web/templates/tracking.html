@@ -102,7 +102,8 @@
 {# ---------------------------------------------------------- progression #}
 {% for st in states %}
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5 site-run" data-site="{{ st.site }}">
-  <div class="site-head flex flex-wrap items-center gap-2 mb-2.5 cursor-pointer select-none" title="Cliquer pour afficher / masquer le detail">
+  <div class="site-head flex flex-wrap items-center gap-2 mb-2.5 cursor-pointer select-none rounded-lg -mx-1 px-1 py-0.5 hover:bg-panel2/60 transition-colors"
+       title="Cliquer pourplier / deplier le detail" role="button" tabindex="0" aria-expanded="false">
     <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: {{ st.site|site_hue }}">{{ st.site|site_label }}</span>
     <span class="text-muted text-[13px]">
       {% if st.running %}
@@ -118,7 +119,7 @@
     <span class="dot w-2 h-2 rounded-full inline-block bg-muted {{ 'pulse-dot bg-ok' if st.running else '' }}" data-f="dot"></span>
     <span class="text-muted text-[12px]" data-f="badge">{{ st.mode }}</span>
     <span class="status ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border border-line bg-panel2 text-muted" data-f="cstate" data-site="{{ st.site }}">…</span>
-    <span class="site-chevron hidden lg:inline text-muted text-[13px] transition-transform" aria-hidden="true">▾</span>
+    <span class="site-chevron text-muted text-[13px] transition-transform shrink-0" aria-hidden="true">▾</span>
   </div>
 
   <div class="mb-3.5">
@@ -132,7 +133,7 @@
     </div>
   </div>
 
-  <div class="stats hidden lg:grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5" data-f="stats">
+  <div class="stats hidden grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5" data-f="stats">
     <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
       <small class="text-muted text-[11px] uppercase tracking-wide">Temps écoulé</small><b class="text-[16px]" data-f="elapsed">{{ st.elapsed_seconds|duree }}</b></div>
     <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
@@ -499,15 +500,24 @@ async function refresh() {
   } catch (e) { /* le serveur est momentanement injoignable */ }
 }
 
-// ------------------ affichage mobile : replier le detail de chaque site
+// ------------------ repli / depli du detail de chaque site (desktop + mobile)
+function toggleRun(block) {
+  const open = block.classList.toggle('open');
+  const stats = block.querySelector('[data-f="stats"]');
+  if (stats) stats.classList.toggle('hidden', !open);
+  const chev = block.querySelector('.site-chevron');
+  if (chev) chev.classList.toggle('rotate-180', open);
+  const head = block.querySelector('.site-head');
+  if (head) head.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 document.querySelectorAll('.site-run .site-head').forEach((head) => {
-  head.addEventListener('click', () => {
-    const block = head.closest('.site-run');
-    block.classList.toggle('open');
-    const stats = block.querySelector('[data-f="stats"]');
-    if (stats) stats.classList.toggle('hidden', !block.classList.contains('open'));
-    const chev = head.querySelector('.site-chevron');
-    if (chev) chev.classList.toggle('rotate-180', block.classList.contains('open'));
+  head.addEventListener('click', () => toggleRun(head.closest('.site-run')));
+  head.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleRun(head.closest('.site-run'));
+    }
   });
 });
 
