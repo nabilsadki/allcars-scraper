@@ -382,3 +382,19 @@ details.logs pre {
 html.light .desc { background: var(--panel2); }
 html.light .errbox { background: #fff5f5; color: #8a1c1c; border-color: var(--bad); }
 html.light .lb-close:hover, html.light .lb-nav:hover { background: var(--panel2); }
+
+/* ------------------------------ suivi mobile : entete seul, detail au clic */
+.site-head { cursor: pointer; user-select: none; }
+.site-chevron { display: none; font-size: 13px; color: var(--muted); margin-left: auto; }
+
+@media (max-width: 760px) {
+  /* on ne garde que l'entete + la barre : le detail s'affiche au clic */
+  .site-run .stats { display: none; }
+  .site-run.open .stats { display: grid; }
+  .site-run .site-chevron { display: inline-block; transition: transform .2s; }
+  .site-run.open .site-chevron { transform: rotate(180deg); }
+  .site-run .panel-title { flex-wrap: wrap; row-gap: 6px; }
+  .site-run .panel-title .muted.small { display: none; }
+  .progress-legend { font-size: 12px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}

@@ -60,8 +60,8 @@
 
 <!-- ---------------------------------------------------------- progression -->
 {% for st in states %}
-<div class="panel" data-site="{{ st.site }}">
-  <div class="panel-title">
+<div class="panel site-run" data-site="{{ st.site }}">
+  <div class="panel-title site-head" title="Cliquer pour afficher / masquer le detail">
     <span class="sitebadge" style="--site-hue: {{ st.site|site_hue }}">{{ st.site|site_label }}</span>
     {% if st.running %}
       Progression en cours
@@ -75,6 +75,7 @@
     <span class="dot {{ 'on' if st.running else 'off' }}" data-f="dot"></span>
     <span class="muted small" data-f="badge">{{ st.mode }}</span>
     <span class="status s-unknown" data-f="cstate" data-site="{{ st.site }}">…</span>
+    <span class="site-chevron" aria-hidden="true">▾</span>
   </div>
 
   <div class="progress-wrap">
@@ -95,6 +96,7 @@
     <div class="stat"><small>Blocages serveur</small><b data-f="block" class="{{ 'bad' if st.blocked else '' }}">{{ st.blocked }}</b></div>
     <div class="stat"><small>Erreurs réseau</small><b data-f="err">{{ st.errors }}</b></div>
     <div class="stat"><small>Nouvelles / modif.</small><b data-f="ins">{{ st.inserted }} / {{ st.updated }}</b></div>
+    <div class="stat"><small>Inchangées</small><b data-f="unch">{{ st.unchanged }}</b></div>
     <div class="stat"><small>Tranche en cours</small><b data-f="slice">{{ st.current_slice or '—' }}</b></div>
     <div class="stat"><small>Tranches</small><b data-f="slices">{{ st.slices_done }} / {{ st.slices_total }}</b></div>
     <div class="stat"><small>Mode</small><b data-f="mode">{{ st.mode }}</b></div>
@@ -397,6 +399,7 @@ async function refresh() {
       if (blk) blk.className = s.blocked ? 'bad' : '';
       set('err', s.errors);
       set('ins', s.inserted + ' / ' + s.updated);
+      set('unch', s.unchanged);
       set('slice', s.current_slice || '—');
       set('slices', (s.slices_done || 0) + ' / ' + (s.slices_total || 0));
       set('mode', s.mode || '—');
@@ -409,6 +412,13 @@ async function refresh() {
     }
   } catch (e) { /* le serveur est momentanement injoignable */ }
 }
+
+// ------------------ affichage mobile : replier le detail de chaque site
+document.querySelectorAll('.site-run .site-head').forEach((head) => {
+  head.addEventListener('click', () => {
+    head.closest('.site-run').classList.toggle('open');
+  });
+});
 
 // ---------------------------------------------- tri du tableau des scrapes
 (function () {
