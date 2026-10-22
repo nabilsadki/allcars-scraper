@@ -20,7 +20,7 @@ import subprocess
 from typing import Optional
 
 #: repertoire du projet compose (montre dans le conteneur web)
-PROJECT_DIR = os.environ.get("COMPOSE_PROJECT_DIR", "/mnt/4TB/scraper-avito")
+PROJECT_DIR = os.environ.get("COMPOSE_PROJECT_DIR", "/mnt/4TB/allcars-scraper")
 COMPOSE_FILE = os.path.join(PROJECT_DIR, "docker-compose.yml")
 #: service compose utilise pour lancer un scrap
 SERVICE = os.environ.get("SCRAPER_SERVICE", "app")

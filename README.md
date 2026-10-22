@@ -221,8 +221,8 @@ poste redemarre, Docker demarrant au boot).
 En complement, une unite systemd utilisateur assure le demarrage de la pile :
 
 ```bash
-systemctl --user enable --now nabyl.avito-web.service
-systemctl --user status nabyl.avito-web.service
+systemctl --user enable --now nabyl.allcars-web.service
+systemctl --user status nabyl.allcars-web.service
 ```
 
 Le service `scraper` (lui) reste en `restart: "no"` : **aucun scrap n'est
@@ -611,8 +611,8 @@ VARCHAR(64) (les identifiants de site ne sont pas toujours numeriques).
 ```
 
 Volumes Docker (persistants, sur `/mnt/4TB`) :
-* `avito_db_data` — données MySQL
-* `avito_scraped_data` — dumps JSONL/CSV + cache du catalogue
+* `data/mysql/` — base MySQL (bind mount, dans le projet)
+* `data/scraped/` — images, progression, jobs, cache du catalogue
 
 ---
 

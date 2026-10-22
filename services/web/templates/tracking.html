@@ -377,7 +377,7 @@ async function refresh() {
     badge.className = 'status ' + c.css;
     badge.dataset.container = c.state;
     const cname = $('#container-name');
-    if (cname) cname.textContent = 'avito-scraper-' + sel;
+    if (cname) cname.textContent = 'allcars-scrape-' + sel;
     updateButtons(c.state);
     // badge de conteneur dans chaque bloc de site
     document.querySelectorAll('[data-f="cstate"]').forEach((el) => {
