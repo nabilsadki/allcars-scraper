@@ -32,12 +32,17 @@ class TomobilaAdapter(SiteAdapter):
     page_size_fixed = False
 
     # ------------------------------------------------------------- listing
+    def reset_pagination(self) -> None:
+        self._page = 0
+
     def listing_url(self, category: str, offset: int) -> str:
-        page = offset // 12 if offset else 0
+        # la taille de page varie : on compte les pages (le nombre de pages
+        # ne peut pas se deduire du nombre d'annonces vues)
+        self._page = getattr(self, "_page", 0) + 1
         cat = category.strip("/")
-        if page == 0:
+        if self._page <= 1:
             return f"{BASE}/{cat}/"
-        return f"{BASE}/{cat}/page/{page + 1}/"
+        return f"{BASE}/{cat}/page/{self._page}/"
 
     def total_ads(self, html: str) -> Optional[int]:
         """Total approche : derniere page x taille de page (12)."""

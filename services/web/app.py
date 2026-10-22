@@ -33,6 +33,21 @@ import scrapectl
 
 app = Flask(__name__)
 
+
+def _asset_version(name: str) -> int:
+    """Version d'un fichier statique (mtime) pour casser le cache.
+
+    Sans cela, le navigateur (et le telephone) garde l'ancien CSS et les
+    changements ne sont pas visibles.
+    """
+    try:
+        return int(os.path.getmtime(os.path.join(app.static_folder, name)))
+    except Exception:
+        return 0
+
+
+app.jinja_env.globals["asset_version"] = _asset_version
+
 DB = {
     "host": os.environ.get("DB_HOST", "db"),
     "port": int(os.environ.get("DB_PORT", "3306")),
