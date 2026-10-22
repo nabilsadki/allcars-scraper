@@ -398,3 +398,23 @@ html.light .lb-close:hover, html.light .lb-nav:hover { background: var(--panel2)
   .progress-legend { font-size: 12px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ------------------------------------------- etat des conteneurs (suivi) */
+.cont-list { display: flex; flex-direction: column; gap: 6px; }
+.cont {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 7px 11px; font-size: 13px;
+}
+.cont .status { flex: 0 0 auto; }
+.cont-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+.cont-name code {
+  background: transparent; color: var(--txt); font-size: 12.5px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.cont-meta { color: var(--muted); font-size: 12px; }
+.cont-meta:last-child { margin-left: auto; text-align: right; }
+@media (max-width: 760px) {
+  .cont { padding: 9px 11px; }
+  .cont-meta:last-child { margin-left: 0; width: 100%; text-align: left; }
+}

@@ -14,8 +14,8 @@ conteneurs que de scrapes en cours.
 
 from __future__ import annotations
 
+import json
 import os
-import shlex
 import subprocess
 from typing import Optional
 
@@ -164,6 +164,55 @@ def logs(site: str, tail: int = 120) -> list[str]:
         return []
     lines = (res.stdout or "").splitlines()
     return [ln for ln in lines if ln.strip()]
+
+
+def list_containers(prefix: str = "avito") -> list[dict]:
+    """Etat de tous les conteneurs du projet (prefixe de nom).
+
+    Retourne une liste : nom, etat, image, statut, age, site (pour les
+    conteneurs de scrape).
+    """
+    res = _run(["ps", "-a", "--format", "{{json .}}"], timeout=30)
+    out = []
+    names = []
+    for line in (res.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            item = json.loads(line)
+        except ValueError:
+            continue
+        name = (item.get("Names") or "").strip()
+        if not name.startswith(prefix):
+            continue
+        names.append(name)
+        site = ""
+        if name.startswith(NAME_PREFIX + "-"):
+            site = name[len(NAME_PREFIX) + 1:]
+        out.append({
+            "name": name,
+            "site": site,
+            "state": (item.get("State") or "").lower(),
+            "status": item.get("Status") or "",
+            "image": (item.get("Image") or "").split(":")[0],
+            "running_for": item.get("RunningFor") or "",
+            "created_at": item.get("CreatedAt") or "",
+        })
+    # l'image peut apparaitre sous forme d'identifiant : on resout le nom
+    if names:
+        insp = _run(["inspect", "--format", "{{.Name}}|{{.Config.Image}}"]
+                    + names, timeout=30)
+        real = {}
+        for line in (insp.stdout or "").splitlines():
+            if "|" in line:
+                key, _, img = line.partition("|")
+                real[key.lstrip("/")] = img
+        for item in out:
+            img = real.get(item["name"])
+            if img:
+                item["image"] = img.split(":")[0]
+    return out
 
 
 def cleanup(site: str) -> None:

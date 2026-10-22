@@ -691,6 +691,15 @@ def tracking():
         container_name=scrapectl.container_name(site))
 
 
+@app.route("/api/containers")
+def api_containers():
+    """Etat de tous les conteneurs du projet."""
+    try:
+        return jsonify({"containers": scrapectl.list_containers()})
+    except Exception as e:
+        return jsonify({"containers": [], "error": str(e)})
+
+
 @app.route("/api/progress")
 def api_progress():
     """Etat live du scrap (JSON), appele en boucle par la page."""

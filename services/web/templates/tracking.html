@@ -20,6 +20,16 @@
   {% endfor %}
 </div>
 
+<!-- ------------------------------------------------------ etat des conteneurs -->
+<div class="panel" id="containers-panel">
+  <div class="panel-title">Conteneurs
+    <span class="muted small" id="containers-count"></span>
+  </div>
+  <div class="cont-list" id="cont-list">
+    <p class="muted small">Chargement…</p>
+  </div>
+</div>
+
 <!-- ---------------------------------------------------------- pilotage -->
 <div class="panel">
   <div class="panel-title">Pilotage</div>
@@ -453,6 +463,57 @@ document.querySelectorAll('.site-run .site-head').forEach((head) => {
   });
 })();
 
+// ------------------------------------------- etat de tous les conteneurs
+const STATE_LABELS = {
+  running: ('en marche', 's-running'),
+  exited: ('arrete', 's-stopped'),
+  created: ('cree', 's-created'),
+  restarting: ('redemarre', 's-running'),
+  paused: ('en pause', 's-stopped'),
+  dead: ('mort', 's-absent'),
+  removing: ('en suppression', 's-stopped'),
+};
+
+async function refreshContainers() {
+  const box = document.getElementById('cont-list');
+  const cnt = document.getElementById('containers-count');
+  if (!box) return;
+  try {
+    const res = await fetch('/api/containers');
+    const data = await res.json();
+    const list = data.containers || [];
+    const up = list.filter(c => c.state === 'running').length;
+    if (cnt) cnt.textContent = list.length + ' conteneur(s), ' + up + ' en marche';
+    if (!list.length) {
+      box.innerHTML = '<p class="muted small">Aucun conteneur.</p>';
+      return;
+    }
+    box.innerHTML = list.map(c => {
+      const st = STATE_LABELS[c.state] || [c.state, 's-unknown'];
+      const site = c.site
+        ? '<span class="sitebadge" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
+        : '';
+      return '<div class="cont">' +
+        '<span class="status ' + st[1] + '">' + st[0] + '</span>' +
+        '<span class="cont-name">' + site + '<code>' + c.name + '</code></span>' +
+        '<span class="cont-meta">' + (c.image || '') + '</span>' +
+        '<span class="cont-meta">' + (c.status || c.running_for || '') + '</span>' +
+        '</div>';
+    }).join('');
+  } catch (e) { /* ignore */ }
+}
+
+// teinte du site (meme regle que le filtre Jinja)
+const SITE_HUES = {avito: 214, tomobila: 145, globaloccaz: 268, kifal: 24,
+                   renew: 340, otoclic: 186, leguideauto: 45, moteur: 300};
+function hueOf(site) {
+  const name = (site || '').toLowerCase();
+  if (SITE_HUES[name]) return SITE_HUES[name];
+  let total = 0;
+  for (let i = 0; i < name.length; i++) total += (i + 1) * name.charCodeAt(i);
+  return total % 360;
+}
+
 async function refreshLogs() {
   try {
     const site = $('#f-site') ? $('#f-site').value : 'avito';
@@ -464,8 +525,10 @@ async function refreshLogs() {
 
 refresh();
 refreshLogs();
+refreshContainers();
 setInterval(refresh, 3000);
 setInterval(refreshLogs, 10000);
+setInterval(refreshContainers, 5000);
 </script>
 
 {% endblock %}

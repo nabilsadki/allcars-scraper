@@ -28,6 +28,10 @@ def _cfg() -> dict:
     }
 
 
+#: codes MySQL "le serveur n'est plus la" -> on reconnecte et on rejoue
+CONNECTION_ERRORS = (2003, 2006, 2013, 2055)
+
+
 class Database:
     """Wrapper MySQL minimaliste (pas d'ORM : le schema est stable)."""
 
@@ -74,6 +78,14 @@ class Database:
             except pymysql.err.InterfaceError:
                 if attempt >= 3:
                     raise
+                self.reconnect()
+            except pymysql.err.OperationalError as e:
+                code = e.args[0] if e.args else 0
+                if code not in CONNECTION_ERRORS or attempt >= 3:
+                    raise
+                # le serveur MySQL a ete redemarre / est momentanement
+                # injoignable : on patiente et on se reconnecte
+                time.sleep(1.5 * (attempt + 1))
                 self.reconnect()
 
     def reconnect(self) -> None:
@@ -301,6 +313,11 @@ class Database:
                 continue
             except pymysql.err.OperationalError as e:
                 code = e.args[0] if e.args else 0
+                if code in CONNECTION_ERRORS and attempt < 7:
+                    # MySQL a ete redemarre : on se reconnecte et on rejoue
+                    time.sleep(1.5 * (attempt + 1))
+                    self.reconnect()
+                    continue
                 if code in (1213, 1205) and attempt < 7:
                     # deux scrapps en parallele se disputent les memes lignes :
                     # on rejoue avec un petit delai
