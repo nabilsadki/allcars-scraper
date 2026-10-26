@@ -709,7 +709,8 @@ def tracking():
     f_mode = (request.args.get("mode") or "").strip()
     runs = _runs_history(50, f_site, f_status, f_mode)
     counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
-                   "MAX(scraped_at) dernier FROM ads GROUP BY site")
+                   "SUM(details_fetched = 1) details, MAX(scraped_at) dernier, "
+                   "SUM(nb_images > 0) avec_photos FROM ads GROUP BY site ORDER BY COUNT(*) DESC")
     c_label = containers.get(site, {}).get("label", "inconnu")
     c_css = containers.get(site, {}).get("css", "s-unknown")
     site_meta = next((s for s in all_sites if s.get("name") == site), None)

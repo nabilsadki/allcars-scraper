@@ -33,7 +33,36 @@
   </div>
 </div>
 
-{# ------------------------------------------------------------ pilotage #}
+{# ----------------------- Resume par site (minimaliste) --------------------------- #}
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
+    Sites scrapés
+    <span class="normal-case tracking-normal text-[11px] text-muted">{{ counts|length }} site(s)</span>
+  </div>
+  <div class="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    {% for c in counts %}
+    {% set hue = c.site|site_hue %}
+    <div class="flex items-center gap-2.5 rounded-lg border border-line bg-panel2/40 px-3 py-2 transition-colors hover:bg-panel2/60">
+      <div class="site-mark shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-[12px] font-bold"
+           style="--site-hue: {{ hue }}; background: hsl(var(--site-hue, 214) 72% 50% / .15); border: 1px solid hsl(var(--site-hue, 214) 72% 50% / .45); color: hsl(var(--site-hue, 214) 75% 75%)">
+        {{ (c.site[:2] or '?')|upper }}
+      </div>
+      <div class="min-w-0 flex-1 leading-tight">
+        <div class="text-[12.5px] font-semibold truncate" data-site-title>{{ c.site|site_label }}</div>
+        <div class="text-[11px] text-muted mt-0.5">
+          <b class="text-txt tabular-nums" data-site-count>{{ '{:,}'.format(c.n).replace(',', ' ') }}</b> annonces
+        </div>
+        <div class="text-[10px] text-muted">
+          {{ c.details or 0 }} complètes{% if c.avec_photos %} · {{ c.avec_photos }} photos{% endif %}
+        </div>
+        <div class="text-[10px] text-muted/80 mt-0.5">{{ c.dernier|datefr(true) if c.dernier else 'jamais' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ---------------------------------------------------------- pilotage -->
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Pilotage</div>
   <form id="job-form" class="flex flex-wrap items-end gap-3" onsubmit="return false;">
