@@ -50,12 +50,25 @@
       <div class="min-w-0 flex-1 leading-tight">
         <div class="text-[12.5px] font-semibold truncate" data-site-title>{{ c.site|site_label }}</div>
         <div class="text-[11px] text-muted mt-0.5">
-          <b class="text-txt tabular-nums" data-site-count>{{ '{:,}'.format(c.n).replace(',', ' ') }}</b> annonces
+          <b class="tabular-nums {{ 'text-ok' if (c.details or 0) >= c.n else 'text-warn' }}" data-site-count
+             title="{{ 'toutes les annonces ont leur page detail' if (c.details or 0) >= c.n else ((c.n - (c.details or 0))|string) + ' annonce(s) sans fiche complete' }}">
+              {{ '{:,}'.format(c.n).replace(',', ' ') }}</b> annonces
         </div>
         <div class="text-[10px] text-muted">
           {{ c.details or 0 }} complètes{% if c.avec_photos %} · {{ c.avec_photos }} photos{% endif %}
         </div>
-        <div class="text-[10px] text-muted/80 mt-0.5">{{ c.dernier|datefr(true) if c.dernier else 'jamais' }}</div>
+        {% set aged = c.dernier|freshness %}
+        <div class="text-[10.5px] mt-0.5">
+          <span class="{{ 'text-ok font-semibold' if aged == 'freshness-fresh' else 'text-warn' }}">
+            {{ (c.dernier|datefr(true)) if c.dernier else 'jamais' }}
+          </span>
+          {% if c.dernier %}
+          <span class="text-muted/80 text-[9.5px] ml-1"
+                title="{{ 'mis a jour il y a moins de 2 jours' if aged == 'freshness-fresh' else 'plus de 2 jours : il faudrait re-scaper ce site' }}">
+            {{ 'fraîs' if aged == 'freshness-fresh' else 'périmé' }}
+          </span>
+          {% endif %}
+        </div>
       </div>
     </div>
     {% endfor %}
@@ -610,16 +623,27 @@ async function refreshContainers() {
     }
     box.innerHTML = list.map(c => {
       const st = STATE_LABELS[c.state] || [c.state, 'unknown'];
-      const site = c.site
-        ? '<span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
+      const icon = c.name === 'allcars-web' ? '🌐'
+        : c.name === 'allcars-db' ? '💾' :
+        c.name.startsWith('allcars-scrape-') ? '📦' : '⚙️';
+      const dot = '<span class="inline-block w-1.5 h-1.5 rounded-full shrink-0 ' +
+        (c.state === 'running' ? 'bg-ok pulse-dot' : 'bg-muted') + '"></span>';
+      const tag = c.site
+        ? '<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
         : '';
-      return '<div class="flex flex-wrap items-center gap-2.5 bg-panel2 border border-line rounded-lg px-3 py-2 text-[13px]">' +
-        '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border ' +
-          (STATE_CLASS[st[1]] || STATE_CLASS.unknown) + '">' + st[0] + '</span>' +
-        '<span class="flex items-center gap-2 font-semibold">' + site +
-          '<code class="font-mono text-[12.5px]">' + c.name + '</code></span>' +
-        '<span class="text-muted text-[12px]">' + (c.image || '') + '</span>' +
-        '<span class="text-muted text-[12px] ml-auto text-right">' + (c.status || c.running_for || '') + '</span>' +
+      return '<div class="bg-panel2 border border-line rounded-lg p-2.5 flex flex-col gap-1.5 min-w-0">' +
+        '<div class="flex items-center justify-between gap-2">' +
+          '<span class="text-xl leading-none shrink-0" aria-hidden="true">' + icon + '</span>' +
+          '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-semibold border ' +
+            (STATE_CLASS[st[1]] || STATE_CLASS.unknown) + '">' + dot + ' ' + st[0] + '</span>' +
+        '</div>' +
+        '<div class="min-w-0">' +
+          '<div class="flex items-center gap-1.5">' + tag +
+            '<code class="font-mono text-[12px] font-semibold truncate block max-w-[150px] leading-tight">' + c.name + '</code>' +
+          '</div>' +
+          '<p class="text-[10px] text-muted m-0 mt-0.5 truncate leading-tight">' + (c.image || '') + '</p>' +
+          '<p class="text-[10px] text-muted/80 m-0 truncate leading-tight mt-0.5">' + (c.status || c.running_for || '') + '</p>' +
+        '</div>' +
         '</div>';
     }).join('');
   } catch (e) { /* ignore */ }

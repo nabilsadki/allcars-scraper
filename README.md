@@ -256,7 +256,10 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   statut). L''erreur d'un run en echec s'affiche en cliquant sur le statut.
   La colonne categorie est masquee quand chaque site n'a que peu de
   categories. Le tableau se **filtre** (site, statut, mode) et se **trie**
-  en cliquant sur un en-tete. + les derniers logs du conteneur.
+  en cliquant sur un en-tete (+ fleches ▲/▼). + les derniers logs du conteneur.
+* **Vue mobile** : le bloc de filtres se replie derriere un bouton
+  "Filtres · N actif(s)" ; sur le suivi, chaque site se replie aussi,
+  avec la barre de progression toujours visible
 
 ### Scraper plusieurs sites en parallele
 

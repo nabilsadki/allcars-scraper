@@ -216,13 +216,14 @@ def alerts(state: Optional[dict], container_state: str = "",
                 "level": "error",
                 "title": f"Erreur sur {st.get('site')}",
                 "detail": st.get("error") or "Le run s'est termine en erreur"})
-        elif int(st.get("db_errors") or 0):
+        elif int(st.get("db_errors") or 0) and _state_age(st) < ALERT_TTL:
             out.append({
                 "level": "warn",
-                "title": f"{st.get('db_errors')} annonce(s) non enregistree(s) "
+                "title": f"{st.get('db_errors')}annonce(s) non enregistree(s) "
                          f"sur {st.get('site')}",
-                "detail": "Ecriture en base en echec (verrou MySQL ?) : "
-                          "ces annonces seront reprises au prochain run."})
+                "detail": "Ecriture en base en echec (MySQL redemarre ou "
+                          "concurrent) : ces annonces sont ignorees pour ce "
+                          "run et seront reprises au prochain."})
     if not state:
         if container_state in ("exited", "absent"):
             out.append({"level": "warn",

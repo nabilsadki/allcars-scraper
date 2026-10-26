@@ -250,6 +250,25 @@ def site_hue(site: str) -> int:
 
 
 app.jinja_env.filters["site_hue"] = site_hue
+
+
+def freshness(value) -> str:
+    """Classe CSS selon l'anciennete du scraping.
+
+    <= 2 jours : 'freshness-fresh' (vert) ; au-dela : 'freshness-stale' (orange).
+    """
+    if not value:
+        return "freshness-stale"
+    try:
+        age = datetime.now() - value
+    except Exception:
+        return "freshness-stale"
+    if age.days >= 2:
+        return "freshness-stale"
+    return "freshness-fresh"
+
+
+app.jinja_env.filters["freshness"] = freshness
 #: groupes de tris (utilises par la barre du haut, sur toutes les pages)
 app.jinja_env.globals["sort_groups"] = SORT_GROUPS
 
