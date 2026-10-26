@@ -826,6 +826,86 @@ def api_scrape_start():
                     "container": scrapectl.container_name(site)})
 
 
+@app.route("/api/scrape/start-all", methods=["POST"])
+def api_scrape_start_all():
+    """Lance un scrape pour tous les sites, avec les parametres partages.
+
+    Le parametre site est ignore : on reutilise la maniere specifique a chaque
+    site (categorie par defaut). Le mode, le delay, le jitter, le plafond,
+    les fiches detail et la decoupe en tranches sont partages.
+    """
+    payload = request.get_json(silent=True) or request.form or {}
+
+    def _flag(v):
+        return str(v).lower() in ("1", "true", "on", "yes")
+
+    mode = str(payload.get("mode") or "").strip()
+    limit_val = None
+    if "limit" in payload and str(payload.get("limit") or "").strip():
+        try:
+            limit_val = max(0, int(payload.get("limit")))
+        except (TypeError, ValueError):
+            limit_val = None
+
+    results = []
+    for site_meta in known_sites():
+        name = site_meta.get("name")
+        if not name:
+            continue
+        # parametres specifiques au site (categorie en particulier)
+        job = progress_reader.read_job(name)
+        job["site"] = name
+        if mode:
+            job["mode"] = mode
+        if limit_val is not None:
+            job["limit"] = limit_val
+        if "details" in payload:
+            job["details"] = _flag(payload.get("details"))
+        if "slices" in payload:
+            job["slices"] = _flag(payload.get("slices"))
+        for key in ("delay", "jitter"):
+            if key in payload:
+                try:
+                    job[key] = max(0.0, float(payload.get(key)))
+                except (TypeError, ValueError):
+                    pass
+        progress_reader.write_job(job)
+        try:
+            msg = scrapectl.start(name, job)
+            results.append({"site": name, "ok": True, "message": msg,
+                            "container": scrapectl.container_name(name)})
+        except Exception as e:
+            results.append({"site": name, "ok": False, "error": str(e)})
+
+    return jsonify({"ok": all(r.get("ok") for r in results) if results else True,
+                    "launched": sum(1 for r in results if r.get("ok")),
+                    "total": len(results),
+                    "results": results})
+
+
+@app.route("/api/scrape/stop-all", methods=["POST"])
+def api_scrape_stop_all():
+    """Arrete tous les scraps (un par site)."""
+    results = []
+    for site_meta in known_sites():
+        name = site_meta.get("name")
+        if not name:
+            continue
+        try:
+            msg = scrapectl.stop(name)
+            results.append({"site": name, "ok": True, "message": msg})
+        except scrapectl.DockerCliError as e:
+            # pas de conteneur pour ce site : rien a faire
+            if "Aucun scrape" in str(e):
+                results.append({"site": name, "ok": True, "message": "aucun scrape en cours"})
+            else:
+                results.append({"site": name, "ok": False, "error": str(e)})
+    return jsonify({"ok": True,
+                    "stopped": sum(1 for r in results if r.get("ok")),
+                    "total": len(results),
+                    "results": results})
+
+
 @app.route("/api/scrape/stop", methods=["POST"])
 def api_scrape_stop():
     """Arrete le scrape d'un site (les autres sites continuent)."""

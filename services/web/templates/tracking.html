@@ -169,13 +169,19 @@
       <input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}
              class="accent-accent w-4 h-4"> découpe en tranches
     </label>
-    <div class="flex gap-2 ml-auto">
+    <div class="flex gap-2 ml-auto flex-wrap">
       <button type="button" id="btn-start"
               class="btn-ok border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ok/10"
               {% if container_state == 'running' %}disabled{% endif %}>Démarrer</button>
+      <button type="button" id="btn-start-all"
+              class="border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Lance le scrape pour TOUS les sites avec les parametres ci-dessus">Tous les sites</button>
       <button type="button" id="btn-stop"
               class="btn-bad border border-bad text-bad bg-bad/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-bad/10"
               {% if container_state != 'running' %}disabled{% endif %}>Arrêter</button>
+      <button type="button" id="btn-stop-all"
+              class="border border-bad text-bad bg-bad/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Arrete tous les scraps en cours">Tout arrêter</button>
       <button type="button" id="btn-restart"
               class="border border-line text-txt bg-panel2 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed"
               {% if container_state == 'running' %}disabled{% endif %}>Relancer</button>
@@ -396,7 +402,7 @@ function payload() {
 }
 
 function setBusy(busy) {
-  for (const id of ['#btn-start', '#btn-stop', '#btn-restart']) {
+  for (const id of ['#btn-start', '#btn-start-all', '#btn-stop', '#btn-stop-all', '#btn-restart']) {
     const b = document.querySelector(id);
     if (b) b.disabled = busy;
   }
@@ -427,6 +433,39 @@ async function action(url, label) {
 $('#btn-start').onclick = () => action('/api/scrape/start', 'Démarrage');
 $('#btn-stop').onclick = () => action('/api/scrape/stop', 'Arrêt');
 $('#btn-restart').onclick = () => action('/api/scrape/restart', 'Relance');
+
+// ---------- lancement / arret pour tous les sites a la fois
+async function actionAll(url, label) {
+  setBusy(true);
+  $('#action-msg').textContent = label + ' de tous les sites…';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload()),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const n = data.launched !== undefined ? data.launched : data.stopped;
+      const tot = data.total !== undefined ? data.total : (data.results || []).length;
+      $('#action-msg').textContent = label + ' terminé — ' + n + '/' + tot + ' site(s).';
+    } else {
+      const ko = (data.results || []).filter(r => !r.ok);
+      $('#action-msg').textContent = 'Partiel : ' + ko.length + ' erreur(s) — ' + ko.map(r => r.site + ': ' + (r.error || '')).join(' ; ');
+    }
+    await refresh();
+    setTimeout(refresh, 1500);
+  } catch (e) {
+    $('#action-msg').textContent = 'Erreur : ' + e;
+  } finally {
+    setBusy(false);
+    updateButtons($('#status-badge').dataset.container || 'unknown');
+    refresh();
+  }
+}
+
+$('#btn-start-all').onclick = () => actionAll('/api/scrape/start-all', 'Lancement');
+$('#btn-stop-all').onclick = () => actionAll('/api/scrape/stop-all', 'Arrêt');
 
 // ------------------------------------------------------ site => categorie/mode
 const SITES = {{ sites | tojson }};
