@@ -123,7 +123,9 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
         html = ""
         # certaines pages renvoient une variante incomplete : on reessaye
         try:
-            for attempt in range(1, 4):
+            # "pages" en flax (401/502) : on reessay souvent pour eviter d'abandonner
+            # prematurerement quand le site ressent le referrer.
+            for attempt in range(1, 8):
                 html = client.get(url)
                 if total is None:
                     total = site.total_ads(html)
@@ -138,14 +140,15 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
                 ads = site.parse_listing(html, category)
                 if ads:
                     break
-                if attempt < 3:
-                    client.log(f"  ! page vide ({attempt}/3) - nouvel essai")
+                if attempt < 7:
+                    client.log(f"  ! page vide ({attempt}/8) - nouvel essai")
+                    time.sleep(min(60, 8 * attempt))
         except Exception as e:
             # erreur HTTP transitoire (502/503 du site) : on ne tue pas le run
             failures += 1
             client.log(f"  ! page en echec ({type(e).__name__}: {str(e)[:60]}) "
-                       f"- {failures}/5")
-            if failures >= 5:
+                       f"- {failures}/25")
+            if failures >= 25:
                 client.log("  ! trop d'echecs consecutifs - fin du balayage")
                 break
             time.sleep(min(60, 5 * failures))
@@ -157,7 +160,28 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
         # ne fait plus Borneo de progrès (memes annonces renvoyees)
         page_ids = {a.get("ad_id") for a in ads}
         if page_ids and page_ids <= seen_ids:
-            client.log("  ! page sans nouvelles annonces - fin du balayage")
+            # retry une fois avec un delai : parfois la page est flapi.
+            client.log("  ! page sans nouvelles annonces - essai de rechargement apres pause")
+            time.sleep(10)
+            html2 = None
+            try:
+                html2 = client.get(url)
+                ads2 = site.parse_listing(html2, category)
+                if ads2:
+                    ads = ads2
+                    page_ids = {a.get("ad_id") for a in ads}
+                    if page_ids and page_ids <= seen_ids:
+                        client.log("  ! page sans nouvelles annonces - fin du balayage")
+                        break
+                else:
+                    client.log("  ! page sans nouvelles annonces - fin du balayage")
+                    break
+            except Exception:
+                client.log("  ! page sans nouvelles annonces - fin du balayage")
+                break
+        if not ads:
+            # relaxation finale : seconde pause + retry
+            time.sleep(5)
             break
         seen_ids |= page_ids
         for ad in ads:

@@ -721,6 +721,13 @@ def tracking():
     container_state = containers.get(site, {}).get("state", "unknown")
     _sync_stale_runs(containers)
     states = progress_reader.read_all()
+    # tri : sites en cours d'execution d'abord, puis par derniere
+    # activite decroissante (running en premier, puis finis)
+    _running = [d for d in states if d.get('status') == 'running']
+    _finished = [d for d in states if d.get('status') != 'running']
+    _running.sort(key=lambda d: d.get('updated_at') or '', reverse=True)
+    _finished.sort(key=lambda d: d.get('updated_at') or '', reverse=True)
+    states = _running + _finished
     state = progress_reader.pick_primary(states, container_state)
     alerts = progress_reader.alerts(state, container_state, states)
     f_site = (request.args.get("site") or "").strip()
@@ -785,6 +792,11 @@ def api_progress():
     site = (request.args.get("site") or "").strip() or "avito"
     container_state = containers.get(site, {}).get("state", "unknown")
     states = progress_reader.read_all()
+    _running = [d for d in states if d.get('status') == 'running']
+    _finished = [d for d in states if d.get('status') != 'running']
+    _running.sort(key=lambda d: d.get('updated_at') or '', reverse=True)
+    _finished.sort(key=lambda d: d.get('updated_at') or '', reverse=True)
+    states = _running + _finished
     state = progress_reader.pick_primary(states, container_state)
     c_label = containers.get(site, {}).get("label", "inconnu")
     c_css = containers.get(site, {}).get("css", "s-unknown")
