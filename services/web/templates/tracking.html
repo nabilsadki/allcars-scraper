@@ -260,28 +260,28 @@
     </div>
   </div>
 
-  <div class="stats hidden grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5" data-f="stats">
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+  <div class="stats hidden flex flex-wrap gap-2.5" data-f="stats">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Temps écoulé</small><b class="text-[16px]" data-f="elapsed">{{ st.elapsed_seconds|duree }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Temps restant</small><b class="text-[16px]" data-f="eta">{{ st.eta_seconds|duree if st.eta_seconds else '—' }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Vitesse</small><b class="text-[16px]" data-f="rate">{{ st.rate_per_min }}<span class="u text-[11px] text-muted font-normal"> /min</span></b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Requêtes HTTP</small><b class="text-[16px]" data-f="req">{{ st.requests }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Blocages serveur</small><b class="text-[16px] {{ 'text-bad' if st.blocked else '' }}" data-f="block">{{ st.blocked }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Erreurs réseau</small><b class="text-[16px]" data-f="err">{{ st.errors }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Nouvelles / modif.</small><b class="text-[16px]" data-f="ins">{{ st.inserted }} / {{ st.updated }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Inchangées</small><b class="text-[16px]" data-f="unch">{{ st.unchanged }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Tranche en cours</small><b class="text-[16px]" data-f="slice">{{ st.current_slice or '—' }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Tranches</small><b class="text-[16px]" data-f="slices">{{ st.slices_done }} / {{ st.slices_total }}</b></div>
-    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5">
+    <div class="stat bg-panel2 border border-line rounded-lg p-2 flex flex-col gap-0.5 min-w-[110px] flex-1 basis-32 max-w-[180px]">
       <small class="text-muted text-[11px] uppercase tracking-wide">Mode</small><b class="text-[16px]" data-f="mode">{{ st.mode }}</b></div>
   </div>
 </div>
