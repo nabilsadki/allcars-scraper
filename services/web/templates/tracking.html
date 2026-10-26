@@ -176,13 +176,23 @@
         <span class="text-muted text-[10px]">·</span>
         <button type="button" id="sel-none" class="text-[11px] text-accent-txt hover:underline cursor-pointer bg-transparent border-0 p-0">Aucun</button>
       </div>
-      <select id="f-sites-sel" name="sites" multiple size="4"
-              class="w-full bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+      <div id="f-sites-badges" class="flex flex-wrap gap-2 pt-1">
         {% for s in sites %}
-        <option value="{{ s.name }}" {% if s.name == job.site %}selected{% endif %}>{{ s.label }}</option>
+        <button type="button"
+                class="sitepick inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] border transition-colors cursor-pointer select-none
+                       {% if s.name == job.site %}is-selected bg-accent/20 text-txt border-accent ring-1 ring-accent font-medium
+                       {% else %}bg-panel2 text-muted border-line hover:border-accent{% endif %}"
+                data-site="{{ s.name }}"
+                style="--site-hue: {{ s.name|site_hue }}">
+          <span class="site-mark w-4 h-4 rounded-md text-[9px] font-bold flex items-center justify-center"
+                style="background: hsl(var(--site-hue, 214) 72% 50% / .25); color: hsl(var(--site-hue, 214) 75% 75%)">
+            {{ s.name[:2]|upper }}
+          </span>
+          {{ s.label }}
+        </button>
         {% endfor %}
-      </select>
-      <p class="text-[10.5px] text-muted m-0">Ctrl/Cmd+clic pour une sélection multiple. Lancement via le bouton ci-dessous.</p>
+      </div>
+      <p class="text-[10.5px] text-muted m-0">Cliquez pour sélectionner / désélectionner. "Ma sélection" lance uniquement ces sites.</p>
     </div>
     <div class="flex gap-2 ml-auto flex-wrap">
       <button type="button" id="btn-start"
@@ -488,21 +498,41 @@ async function actionAll(url, label, sites) {
 
 $('#btn-start-all').onclick = () => actionAll('/api/scrape/start-all', 'Lancement', null);
 $('#btn-start-sel').onclick = async () => {
-  const opts = Array.from(document.querySelectorAll('#f-sites-sel option:checked'));
-  if (!opts.length) { $('#action-msg').textContent = 'Aucun site sélectionné dans la liste ci-dessous.'; return; }
-  const sites = opts.map(o => o.value);
+  const opts = Array.from(document.querySelectorAll('#f-sites-badges .sitepick.is-selected'));
+  if (!opts.length) { $('#action-msg').textContent = 'Aucun site sélectionné (cliquez sur les badges).'; return; }
+  const sites = opts.map(o => o.getAttribute('data-site'));
   await actionAll('/api/scrape/start-all', 'Lancement', sites);
 };
 $('#btn-stop-all').onclick = () => actionAll('/api/scrape/stop-all', 'Arrêt', null);
 
 // selection rapide de tous / aucun
-const _sel = document.getElementById('f-sites-sel');
+const _badgeWrap = document.getElementById('f-sites-badges');
 const _all = document.getElementById('sel-all');
 const _none = document.getElementById('sel-none');
-if (_sel && _all && _none) {
-  _all.addEventListener('click', () => { for (const o of _sel.options) o.selected = true; });
-  _none.addEventListener('click', () => { for (const o of _sel.options) o.selected = false; });
+
+function _setSelected(badge, on) {
+  badge.classList.toggle('is-selected', on);
+  if (on) {
+    badge.classList.add('bg-accent/20','text-txt','border-accent','ring-1','ring-accent','font-medium');
+    badge.classList.remove('bg-panel2','text-muted','border-line','hover:border-accent');
+  } else {
+    badge.classList.remove('bg-accent/20','text-txt','border-accent','ring-1','ring-accent','font-medium');
+    badge.classList.add('bg-panel2','text-muted','border-line','hover:border-accent');
+  }
 }
+if (_badgeWrap) {
+  _badgeWrap.addEventListener('click', (e) => {
+    const b = e.target.closest('.sitepick');
+    if (!b) return;
+    _setSelected(b, !b.classList.contains('is-selected'));
+  });
+}
+if (_all && _badgeWrap) _all.addEventListener('click', () => {
+  for (const b of _badgeWrap.querySelectorAll('.sitepick')) _setSelected(b, true);
+});
+if (_none && _badgeWrap) _none.addEventListener('click', () => {
+  for (const b of _badgeWrap.querySelectorAll('.sitepick')) _setSelected(b, false);
+});
 
 // ------------------------------------------------------ site => categorie/mode
 const SITES = {{ sites | tojson }};
