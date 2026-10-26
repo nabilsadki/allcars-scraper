@@ -13,14 +13,57 @@
 </div>
 
 {# ------------------------------------------------------------- alertes #}
-<div id="alerts" class="flex flex-col gap-2 mb-3">
-  {% for a in alerts %}
-  <div class="alert flex flex-wrap items-baseline gap-2 rounded-lg px-3.5 py-2.5 text-[13.5px] border bg-panel border-line
-              {% if a.level == 'error' %}!border-bad/55 !bg-bad/12 !text-[#ffb3b3]{% elif a.level == 'warn' %}!border-warn/50 !bg-warn/10 !text-[#ffd79a]{% endif %}">
-    <strong>{{ a.title }}</strong>
-    {% if a.detail %}<span>{{ a.detail }}</span>{% endif %}
+{# Panneau "Notifications" repliable : le titre affiche le decompte,
+   le detail ne s'affiche qu'au clic. #}
+{% set n_err = alerts|selectattr('level','equalto','error')|list|length %}
+{% set n_warn = alerts|selectattr('level','equalto','warn')|list|length %}
+{% set n_other = (alerts|length) - n_err - n_warn %}
+<div class="bg-panel border border-line rounded-xl mb-3.5 overflow-hidden" id="notif-panel">
+  <button type="button" id="notif-toggle"
+          class="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 bg-transparent text-left
+                 border-0 cursor-pointer hover:bg-panel2/40 transition-colors focus:outline-none">
+    <span class="text-[12px] uppercase tracking-wider text-muted flex items-center gap-2">
+      Notifications
+      <span class="normal-case tracking-normal text-[10px] text-muted" id="notif-meta">
+        {% if alerts %}{{ alerts|length }} notification(s){% else %}tout va bien{% endif %}
+      </span>
+    </span>
+    <span class="flex items-center gap-1.5" id="notif-badge-wrap">
+      {% if n_err %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-bad/55 bg-bad/12 text-[#ffb3b3]">
+        <span class="w-1.5 h-1.5 rounded-full bg-bad"></span>{{ n_err }} erreur{{ 's' if n_err > 1 }}
+      </span>
+      {% endif %}
+      {% if n_warn %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-warn/50 bg-warn/10 text-[#ffd79a]">
+        <span class="w-1.5 h-1.5 rounded-full bg-warn"></span>{{ n_warn }} alerte{{ 's' if n_warn > 1 }}
+      </span>
+      {% endif %}
+      {% if n_other %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-line bg-panel2 text-muted">
+        <span class="w-1.5 h-1.5 rounded-full bg-muted"></span>{{ n_other }} info{{ 's' if n_other > 1 }}
+      </span>
+      {% endif %}
+      {% if not (n_err or n_warn or n_other) %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-ok/40 bg-ok/10 text-[#7ff0c0]">
+        <span class="w-1.5 h-1.5 rounded-full bg-ok"></span>0
+      </span>
+      {% endif %}
+    </span>
+    <span class="text-muted text-[11px] shrink-0" id="notif-chevron" aria-hidden="true">▸</span>
+  </button>
+  <div id="alerts" class="hidden flex flex-col gap-2 px-3.5 pb-3 pt-1 border-t border-line">
+    {% for a in alerts %}
+    <div class="alert flex flex-wrap items-baseline gap-2 rounded-lg px-3.5 py-2.5 text-[13.5px] border bg-panel border-line
+                {% if a.level == 'error' %}!border-bad/55 !bg-bad/12 !text-[#ffb3b3]{% elif a.level == 'warn' %}!border-warn/50 !bg-warn/10 !text-[#ffd79a]{% endif %}">
+      <strong>{{ a.title }}</strong>
+      {% if a.detail %}<span>{{ a.detail }}</span>{% endif %}
+    </div>
+    {% endfor %}
+    {% if not alerts %}
+    <p class="text-[12px] text-muted m-0 py-1.5">Aucune notification.</p>
+    {% endif %}
   </div>
-  {% endfor %}
 </div>
 
 {# --------------------------------------------- etat de tous les conteneurs #}
@@ -459,21 +502,52 @@ function updateButtons(containerState) {
   restart.title = running ? 'Un scrap est déjà en cours' : '';
 }
 
+function _plural(n, sing, plur) { return (n > 1 ? plur : sing); }
+
 function renderAlerts(alerts) {
+  alerts = alerts || [];
   const box = $('#alerts');
-  box.innerHTML = (alerts || []).map(a => {
-    const tone = a.level === 'error'
-      ? '!border-bad/55 !bg-bad/12 !text-[#ffb3b3]'
-      : (a.level === 'warn' ? '!border-warn/50 !bg-warn/10 !text-[#ffd79a]' : '');
+  const badgeWrap = $('#notif-badge-wrap');
+  const meta = $('#notif-meta');
+  const errN = alerts.filter(a => a.level === 'error').length;
+  const warnN = alerts.filter(a => a.level === 'warn').length;
+  const otherN = alerts.length - errN - warnN;
+
+  // -- decompte a droite (badges)
+  badgeWrap.innerHTML = _badge(errN, 'erreur', 'error') +
+                          _badge(warnN, 'alerte', 'warn') +
+                          _badge(otherN, 'info', 'other') +
+                          (alerts.length ? '' : _badge(0, 'rien', 'ok'));
+  meta.textContent = alerts.length ? (alerts.length + ' notification' + (alerts.length > 1 ? 's' : ''))
+                                  : 'tout va bien';
+
+  // -- detail expands in the (collapsed by default) body
+  box.innerHTML = alerts.map(a => {
+    const tone = a.level === 'error' ? '!border-bad/55 !bg-bad/12 !text-[#ffb3b3]'
+               : a.level === 'warn' ? '!border-warn/50 !bg-warn/10 !text-[#ffd79a]' : '';
     return `<div class="alert flex flex-wrap items-baseline gap-2 rounded-lg px-3.5 py-2.5 text-[13.5px] border bg-panel border-line ${tone}">`
          + '<strong></strong><span></span></div>';
-  }).join('');
+  }).join('') || '<p class="text-[12px] text-muted m-0 py-1.5">Aucune notification.</p>';
   const nodes = box.querySelectorAll('.alert');
-  (alerts || []).forEach((a, i) => {
-    if (!nodes[i]) return;
+  alerts.forEach((a, i) => { if (!nodes[i]) return;
     nodes[i].querySelector('strong').textContent = a.title;
     nodes[i].querySelector('span').textContent = a.detail || '';
   });
+}
+
+function _badge(n, base, level) {
+  if (level === 'ok') {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-ok/40 bg-ok/10 text-[#7ff0c0]">
+      <span class="w-1.5 h-1.5 rounded-full bg-ok"></span>${n}</span>`;
+  }
+  if (n <= 0) return '';
+  const color = level === 'error' ? 'bad'
+              : level === 'warn' ? 'warn' : 'line';
+  const text = level === 'error' ? '#ffb3b3'
+             : level === 'warn' ? '#ffd79a' : 'var(--muted)';
+  const plural = n > 1 ? base + 's' : base;
+  return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border border-${color}/50 bg-${color}/10" style="color:${text}">
+    <span class="w-1.5 h-1.5 rounded-full bg-${color}"></span>${n} ${plural}</span>`;
 }
 
 async function refresh() {
@@ -677,6 +751,20 @@ async function refreshLogs() {
 }
 
 refresh();
+// --- bloc Notifications : repliable au clic ---
+(function () {
+  const toggle = document.getElementById('notif-toggle');
+  const body = document.getElementById('alerts');
+  const chev = document.getElementById('notif-chevron');
+  if (toggle && body) {
+    toggle.addEventListener('click', function () {
+      const hidden = body.classList.contains('hidden');
+      body.classList.toggle('hidden', !hidden);
+      if (chev) chev.textContent = (hidden ? '▾' : '▸');
+    });
+  }
+})();
+
 refreshLogs();
 refreshContainers();
 setInterval(refresh, 3000);
