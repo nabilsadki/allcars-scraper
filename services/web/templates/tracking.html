@@ -722,7 +722,8 @@ async function refresh() {
       const bar = block.querySelector('[data-f="bar"]');
       if (bar) bar.style.width = Math.min(100, pct) + '%';
       set('percent', (s.percent === null || s.percent === undefined) ? '—' : Number(s.percent).toFixed(1) + ' %');
-      set('counts', s.listed + ' / ' + (s.total || '—') + ' annonces');
+      set('counts', s.listed + ' / ' + (s.total || '—') + ' annonces' +
+            (s.details && s.details !== s.listed ? ' · ' + s.details + ' fiches' : ''));
       set('elapsed', fmt(s.elapsed_seconds));
       set('eta', (s.eta_seconds === null || s.eta_seconds === undefined) ? '—' : fmt(s.eta_seconds));
       const rate = block.querySelector('[data-f="rate"]');
@@ -931,6 +932,18 @@ document.addEventListener('click', (e) => {
   if (act === 'start') actionForSite(site, '/api/scrape/start', 'Démarrage');
   else if (act === 'stop') actionForSite(site, '/api/scrape/stop', 'Arrêt');
   else if (act === 'restart') actionForSite(site, '/api/scrape/restart', 'Relance');
+});
+
+// --- au retour sur l'onglet / focus / restauration depuis bfcache : rafraichissement immediat
+//     (les setInterval sont throttelles par Chrome quand l'onglet est en
+//      arriere-plan, ce qui donnait l'impression que la barre restait
+//      figee sur l'etat precedent du poll)
+window.addEventListener('focus', function () { try { refresh(); refreshContainers(); } catch (e) {} });
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) { try { refresh(); refreshContainers(); } catch (e) {} }
+});
+window.addEventListener('pageshow', function (e) {
+  if (e && e.persisted) { try { refresh(); refreshContainers(); refreshLogs(); } catch (e) {} }
 });
 
 refreshLogs();

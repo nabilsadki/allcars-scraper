@@ -107,7 +107,11 @@ def enrich(state: dict) -> dict:
         st["eta_seconds"] = int((total - listed) / rate)
     else:
         st["eta_seconds"] = None
-    st["percent"] = round(min(100.0, listed * 100.0 / total), 1) if total else None
+    # Le pourcentage doit avancer même pendant la phase "fiches détaillées"
+    # (mode `details` pur ou fin de run en `list + details`), où `listed`
+    # ne bouge plus. On prend le plus avancé des deux compteurs.
+    progressed = max(listed, int(st.get("details") or 0))
+    st["percent"] = round(min(100.0, progressed * 100.0 / total), 1) if total else None
     st["running"] = st.get("status") == "running"
     return st
 
