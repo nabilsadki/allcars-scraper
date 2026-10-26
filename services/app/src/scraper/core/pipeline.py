@@ -149,7 +149,11 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
             client.log(f"  ! page en echec ({type(e).__name__}: {str(e)[:60]}) "
                        f"- {failures}/25")
             if failures >= 25:
-                client.log("  ! trop d'echecs consecutifs - fin du balayage")
+                client.log("  ! trop d'echecs consecutifs - fin du balayage (retries_failed)")
+                try:
+                    site._retry_exhausted = True
+                except Exception:
+                    pass
                 break
             time.sleep(min(60, 5 * failures))
             continue
@@ -242,6 +246,13 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
     n_listed = n_details = n_db_errors = 0
     out_fh = open(out, "w", encoding="utf-8") if out else None
     error = None
+    # un run garde la main sur sa propre possibilite de "restart fail" : on
+    # le met a "retries_failed" si le balayage casse pour cause de reseau
+    # (voir _iter_slice) plutot que d'annoncer un "success" derriere un trou.
+    try:
+        setattr(site, "_retry_exhausted", False)
+    except Exception:
+        pass
     progress = Progress(site.name, mode="list", category=category)
     try:
         for ad in iter_listing(site, client, category, limit, verbose=not quiet,
@@ -306,7 +317,20 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
         progress.update(listed=n_listed, details=n_details,
                         db_errors=n_db_errors)
         progress.stats(client, db)
-        progress.finish("error" if error else "success", error)
+        if error:
+            final_status = "error"
+        elif getattr(site, "_retry_exhausted", False):
+            final_status = "retries_failed"
+            err_msg = "retry budget exhausted"
+            if not error:
+                error = err_msg
+        else:
+            final_status = "success"
+        progress.finish(final_status, error)
+        try:
+            site._retry_exhausted = False
+        except Exception:
+            pass
 
     dt = time.time() - t0
     dropped = int(getattr(site, "log_sponsored", 0) or 0)

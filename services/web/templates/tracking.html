@@ -244,6 +244,8 @@
         Progression terminée le {{ st.finished_at|datefr(true) }}
       {% elif st.status == 'stopped' %}
         Progression arrêtée le {{ st.finished_at|datefr(true) }}
+      {% elif st.status == 'retries_failed' %}
+        Progression interrompue (réessaies epuisés) le {{ st.finished_at|datefr(true) }}
       {% else %}
         Progression {{ st.status }} le {{ st.finished_at|datefr(true) }}
       {% endif %}

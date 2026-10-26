@@ -181,6 +181,8 @@ def container_status(container_state: str, state: Optional[dict]) -> tuple[str, 
             return "erreur", "s-error"
         if status == "stopped":
             return "arrete", "s-stopped"
+        if status == "retries_failed":
+            return "interrompu", "s-stopped"
         if container_state == "absent":
             return "termine", "s-done"
         return "arrete", "s-stopped"
@@ -220,6 +222,11 @@ def alerts(state: Optional[dict], container_state: str = "",
                 "level": "error",
                 "title": f"Erreur sur {st.get('site')}",
                 "detail": st.get("error") or "Le run s'est termine en erreur"})
+        elif st.get("status") == "retries_failed" and _state_age(st) < ALERT_TTL:
+            out.append({
+                "level": "warn",
+                "title": f"Echec de retries sur {st.get('site')}",
+                "detail": st.get("error") or "Tentatives epuisees, relance manuelle requise"})
         elif int(st.get("db_errors") or 0) and _state_age(st) < ALERT_TTL:
             out.append({
                 "level": "warn",
@@ -240,6 +247,12 @@ def alerts(state: Optional[dict], container_state: str = "",
     if status == "error":
         out.append({"level": "error", "title": "Le scrap s'est terminé en erreur",
                     "detail": state.get("error") or "Erreur inconnue"})
+    if status == "retries_failed" and _state_age(state) < ALERT_TTL:
+        out.append({"level": "warn",
+                    "title": f"Site {state.get('site')} interrompu (retries epuises)",
+                    "detail": state.get("error")
+                            or "Le run a pu progresser puis le site a throttle "
+                               "(pages vides ou erreurs reseau) : relancez-le."})
     if blocked and _state_age(state) < ALERT_TTL:
         out.append({
             "level": "error",
