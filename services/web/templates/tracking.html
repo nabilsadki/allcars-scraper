@@ -169,6 +169,21 @@
       <input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}
              class="accent-accent w-4 h-4"> découpe en tranches
     </label>
+    <div class="basis-full flex flex-col gap-1.5 mt-2 w-full">
+      <div class="flex flex-wrap items-center gap-2 text-[12px] text-muted">
+        <span class="uppercase tracking-wider">Sites à lancer (multi-sélection)</span>
+        <button type="button" id="sel-all" class="text-[11px] text-accent-txt hover:underline cursor-pointer bg-transparent border-0 p-0">Tous</button>
+        <span class="text-muted text-[10px]">·</span>
+        <button type="button" id="sel-none" class="text-[11px] text-accent-txt hover:underline cursor-pointer bg-transparent border-0 p-0">Aucun</button>
+      </div>
+      <select id="f-sites-sel" name="sites" multiple size="4"
+              class="w-full bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+        {% for s in sites %}
+        <option value="{{ s.name }}" {% if s.name == job.site %}selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-[10.5px] text-muted m-0">Ctrl/Cmd+clic pour une sélection multiple. Lancement via le bouton ci-dessous.</p>
+    </div>
     <div class="flex gap-2 ml-auto flex-wrap">
       <button type="button" id="btn-start"
               class="btn-ok border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ok/10"
@@ -176,6 +191,9 @@
       <button type="button" id="btn-start-all"
               class="border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Lance le scrape pour TOUS les sites avec les parametres ci-dessus">Tous les sites</button>
+      <button type="button" id="btn-start-sel"
+              class="border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Lance le scrape uniquement pour les sites coches ci-dessus">Ma sélection</button>
       <button type="button" id="btn-stop"
               class="btn-bad border border-bad text-bad bg-bad/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-bad/10"
               {% if container_state != 'running' %}disabled{% endif %}>Arrêter</button>
@@ -402,7 +420,7 @@ function payload() {
 }
 
 function setBusy(busy) {
-  for (const id of ['#btn-start', '#btn-start-all', '#btn-stop', '#btn-stop-all', '#btn-restart']) {
+  for (const id of ['#btn-start', '#btn-start-all', '#btn-start-sel', '#btn-stop', '#btn-stop-all', '#btn-restart']) {
     const b = document.querySelector(id);
     if (b) b.disabled = busy;
   }
@@ -435,14 +453,18 @@ $('#btn-stop').onclick = () => action('/api/scrape/stop', 'Arrêt');
 $('#btn-restart').onclick = () => action('/api/scrape/restart', 'Relance');
 
 // ---------- lancement / arret pour tous les sites a la fois
-async function actionAll(url, label) {
+async function actionAll(url, label, sites) {
+  sites = sites || null;
   setBusy(true);
-  $('#action-msg').textContent = label + ' de tous les sites…';
+  let msgLabel = (sites && sites.length) ? (label + ' de ' + sites.length + ' site(s)…') : (label + ' de tous les sites…');
+  $('#action-msg').textContent = msgLabel;
   try {
+    const body = payload();
+    if (sites && sites.length) body.sites = sites;
     const res = await fetch(url, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload()),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (data.ok) {
@@ -464,8 +486,23 @@ async function actionAll(url, label) {
   }
 }
 
-$('#btn-start-all').onclick = () => actionAll('/api/scrape/start-all', 'Lancement');
-$('#btn-stop-all').onclick = () => actionAll('/api/scrape/stop-all', 'Arrêt');
+$('#btn-start-all').onclick = () => actionAll('/api/scrape/start-all', 'Lancement', null);
+$('#btn-start-sel').onclick = async () => {
+  const opts = Array.from(document.querySelectorAll('#f-sites-sel option:checked'));
+  if (!opts.length) { $('#action-msg').textContent = 'Aucun site sélectionné dans la liste ci-dessous.'; return; }
+  const sites = opts.map(o => o.value);
+  await actionAll('/api/scrape/start-all', 'Lancement', sites);
+};
+$('#btn-stop-all').onclick = () => actionAll('/api/scrape/stop-all', 'Arrêt', null);
+
+// selection rapide de tous / aucun
+const _sel = document.getElementById('f-sites-sel');
+const _all = document.getElementById('sel-all');
+const _none = document.getElementById('sel-none');
+if (_sel && _all && _none) {
+  _all.addEventListener('click', () => { for (const o of _sel.options) o.selected = true; });
+  _none.addEventListener('click', () => { for (const o of _sel.options) o.selected = false; });
+}
 
 // ------------------------------------------------------ site => categorie/mode
 const SITES = {{ sites | tojson }};

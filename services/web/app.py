@@ -847,8 +847,19 @@ def api_scrape_start_all():
         except (TypeError, ValueError):
             limit_val = None
 
+    requested = payload.get("sites")
+    if isinstance(requested, str):
+        requested = [x.strip() for x in requested.split(",") if x.strip()]
+    all_sites = known_sites()
+    target_sites = all_sites
+    if requested and isinstance(requested, (list, tuple)):
+        requested_set = set(requested)
+        target_sites = [s for s in all_sites if s.get("name") in requested_set]
+        if not target_sites:
+            target_sites = all_sites
+
     results = []
-    for site_meta in known_sites():
+    for site_meta in target_sites:
         name = site_meta.get("name")
         if not name:
             continue
@@ -885,9 +896,20 @@ def api_scrape_start_all():
 
 @app.route("/api/scrape/stop-all", methods=["POST"])
 def api_scrape_stop_all():
-    """Arrete tous les scraps (un par site)."""
+    """Arrete les scraps (tous ou ceux selectionnes)."""
+    payload = request.get_json(silent=True) or request.form or {}
+    requested = payload.get("sites")
+    if isinstance(requested, str):
+        requested = [x.strip() for x in requested.split(",") if x.strip()]
+    all_sites = known_sites()
+    target_sites = all_sites
+    if requested and isinstance(requested, (list, tuple)):
+        requested_set = set(requested)
+        target_sites = [s for s in all_sites if s.get("name") in requested_set]
+        if not target_sites:
+            target_sites = all_sites
     results = []
-    for site_meta in known_sites():
+    for site_meta in target_sites:
         name = site_meta.get("name")
         if not name:
             continue
