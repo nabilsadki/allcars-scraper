@@ -474,7 +474,7 @@ async function action(url, label) {
     $('#action-msg').textContent = 'Erreur : ' + e;
   } finally {
     setBusy(false);
-    updateButtons($('#status-badge').dataset.container || 'unknown');
+    const __selSite = $('#f-site') ? $('#f-site').value : (LAST.site || 'avito');const __st = (LAST.containers || {})[__selSite] || {state: 'unknown'}; updateButtons(__st.state || 'unknown');;
     refresh();
   }
 }
@@ -512,7 +512,7 @@ async function actionAll(url, label, sites) {
     $('#action-msg').textContent = 'Erreur : ' + e;
   } finally {
     setBusy(false);
-    updateButtons($('#status-badge').dataset.container || 'unknown');
+    const __selSite = $('#f-site') ? $('#f-site').value : (LAST.site || 'avito');const __st = (LAST.containers || {})[__selSite] || {state: 'unknown'}; updateButtons(__st.state || 'unknown');;
     refresh();
   }
 }
@@ -724,15 +724,6 @@ async function refresh() {
     // etat du conteneur du site selectionne dans le formulaire de pilotage
     const sel = $('#f-site') ? $('#f-site').value : (data.site || 'avito');
     const c = (data.containers || {})[sel] || {state: 'unknown', label: 'inconnu', css: 's-unknown'};
-    const badge = $('#status-badge');
-    badge.innerHTML = (c.state === 'running'
-        ? '<span class="spinner w-2.5 h-2.5 rounded-full border-2 border-current border-t-transparent"></span>'
-        : '') + c.label;
-    badge.className = 'status inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border ' +
-                      (STATE_CLASS[c.css && c.css.replace('s-', '')] || STATE_CLASS.unknown);
-    badge.dataset.container = c.state;
-    const cname = $('#container-name');
-    if (cname) cname.textContent = 'allcars-scrape-' + sel;
     updateButtons(c.state);
     // badge de conteneur dans chaque bloc de site
     document.querySelectorAll('[data-f="cstate"]').forEach((el) => {
@@ -744,7 +735,7 @@ async function refresh() {
     });
     // un bloc de progression par site
     for (const s of (data.states || [])) {
-      const block = document.querySelector('[data-site="' + s.site + '"]');
+      const block = document.querySelector('.site-run[data-site="' + s.site + '"]');
       if (!block) continue;
       const set = (f, value) => {
         const el = block.querySelector('[data-f="' + f + '"]');
@@ -776,10 +767,17 @@ async function refresh() {
       if (bar) bar.classList.toggle('bar-live', !!s.running);
       const wrap = block.querySelector('[data-f="pwrap"]');
       if (wrap) wrap.classList.toggle('live', !!s.running);
+      // etat du conteneur pour ce site (remplace le ... init)
+      const cstateEl = block.querySelector('[data-f="cstate"]');
+      if (cstateEl) {
+        const label = s.running ? 'en cours' : (s.status === 'success' ? 'terminé' : (s.status === 'stopped' ? 'arrêté' : (s.status || '—')));
+        cstateEl.textContent = s.running ? 'en cours'
+                    : (s.status === 'success' ? 'terminé'
+                    : (s.status === 'stopped' ? 'arrêté' : (s.status || '—')));      }
       const stats = block.querySelector('[data-f="stats"]');
       if (stats) stats.classList.toggle('hidden', !block.classList.contains('open'));
     }
-  } catch (e) { /* le serveur est momentanement injoignable */ }
+  } catch (e) { console.error('refresh ERR:', e && (e.message || e)); }
 }
 
 // ------------------ repli / depli du detail de chaque site (desktop + mobile)
