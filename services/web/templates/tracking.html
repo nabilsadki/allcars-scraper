@@ -28,7 +28,7 @@
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
     Conteneurs <span class="muted small normal-case tracking-normal text-[12px]" id="containers-count"></span>
   </div>
-  <div class="flex flex-col gap-1.5" id="cont-list">
+  <div class="flex flex-wrap gap-2" id="cont-list">
     <p class="text-muted text-[12px]">Chargement…</p>
   </div>
 </div>
@@ -631,7 +631,7 @@ async function refreshContainers() {
       const tag = c.site
         ? '<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
         : '';
-      return '<div class="bg-panel2 border border-line rounded-lg p-2.5 flex flex-col gap-1.5 min-w-0">' +
+      return '<div class="bg-panel2 border border-line rounded-lg p-2.5 flex flex-col gap-1.5 min-w-[180px] flex-1 basis-44 max-w-xs">' +
         '<div class="flex items-center justify-between gap-2">' +
           '<span class="text-xl leading-none shrink-0" aria-hidden="true">' + icon + '</span>' +
           '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] font-semibold border ' +
