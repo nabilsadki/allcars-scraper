@@ -293,7 +293,9 @@ class Database:
             "description": ad.get("description"),
             "fuel": ad.get("fuel"),
             "gear": ad.get("gearbox"),
-            "km": ad.get("mileage_km"),
+            "km": _as_km(ad.get("mileage_km")
+                          if ad.get("mileage_km") is not None
+                          else ad.get("km")),
             "year": _as_int(ad.get("year")),
             "brand": ad.get("brand"),
             "model": ad.get("model"),
@@ -750,3 +752,13 @@ def _as_int(v: Any) -> Optional[int]:
         return int(str(v).replace(" ", "").replace("km", "").strip())
     except (TypeError, ValueError):
         return None
+
+def _as_km(v: Any) -> Optional[int]:
+    """Kilometrage coerce et borde (les valeurs fofloues du site sont jetees)."""
+    n = _as_int(v)
+    if n is None:
+        return None
+    if n < 0 or n > 5_000_000:
+        return None
+    return n
+

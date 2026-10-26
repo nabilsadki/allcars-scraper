@@ -134,7 +134,9 @@ class TomobilaAdapter(SiteAdapter):
                 continue
             if key == "mileage_km":
                 digits = re.sub(r"[^\d]", "", value)
-                if digits:
+                # un vehicule ne court pas 300 milliards de km : on jette
+                # les valeurs abondantes (pieges du site / concat)nation).
+                if digits and int(digits) <= 5_000_000:
                     out["mileage_km"] = int(digits)
             elif key == "year":
                 m2 = re.search(r"(19[5-9]\d|20[0-2]\d)", value)
