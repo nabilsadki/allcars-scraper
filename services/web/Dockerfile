@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY app.py progress.py scrapectl.py ./
+COPY app.py progress.py scrapectl.py automation.py ./
 COPY templates/ /app/templates/
 COPY static/ /app/static/
 # la feuille Tailwind compilee

@@ -29,6 +29,7 @@ from flask import (Flask, abort, jsonify, redirect, render_template,
                    request, send_from_directory)
 
 import progress as progress_reader
+import automation
 import scrapectl
 
 app = Flask(__name__)
@@ -1003,10 +1004,84 @@ def api_scrape_logs():
                     "container": scrapectl.container_name(site)})
 
 
+@app.route("/api/daemons/status")
+def api_daemons_status():
+    return jsonify({"dashboard": True,
+                    "daemon": automation.daemon_status(),
+                    "schedules": automation.get_schedules(),
+                    "queue": automation.get_queue()})
+
+
+@app.route("/api/daemons/start", methods=["POST"])
+def api_daemons_start():
+    return jsonify({"ok": True, "message": automation.daemon_start() is None and
+                    "Daemon demarre." or "Deja actif."})
+
+
+@app.route("/api/daemons/stop", methods=["POST"])
+def api_daemons_stop():
+    automation.daemon_stop()
+    return jsonify({"ok": True, "message": "Arret du daemon demande (max 60s)."})
+
+
+@app.route("/api/schedule/enable", methods=["POST"])
+def api_schedule_enable():
+    payload = request.get_json(silent=True) or request.form or {}
+    site = (payload.get("site") or "").strip()
+    enabled = str(payload.get("enabled")).lower() in ("1", "true", "on", "yes")
+    if not site:
+        return jsonify({"ok": False, "error": "site manquant"}), 400
+    automation.set_enabled(site, enabled)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/schedule/cadence", methods=["POST"])
+def api_schedule_cadence():
+    payload = request.get_json(silent=True) or request.form or {}
+    site = (payload.get("site") or "").strip()
+    try:
+        hours = int(payload.get("hours", 24))
+    except (TypeError, ValueError):
+        hours = 24
+    if not site:
+        return jsonify({"ok": False, "error": "site manquant"}), 400
+    automation.set_cadence(site, hours)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/scrape/enqueue", methods=["POST"])
+def api_scrape_enqueue():
+    payload = request.get_json(silent=True) or request.form or {}
+    site = str(payload.get("site") or "").strip() or "avito"
+    mode = str(payload.get("mode") or "rescan").strip()
+    try:
+        priority = int(payload.get("priority", 2))
+    except (TypeError, ValueError):
+        priority = 2
+    trigger_source = "manual" if priority <= 2 else "scheduled"
+    rid = automation.enqueue(site, mode=mode, payload=payload,
+                            priority=priority, trigger_source=trigger_source)
+    return jsonify({"ok": True, "queue_id": rid})
+
+
+@app.route("/api/queue")
+def api_queue():
+    try:
+        limit = max(1, min(100, int(request.args.get("limit", 50))))
+    except (TypeError, ValueError):
+        limit = 50
+    return jsonify({"queue": automation.get_queue(limit)})
+
 @app.route("/health")
 def health():
     return {"ok": True, "time": datetime.now().isoformat()}
 
 
 if __name__ == "__main__":
+    # initialisation (DDL) au demarrage, une seule fois
+    try:
+        automation.ensure_tables()
+        print("automation: schema ready", flush=True)
+    except Exception as e:
+        print("automation init failed:", e, flush=True)
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False)

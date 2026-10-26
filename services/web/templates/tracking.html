@@ -131,6 +131,33 @@
   </div>
 </div>
 
+
+<!-- ---------------------------------------------------------- automatiser -->
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-3 flex-wrap">
+    Automatiser le scrap (continu)
+    <span class="normal-case tracking-normal text-[10px] text-muted" id="auto-meta">—</span>
+    <span class="ml-auto flex items-center gap-2">
+      <button type="button" id="auto-start" class="border border-ok text-ok bg-ok/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40">▶ Démarrer daemon</button>
+      <button type="button" id="auto-stop" class="border border-bad text-bad bg-bad/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40">■ Arrêter daemon</button>
+    </span>
+  </div>
+  <table class="w-full text-[13px] border-collapse mb-2">
+    <thead><tr class="text-[11px] text-muted uppercase tracking-wide">
+      <th class="text-left py-1 pr-2 w-32">Site</th>
+      <th class="py-1 pr-2 w-24 text-center">Auto</th>
+      <th class="py-1 pr-2 w-24 text-center">Cadence (h)</th>
+      <th class="py-1 pr-2 text-left">Prochain run</th>
+      <th class="py-1 pr-2 text-center">État</th>
+    </tr></thead>
+    <tbody id="auto-sched" class="text-[12px]"></tbody>
+  </table>
+  <div class="text-[10.5px] text-muted mb-2" id="auto-queue">File vide.</div>
+  <div class="text-[10px] text-muted/80 mt-1">
+    Source d'état : DB partagée. Cadence min. 1h, max. 720h. Toggle daemon en haut à droite.
+  </div>
+</div>
+
 <!-- ---------------------------------------------------------- pilotage -->
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Pilotage</div>
@@ -984,6 +1011,70 @@ document.addEventListener('visibilitychange', function () {
 window.addEventListener('pageshow', function (e) {
   if (e && e.persisted) { try { refresh(); refreshContainers(); refreshLogs(); } catch (e) {} }
 });
+
+
+// -------------- daemon / automation UI
+document.getElementById('auto-start').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/daemons/start', {method:'POST'});
+    const d = await r.json();
+    document.getElementById('auto-meta').textContent = d.message || 'daemon lance.';
+    await refreshAutomation();
+  } catch (e) { document.getElementById('auto-meta').textContent = 'Erreur : ' + e; }
+});
+document.getElementById('auto-stop').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/daemons/stop', {method:'POST'});
+    const d = await r.json();
+    document.getElementById('auto-meta').textContent = d.message || 'arret demande.';
+    await refreshAutomation();
+  } catch (e) { document.getElementById('auto-meta').textContent = 'Erreur : ' + e; }
+});
+async function refreshAutomation() {
+  try {
+    const r = await fetch('/api/daemons/status');
+    const d = await r.json();
+    const meta = document.getElementById('auto-meta');
+    if (meta) meta.textContent = d.daemon.enabled ? 'daemon ON' : 'daemon OFF';
+    const tb = document.getElementById('auto-sched');
+    if (tb && d.schedules) {
+      tb.innerHTML = d.schedules.map(s =>
+        '<tr class="border-t border-line">' +
+        '<td class="py-1 pr-2 font-medium">' + s.site + '</td>' +
+        '<td class="py-1 pr-2 text-center"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
+        '<td class="py-1 pr-2 text-center"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-16 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
+        '<td class="py-1 pr-2 text-[10.5px] text-muted">' + (s.next_due || '—') + (s.last_success_at ? '  (dernier: ' + s.last_success_at + ')' : '') + '</td>' +
+        '<td class="py-1 pr-2 text-center text-[10.5px] text-muted">' + (s.last_mode || '—') + '</td>' +
+        '</tr>'
+      ).join('');
+      tb.querySelectorAll('.auto-enable').forEach(cb => {
+        cb.addEventListener('change', async () => {
+          await fetch('/api/schedule/enable', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({site: cb.getAttribute('data-site'), enabled: cb.checked})});
+          refreshAutomation();
+        });
+      });
+      tb.querySelectorAll('.auto-cadence').forEach(inp => {
+        inp.addEventListener('change', async () => {
+          await fetch('/api/schedule/cadence', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({site: inp.getAttribute('data-site'), hours: inp.value})});
+          refreshAutomation();
+        });
+      });
+    }
+    const qbox = document.getElementById('auto-queue');
+    if (qbox) {
+      const q = d.queue || [];
+      qbox.textContent = q.length
+        ? 'File : ' + q.map(j => j.site + '(' + j.status + ')').join(', ')
+        : 'File vide.';
+    }
+    const metam = document.getElementById('auto-meta');
+    if (metam) metam.textContent = d.daemon.enabled ? 'daemon ON' : 'daemon OFF';
+  } catch (e) { const m = document.getElementById('auto-meta'); if (m) m.textContent = 'Erreur : ' + e; }
+}
+setInterval(refreshAutomation, 15000);
+refreshAutomation();
 
 refreshLogs();
 refreshContainers();
