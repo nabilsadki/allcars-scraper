@@ -761,6 +761,7 @@ def tracking():
         job=job, container_state=container_state, counts=counts,
         container_label=c_label, container_css=c_css,
         hide_category=_hide_category_column(runs),
+        live_running_sites=[sn for sn, st in containers.items() if st.get("state") == "running"],
         sites=all_sites, job_categories=job_categories, job_modes=job_modes,
         f_site=f_site, f_status=f_status, f_mode=f_mode,
         containers=containers, site=site,

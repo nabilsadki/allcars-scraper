@@ -4,11 +4,18 @@
 
 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
   <h1 class="text-[21px] font-semibold m-0">Suivi du scrap</h1>
-  <div class="flex items-center gap-3">
-    <span id="status-badge" class="status inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border bg-panel2 border-line text-muted">
-      {% if container_state == 'running' %}<span class="spinner w-2.5 h-2.5 rounded-full border-2 border-current border-t-transparent"></span>{% endif %}{{ container_label }}
+  
+  <div class="flex items-center gap-2.5 flex-wrap" id="live-scrap-wrap">
+    <span id="live-scrap-pill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border
+           {{ 'border-ok/40 bg-ok/10 text-ok' if n_run else 'border-line bg-panel2 text-muted' }}">
+      <span id="live-scrap-dot" class="w-1.5 h-1.5 rounded-full {{ 'bg-ok pulse-dot' if n_run else 'bg-muted' }}"></span>
+      <span id="live-scrap-n">{{ live_running_sites|length }}</span> scrap(s) en cours
     </span>
-    <span class="text-muted text-[12px]">conteneur : <span id="container-name">{{ container_name }}</span></span>
+    <span id="live-scrap-list" class="flex items-center gap-1 text-[12px] text-muted">
+      {%- for sn in live_running_sites -%}<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none mr-1"
+            style="--site-hue: {{ sn|site_hue }}">{{ sn|site_label }}</span>{{ '' if loop.last else '' }}{%- endfor -%}
+      {%- if not live_running_sites -%}<span class="text-muted text-[10.5px]">aucun</span>{%- endif -%}
+    </span>
   </div>
 </div>
 
@@ -676,11 +683,36 @@ async function refresh() {
     const data = await res.json();
     renderAlerts(data.alerts);
     LAST = data;
-    // etat des boutons par bloc de site (démarrer/arrêtter/relancer)
+    // === decompte des scraps en cours (a droite du titre) ===
     const __cs = data.containers || {};
+    const __running = Object.keys(__cs).filter(k => (__cs[k].state || '') === 'running');
+    const livePill = $('#live-scrap-pill');
+    const liveDot = $('#live-scrap-dot');
+    const liveN = $('#live-scrap-n');
+    const liveList = $('#live-scrap-list');
+    if (liveN) liveN.textContent = __running.length;
+    if (livePill) {
+      if (__running.length) {
+        livePill.classList.add('border-ok/40','bg-ok/10','text-ok');
+        livePill.classList.remove('border-line','bg-panel2','text-muted');
+      } else {
+        livePill.classList.add('border-line','bg-panel2','text-muted');
+        livePill.classList.remove('border-ok/40','bg-ok/10','text-ok');
+      }
+    }
+    if (liveDot) {
+      liveDot.className = 'w-1.5 h-1.5 rounded-full ' + (__running.length ? 'bg-ok pulse-dot' : 'bg-muted');
+    }
+    if (liveList) {
+      liveList.innerHTML = __running.length
+        ? __running.map(s => '<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none mr-1" style="--site-hue:' + hueOf(s) + '">' + siteLabelOf(s) + '</span>').join('')
+        : '<span class="text-muted text-[10.5px]">aucun</span>';
+    }
+    // etat des boutons par bloc de site (démarrer/arrêtter/relancer)
+    const runContainers = data.containers || {};
     document.querySelectorAll('.site-actions').forEach(wrap => {
       const site = wrap.getAttribute('data-site-actions');
-      const c = __cs[site] || {state: 'unknown'};
+      const c = runContainers[site] || {state: 'unknown'};
       const running = c.state === 'running';
       const start = wrap.querySelector('.sa-start');
       const stop = wrap.querySelector('.sa-stop');
@@ -874,6 +906,13 @@ function hueOf(site) {
   for (let i = 0; i < name.length; i++) total += (i + 1) * name.charCodeAt(i);
   return total % 360;
 }
+function siteLabelOf(name) {
+  if (name === 'avito') return 'Avito.ma';
+  const found = (typeof SITES !== 'undefined' ? SITES.find(s => s.name === name) : null);
+  if (found) return found.label;
+  return name;
+}
+
 
 async function refreshLogs() {
   try {
