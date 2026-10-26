@@ -112,6 +112,12 @@
           </span>
           {% endif %}
         </div>
+        {% if c.last_listed is not none %}
+        <div class="text-[9.5px] text-muted/85 mt-0.5 leading-tight"
+             title="Dernier run reussi ({{ c.last_mode or '—' }}) : {{ c.last_listed }} listees, {{ c.last_inserted }} inserees, {{ c.last_updated }} modifiees, {{ c.last_unchanged }} inchang., {{ c.last_details }} fiches detail.">
+          {{ c.last_listed }} trouvées · {{ c.last_inserted + c.last_updated }} récupérées
+        </div>
+        {% endif %}
       </div>
     </div>
     {% endfor %}

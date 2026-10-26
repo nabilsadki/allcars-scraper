@@ -727,9 +727,30 @@ def tracking():
     f_status = (request.args.get("status") or "").strip()
     f_mode = (request.args.get("mode") or "").strip()
     runs = _runs_history(50, f_site, f_status, f_mode)
-    counts = query("SELECT site, COUNT(*) n, SUM(is_active = 1) actives, "
-                   "SUM(details_fetched = 1) details, MAX(scraped_at) dernier, "
-                   "SUM(nb_images > 0) avec_photos FROM ads GROUP BY site ORDER BY COUNT(*) DESC")
+    counts = query("""SELECT a.site,
+         COUNT(*)                                      n,
+         SUM(a.is_active = 1)                          actives,
+         SUM(a.details_fetched = 1)                    details,
+         MAX(a.scraped_at)                             dernier,
+         SUM(a.nb_images > 0)                          avec_photos,
+         COALESCE(r.ads_listed, 0)                     last_listed,
+         COALESCE(r.ads_details, 0)                    last_details,
+         COALESCE(r.ads_inserted, 0)                   last_inserted,
+         COALESCE(r.ads_updated, 0)                     last_updated,
+         COALESCE(r.ads_unchanged, 0)                  last_unchanged,
+         r.mode                                         last_mode
+      FROM ads a
+      LEFT JOIN (
+         SELECT site, ads_listed, ads_details, ads_inserted, ads_updated,
+                ads_unchanged, mode,
+                ROW_NUMBER() OVER (PARTITION BY site ORDER BY started_at DESC) AS rn
+         FROM scrape_runs
+         WHERE status = 'success'
+      ) r ON r.site = a.site AND r.rn = 1
+      GROUP BY a.site, r.ads_listed, r.ads_details, r.ads_inserted,
+               r.ads_updated, r.ads_unchanged, r.mode
+      ORDER BY COUNT(*) DESC""")
+
     c_label = containers.get(site, {}).get("label", "inconnu")
     c_css = containers.get(site, {}).get("css", "s-unknown")
     site_meta = next((s for s in all_sites if s.get("name") == site), None)
