@@ -238,6 +238,14 @@
     <span class="dot w-2 h-2 rounded-full inline-block bg-muted {{ 'pulse-dot bg-ok' if st.running else '' }}" data-f="dot"></span>
     <span class="text-muted text-[12px]" data-f="badge">{{ st.mode }}</span>
     <span class="status ml-auto inline-flex items-center px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border border-line bg-panel2 text-muted" data-f="cstate" data-site="{{ st.site }}">…</span>
+    <span class="site-actions inline-flex items-center gap-0.5 ml-1 shrink-0" data-site-actions="{{ st.site }}">
+      <button type="button" class="site-act sa-start text-[10.5px] px-1.5 py-0.5 rounded border border-ok/40 bg-ok/5 text-ok hover:bg-ok/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              data-site="{{ st.site }}" data-act="start" title="Démarrer le scrap de {{ st.site }}">▶</button>
+      <button type="button" class="site-act sa-stop text-[10.5px] px-1.5 py-0.5 rounded border border-bad/40 bg-bad/5 text-bad hover:bg-bad/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              data-site="{{ st.site }}" data-act="stop" title="Arrêter le scrap de {{ st.site }}">■</button>
+      <button type="button" class="site-act sa-restart text-[10.5px] px-1.5 py-0.5 rounded border border-line bg-panel2 text-txt hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              data-site="{{ st.site }}" data-act="restart" title="Relancer le scrap de {{ st.site }}">↻</button>
+    </span>
     <span class="site-chevron text-muted text-[13px] transition-transform shrink-0" aria-hidden="true">▾</span>
   </div>
 
@@ -662,6 +670,19 @@ async function refresh() {
     const data = await res.json();
     renderAlerts(data.alerts);
     LAST = data;
+    // etat des boutons par bloc de site (démarrer/arrêtter/relancer)
+    const __cs = data.containers || {};
+    document.querySelectorAll('.site-actions').forEach(wrap => {
+      const site = wrap.getAttribute('data-site-actions');
+      const c = __cs[site] || {state: 'unknown'};
+      const running = c.state === 'running';
+      const start = wrap.querySelector('.sa-start');
+      const stop = wrap.querySelector('.sa-stop');
+      const restart = wrap.querySelector('.sa-restart');
+      if (start) start.disabled = running;
+      if (restart) restart.disabled = running;
+      if (stop) stop.disabled = !running;
+    });
     // etat du conteneur du site selectionne dans le formulaire de pilotage
     const sel = $('#f-site') ? $('#f-site').value : (data.site || 'avito');
     const c = (data.containers || {})[sel] || {state: 'unknown', label: 'inconnu', css: 's-unknown'};
@@ -870,6 +891,41 @@ refresh();
     });
   }
 })();
+
+// ----------------------------- actions par bloc de site
+async function actionForSite(site, url, label) {
+  setBusy(true);
+  $('#action-msg').textContent = label + ' (' + site + ')…';
+  try {
+    let body = payload();
+    body.site = site;
+    try {
+      const job = await fetch('/api/job?site=' + encodeURIComponent(site)).then(r => r.json());
+      if (job.category) body.category = job.category;
+      if (job.mode) body.mode = job.mode;
+      if (job.delay !== undefined) body.delay = job.delay;
+      if (job.jitter !== undefined) body.jitter = job.jitter;
+      if (job.limit !== undefined) body.limit = job.limit;
+      if (job.details !== undefined) body.details = job.details;
+      if (job.slices !== undefined) body.slices = job.slices;
+    } catch (e) { /* keep defaults */ }
+    const res = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+    $('#action-msg').textContent = data.ok ? (data.message || 'OK') : ('Erreur : ' + (data.error || '?'));
+    await refresh(); setTimeout(refresh, 1200);
+  } catch (e) { $('#action-msg').textContent = 'Erreur : ' + e; }
+  finally { setBusy(false); refresh(); }
+}
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.site-act');
+  if (!b) return;
+  const site = b.getAttribute('data-site');
+  const act = b.getAttribute('data-act');
+  if (act === 'start') actionForSite(site, '/api/scrape/start', 'Démarrage');
+  else if (act === 'stop') actionForSite(site, '/api/scrape/stop', 'Arrêt');
+  else if (act === 'restart') actionForSite(site, '/api/scrape/restart', 'Relance');
+});
 
 refreshLogs();
 refreshContainers();
