@@ -384,6 +384,91 @@
     } catch (e) { /* on garde la valeur precedente */ }
   });
 })();
+
+// ---- Comparer des annonces ----
+(function () {
+  const MAX = 4;
+  const key = 'cmp_selection';
+  const read = () => {
+    try {
+      const arr = JSON.parse(sessionStorage.getItem(key) || '[]');
+      return (arr || []).map(x => String(x).replace(/^\/+ad\/+/, '').replace(/^\/+/, ''))
+        .filter(x => /^[a-z0-9_-]+\/.+$/.test(x));  // anti-stale: seulement 'site/id'
+    } catch (e) { return []; }
+  };
+  const write = (arr) => sessionStorage.setItem(key, JSON.stringify(arr));
+  let sel = read();
+
+  // inject checkbox overlay into each card
+  const cards = [...document.querySelectorAll('a[href*="/ad/"]')]
+    .filter(a => /^\/ad\//.test(a.getAttribute('href') || ''));
+  const bar = document.createElement('div');
+  bar.id = 'cmp-bar';
+  bar.className = 'fixed bottom-0 left-0 right-0 z-40 hidden items-center justify-between gap-3 px-4 py-2.5 bg-panel border-t border-line shadow-2xl text-[13px]';
+  bar.innerHTML = '<div><span id="cmp-count" class="font-bold text-accent-txt">0</span>&nbsp;sélectionnée(s) · Max ' + MAX + '</div>' +
+    '<div class="flex gap-2"><button type="button" id="cmp-clear" class="bg-panel2 border border-line rounded-lg px-3 py-1.5 text-xs hover:border-accent cursor-pointer">vider</button>' +
+    '<button type="button" id="cmp-go" disabled class="bg-accent text-onaccent border border-accent rounded-lg px-4 py-1.5 text-xs font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">Comparer</button></div>';
+  document.body.appendChild(bar);
+
+  function refreshBar() {
+    const n = sel.length;
+    const cnt = document.getElementById('cmp-count');
+    if (cnt) cnt.textContent = n;
+    bar.classList.toggle('hidden', n === 0);
+    bar.style.display = (n === 0) ? 'none' : 'flex';
+    const go = document.getElementById('cmp-go');
+    if (go) go.disabled = (n < 2);
+  }
+
+  function checkboxState(href, cb) {
+    const tok = String(href || '').replace(/^\/+ad\/+/, '').replace(/^\/+/, '');
+    cb.checked = sel.includes(tok);
+    cb.disabled = (!sel.includes(tok)) && (sel.length >= MAX);
+  }
+
+  for (const card of cards) {
+    const href = card.getAttribute('href');
+    const token = href.replace(/^\/+ad\/+/, '').replace(/^\/+/, '');
+    card.classList.add('relative');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'cmp-cb absolute top-2 left-2 z-20 w-[18px] h-[18px] cursor-pointer rounded border-line accent-accent';
+    cb.checked = sel.includes(token);
+    cb.disabled = (!sel.includes(token)) && (sel.length >= MAX);
+    cb.addEventListener('change', (e) => {
+      // toggle
+      let cur = read();
+      if (e.target.checked) {
+        if (cur.length >= MAX) {
+          e.target.checked = false;
+          alert('Maximum ' + MAX + ' annonces dans le comparateur.');
+          return;
+        }
+        cur.push(token);
+      } else {
+        cur = cur.filter(x => x !== token);
+      }
+      sel = cur;
+      write(sel);
+      for (const co of cards) {
+        const h = co.getAttribute('href');
+        const c = co.querySelector('.cmp-cb');
+        if (c) checkboxState(h, c);
+      }
+      refreshBar();
+    }, {capture: true});
+    card.appendChild(cb);
+  }
+
+  const clear = document.getElementById('cmp-clear');
+  const go = document.getElementById('cmp-go');
+  if (clear) clear.addEventListener('click', () => { sel=[]; write([]); cards.forEach(c=>{const cb=c.querySelector('.cmp-cb');if(cb){cb.checked=false;cb.disabled=false;}}); refreshBar(); });
+  if (go) go.addEventListener('click', () => {
+    if (sel.length < 2) return;
+    window.location.href = '/compare?ids=' + encodeURIComponent(sel.join(','));
+  });
+  refreshBar();
+})();
 </script>
 
 {% endblock %}

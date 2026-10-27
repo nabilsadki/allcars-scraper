@@ -631,7 +631,9 @@ def compare_view():
     idpairs = []
     if raw:
         for chunk in raw.split(","):
-            chunk = chunk.strip()
+            chunk = chunk.strip().lstrip("/")
+            if chunk.startswith("ad/"):
+                chunk = chunk[3:]
             if not chunk:
                 continue
             if "/" in chunk:
@@ -641,7 +643,9 @@ def compare_view():
             else:
                 idpairs.append(("avito", chunk))
     for lat in request.args.getlist("id"):
-        lat = lat.strip()
+        lat = lat.strip().lstrip("/")
+        if lat.startswith("ad/"):
+            lat = lat[3:]
         if not lat:
             continue
         if "/" in lat:
