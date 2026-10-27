@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Comparer des annonces - All Cars{% endblock %}
+{% block content %}
+
+<h1 class="text-[21px] font-semibold m-0 mb-4">Comparateur d'annonces ({{ n }})</h1>
+
+{% if not ads %}
+  <p class="text-muted">Aucune annonce passee en comparaison. Selectionnez jusqu'a 4 annonces dans le catalogue via la case a cocher.</p>
+  <p><a href="/" class="text-accent">Retour au catalogue</a></p>
+{% else %}
+  <div class="overflow-x-auto rounded-xl border border-line">
+    <table class="w-full text-[13px] border-collapse min-w-[500px]">
+      <thead>
+        <tr class="bg-panel">
+          <th class="text-left text-muted font-medium py-3 px-4 w-44 border-b border-line sticky left-0 bg-panel">Champ</th>
+          {% for a in ads %}
+          <th class="py-3 px-3 text-center border-b border-line min-w-[200px]">
+            <a href="/ad/{{ a.site }}/{{ a.ad_id }}" class="no-underline block">
+              <div class="aspect-[4/3] bg-panel2 rounded-lg overflow-hidden mb-2 flex items-center justify-center">
+                {% if a.images_list %}
+                  <img src="/imgthumb/{{ a.site }}/{{ a.ad_id }}" alt="" class="w-full h-full object-cover">
+                {% else %}
+                  <span class="text-muted text-xs">pas de photo</span>
+                {% endif %}
+              </div>
+              <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[10.5px] font-bold border mb-1" style="--site-hue: {{ a.site|site_hue }}">{{ a.site|site_label }}</span>
+              <div class="text-[12.5px] font-semibold text-txt leading-tight">{{ a.title }}</div>
+            </a>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b border-line bg-panel/30">
+          <td class="py-2.5 px-4 text-muted font-medium sticky left-0 bg-bg">Prix</td>
+          {% for a in ads %}
+          <td class="text-center py-2.5 px-3 {% if a.price %}text-ok font-bold{% else %}text-muted{% endif %}">
+            {% if a.price %}
+              <div class="text-[18px] font-bold">{{ '{:,}'.format(a.price).replace(',', ' ') }} DH</div>
+              {% if a.price_drop_pct %}
+                <div class="text-[10.5px] text-ok/90 mt-1">
+                  <span class="bg-ok/15 border border-ok/40 text-ok px-1.5 py-0.5 rounded">down {{ a.price_drop_pct }} %</span>
+                  {% if a.price_drop_old %}<span class="line-through text-muted/70 ml-1">{{ '{:,}'.format(a.price_drop_old).replace(',', ' ') }} DH</span>{% endif %}
+                </div>
+              {% endif %}
+            {% else %}sur demande{% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Annee</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.year or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Kilometrage</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{% if a.km %}{{ '{:,}'.format(a.km).replace(',', ' ') }} km{% else %}-{% endif %}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Marque / Modele</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.brand or '?' }} {{ a.model or '' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Ville</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.city or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Carburant</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.fuel or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Boite</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.gear or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Puissance fiscale</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.fiscal_power or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Portes</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.doors or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Origine</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.origin or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">1er main</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ 'oui' if a.first_hand else ('non' if a.first_hand is not none else '-') }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Etat / condition</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.cond or '-' }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Photos (nb)</td>
+          {% for a in ads %}<td class="text-center py-2 px-3">{{ a.nb_images or 0 }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Notes (global/etat/achat/conf)</td>
+          {% for a in ads %}
+          <td class="text-center py-2 px-3 text-[12px]">
+            {% if a.note_global is not none %}
+              <span class="font-bold text-accent-txt">{{ a.note_global }}</span>
+              <span class="text-muted/70"> / {{ a.note_etat or '-' }} / {{ a.note_achat or '-' }} / {{ a.note_confiance or '-' }}%</span>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Publication</td>
+          {% for a in ads %}<td class="text-center py-2 px-3 text-[12px] text-muted">{{ a.publish_date|datefr }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Derniere mise a jour</td>
+          {% for a in ads %}<td class="text-center py-2 px-3 text-[12px] text-muted">{{ a.last_seen_at|datefr(true) }}</td>{% endfor %}
+        </tr>
+        <tr class="border-b border-line">
+          <td class="py-2 px-4 text-muted font-medium sticky left-0 bg-bg">Voir l'annonce</td>
+          {% for a in ads %}
+          <td class="text-center py-2 px-3">
+            <a href="/ad/{{ a.site }}/{{ a.ad_id }}" class="text-accent text-[12px] hover:underline">Ouvrir ↗</a>
+          </td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4">
+    <a href="/" class="text-accent hover:underline">Retour au catalogue</a>
+  </div>
+{% endif %}
+
+{% endblock %}

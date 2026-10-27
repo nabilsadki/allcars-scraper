@@ -624,6 +624,74 @@ def detail(ad_id: int):
     return _detail(rows[0]["site"], ad_id)
 
 
+@app.route("/compare")
+def compare_view():
+    """Page de comparaison de 2 a 4 annonces (par site + ad_id)."""
+    raw = (request.args.get("ids") or "").strip()
+    idpairs = []
+    if raw:
+        for chunk in raw.split(","):
+            chunk = chunk.strip()
+            if not chunk:
+                continue
+            if "/" in chunk:
+                site, _, adid = chunk.partition("/")
+                if site and adid:
+                    idpairs.append((site, adid))
+            else:
+                idpairs.append(("avito", chunk))
+    for lat in request.args.getlist("id"):
+        lat = lat.strip()
+        if not lat:
+            continue
+        if "/" in lat:
+            s_, _, a_ = lat.partition("/")
+            if s_ and a_:
+                idpairs.append((s_, a_))
+        else:
+            idpairs.append(("avito", lat))
+    # dedup + cap 4
+    dedup = []
+    seen = set()
+    for k in idpairs:
+        if k in seen:
+            continue
+        seen.add(k)
+        dedup.append(k)
+        if len(dedup) >= 4:
+            break
+
+    ads = []
+    for (site, ad_id) in dedup:
+        rows = query("SELECT * FROM ads WHERE site = %s AND ad_id = %s",
+                     (site, ad_id))
+        if not rows:
+            continue
+        a = rows[0]
+        raw = a.pop("raw_json", None)
+        opt_json = a.pop("options_json", None)
+        opts = {}
+        for blob in (raw, opt_json):
+            if not blob:
+                continue
+            try:
+                data = json.loads(blob)
+                opts = data.get("options") or opts
+            except Exception:
+                pass
+        a["options"] = opts
+        try:
+            a["notes_v2"] = json.loads(raw).get("notes_v2") if raw else None
+        except Exception:
+            a["notes_v2"] = None
+        images = query("SELECT id, link, link_full, path_local, variant, bytes, is_main "
+                       "FROM ad_images WHERE site = %s AND ad_id = %s "
+                       "ORDER BY is_main DESC, id", (site, ad_id))
+        a["images_list"] = images[:6]
+        ads.append(a)
+
+    return render_template("compare.html", ads=ads, max=4, n=len(ads))
+
 def _detail(site: str, ad_id: str):
     rows = query("SELECT * FROM ads WHERE site = %s AND ad_id = %s", (site, ad_id))
     if not rows:
