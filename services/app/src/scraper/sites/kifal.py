@@ -213,10 +213,26 @@ class KifalAdapter(SiteAdapter):
                     out[key] = val
             else:
                 out[key] = value
-        # telephone
-        m = re.search(r'(?:tel|phone|telephone)[^\d]{0,20}(0\d{8,9})', html, re.I)
+        # telephone : tel:+212..., tel:0... ou tel: sans espaces
+        phone = None
+        m = re.search(r'tel:([+\d\s()-]{6,})', html, re.I)
         if m:
-            out["phone"] = m.group(1)
+            digits = re.sub(r"[^\d]", "", m.group(1))
+            # normaliser +212xxxx -> 0xxxx
+            if digits.startswith("212") and len(digits) >= 9:
+                digits = "0" + digits[3:]
+            if len(digits) >= 9:
+                phone = digits
+        if not phone:
+            m = re.search(r'(?:tel|phone|telephone)[^\d]{0,20}(\+?\d[\d\s-]{7,})', html, re.I)
+            if m:
+                digits = re.sub(r"[^\d]", "", m.group(1))
+                if digits.startswith("212") and len(digits) >= 9:
+                    digits = "0" + digits[3:]
+                if len(digits) >= 9:
+                    phone = digits
+        if phone:
+            out["phone"] = phone
         return out
 
     # -------------------------------------------------------------- images
