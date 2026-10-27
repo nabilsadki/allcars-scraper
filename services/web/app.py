@@ -435,6 +435,31 @@ def index():
         tuple(params) + (per_page, offset),
     )
 
+    # === detection des doublons probablement presents sur d'autres sites ===
+    # (heuristique conservative : meme marque + meme modele + meme annee,
+    #  evite les faux positifs massifs sur marque+modele seuls)
+    _cross_map = {}
+    _distinct = set((str(r.get("brand") or "").strip().lower(),
+                     str(r.get("model") or "").strip().lower(),
+                     r.get("year"))
+                    for r in rows if r.get("brand") and r.get("model") and r.get("year"))
+    for (b, m, y) in _distinct:
+        try:
+            qs = query("SELECT DISTINCT site FROM ads WHERE LOWER(brand) = %s "
+                      "AND LOWER(model) = %s AND year = %s", (b, m, y))
+        except Exception:
+            qs = []
+        _cross_map.setdefault(b, {}).setdefault(m, {}).setdefault(y, [q["site"] for q in qs])
+    for r in rows:
+        b = (r.get("brand") or "").strip().lower()
+        m = (r.get("model") or "").strip().lower()
+        y = r.get("year")
+        sites = []
+        if b and m and y:
+            sites = [s_ for s_ in _cross_map.get(b, {}).get(m, {}).get(y, [])
+                    if s_ != r.get("site")]
+        r["probably_also_on"] = sites
+
     # options pour les filtres
     opts = {}
     for col, label in (("city", "Villes"), ("brand", "Marques"),
@@ -523,7 +548,45 @@ def _detail(site: str, ad_id: str):
         except Exception:
             v["diff"] = {}
 
+    # === annonces probablement presentes sur d'autres sites ===
+    ad["probable_duplicates"] = _probable_duplicates(site, ad)
+
     return render_template("detail.html", ad=ad, images=images, versions=versions)
+
+def _probable_duplicates(site: str, ad: dict) -> list[dict]:
+    """ Cherche des annonces similaires sur D'AUTRES sites.
+
+    Heuristique conservative : meme marque + meme modele (+ annee compat)
+    et km proche (± 5 % ou ± 3000 km). Réservé pour le bloc "aussi sur".
+    """
+    brand = (ad.get("brand") or "").strip()
+    model = (ad.get("model") or "").strip()
+    if not brand or not model:
+        return []
+    year = ad.get("year")
+    km = ad.get("km")
+    sql = ("SELECT site, ad_id, title, price, publish_date, city, km, year "
+           "FROM ads WHERE site <> %s AND brand = %s AND model = %s")
+    params = [site, brand, model]
+    if year is not None:
+        sql += " AND (year IS NULL OR year = %s)"
+        params.append(year)
+    others = query(sql, tuple(params))
+    out = []
+    for o in others:
+        # tolerance km
+        if km and o.get("km"):
+            diff = abs(km - o["km"])
+            tol = max(3000, int(km * 0.05))
+            if diff > tol:
+                continue
+        # tolerance prix
+        price = ad.get("price")
+        if price and o.get("price"):
+            if abs(price - o["price"]) / price > 0.15:
+                continue
+        out.append(o)
+    return out[:10]
 
 
 @app.route("/favicon.ico")

@@ -268,6 +268,12 @@
       <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold mr-1.5 border"
             style="--site-hue: {{ r.site|site_hue }}">{{ r.site|site_label }}</span>
       {{ r.brand or '?' }} {{ r.model or '' }} {% if r.year %}· {{ r.year }}{% endif %}
+      {% if r.probably_also_on %}
+        <span class="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 rounded text-[9.5px] font-semibold border border-accent/40 bg-accent/10 text-accent-txt"
+              title="Probablement aussi visible sur : {{ r.probably_also_on|join(', ') }}">
+          ⤳ aussi sur {{ r.probably_also_on|join(', ') }}
+        </span>
+      {% endif %}
       {% if r.km %}· {{ '{:,}'.format(r.km).replace(',', ' ') }} km{% endif %}
     </div>
     <div class="text-xs text-muted">{{ r.city or '' }}{% if r.gear %} · {{ r.gear }}{% endif %}{% if r.fuel %} · {{ r.fuel }}{% endif %}</div>

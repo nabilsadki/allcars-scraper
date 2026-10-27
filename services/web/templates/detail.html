@@ -66,6 +66,28 @@
           <th></th><td></td></tr>
     </table>
 
+    {% if ad.probable_duplicates %}
+    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">
+      Annonce probablement présente sur d'autres sites
+    </h3>
+    <div class="flex flex-wrap gap-2">
+      {% for o in ad.probable_duplicates %}
+      <a href="/ad/{{ o.site }}/{{ o.ad_id }}"
+         class="inline-flex items-center gap-2 bg-panel2 border border-line rounded-lg px-3 py-1.5 text-[12.5px] hover:border-accent no-underline transition-colors">
+        <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[10.5px] font-bold border"
+              style="--site-hue: {{ o.site|site_hue }}">{{ o.site|site_label }}</span>
+        <span class="truncate max-w-[280px]" title="{{ o.title }}">{{ o.title or ('#' + o.ad_id) }}</span>
+        {% if o.price %}<span class="text-ok font-bold">{{ '{:,}'.format(o.price).replace(',', ' ') }} DH</span>{% endif %}
+        {% if o.publish_date %}<span class="text-muted text-[10.5px]">{{ o.publish_date|datefr }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    <p class="text-[10.5px] text-muted/70 mt-1.5">
+      Correspondance par marque + modèle (+ année et kilométrage proche). Ces annonces
+      peuvent être le même véhicule multi-diffusé entre sites.
+    </p>
+    {% endif %}
+
     {% if ad.description %}
     <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Description</h3>
     <pre class="desc whitespace-pre-wrap bg-panel border border-line rounded-lg p-3 text-[13px] leading-relaxed font-mono">{{ ad.description }}</pre>
