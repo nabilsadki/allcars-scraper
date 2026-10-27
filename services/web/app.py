@@ -436,29 +436,68 @@ def index():
     )
 
     # === detection des doublons probablement presents sur d'autres sites ===
-    # (heuristique conservative : meme marque + meme modele + meme annee,
-    #  evite les faux positifs massifs sur marque+modele seuls)
-    _cross_map = {}
-    _distinct = set((str(r.get("brand") or "").strip().lower(),
-                     str(r.get("model") or "").strip().lower(),
-                     r.get("year"))
-                    for r in rows if r.get("brand") and r.get("model") and r.get("year"))
-    for (b, m, y) in _distinct:
+    # Heuristique stricte (quasi-identique) : meme marque + modele (+ annee
+    # si connue) ET kilométrage proche (±500 km) ET prix proche (±3 %),
+    # ET telephone identique s'il est connu des deux cotés. Evite de
+    # suggerer "aussi sur ..." pour des modeles identiques mais vehicules
+    # differents.
+    def _km_ok(k1, k2):
+        if k1 is None or k2 is None:
+            return True   # on tolere si manque d info
+        return abs(k1 - k2) <= 500
+    def _price_ok(p1, p2):
+        if p1 is None or p2 is None:
+            return True
+        if p1 <= 0:
+            return True
+        return abs(p1 - p2) / p1 <= 0.03
+    def _phone_ok(ph1, ph2):
+        # si les deux telephones sont connus et differents -> pas duplique
+        if ph1 and ph2:
+            return str(ph1) == str(ph2)
+        return True
+    def _norm(s_):
+        return (s_ or "").strip().lower()
+
+    cross_map = {}
+    distinct = set((_norm(r.get("brand")), _norm(r.get("model")), r.get("year"))
+                   for r in rows if r.get("brand") and r.get("model") and r.get("year"))
+    for (b, m, y) in distinct:
+        if not b or not m or not y:
+            continue
+        sql = ("SELECT site, ad_id, price, km, year, phone "
+               "FROM ads WHERE LOWER(brand) = %s AND LOWER(model) = %s "
+               "AND year = %s LIMIT 200")
+        params = (b, m, y)
         try:
-            qs = query("SELECT DISTINCT site FROM ads WHERE LOWER(brand) = %s "
-                      "AND LOWER(model) = %s AND year = %s", (b, m, y))
+            qs = query(sql, params)
         except Exception:
             qs = []
-        _cross_map.setdefault(b, {}).setdefault(m, {}).setdefault(y, [q["site"] for q in qs])
+        sites = set()
+        matches_for = {}
+        for cand in qs:
+            for r in rows:
+                if _norm(r.get("brand")) != b or _norm(r.get("model")) != m or r.get("year") != y:
+                    continue
+                if not _km_ok(r.get("km"), cand.get("km")):
+                    continue
+                if not _price_ok(r.get("price"), cand.get("price")):
+                    continue
+                if not _phone_ok(r.get("phone"), cand.get("phone")):
+                    continue
+                sites.add(cand.get("site"))
+                matches_for.setdefault(id(r), set()).add(cand.get("site"))
+        cross_map.setdefault(b, {}).setdefault(m, {}).setdefault(y, sites)
+
     for r in rows:
-        b = (r.get("brand") or "").strip().lower()
-        m = (r.get("model") or "").strip().lower()
+        b = _norm(r.get("brand"))
+        m = _norm(r.get("model"))
         y = r.get("year")
         sites = []
         if b and m and y:
-            sites = [s_ for s_ in _cross_map.get(b, {}).get(m, {}).get(y, [])
-                    if s_ != r.get("site")]
-        r["probably_also_on"] = sites
+            cand_sites = cross_map.get(b, {}).get(m, {}).get(y, [])
+            sites = [s_ for s_ in cand_sites if s_ != r.get("site")]
+        r["probably_also_on"] = sorted(sites)
 
     # options pour les filtres
     opts = {}
@@ -554,18 +593,35 @@ def _detail(site: str, ad_id: str):
     return render_template("detail.html", ad=ad, images=images, versions=versions)
 
 def _probable_duplicates(site: str, ad: dict) -> list[dict]:
-    """ Cherche des annonces similaires sur D'AUTRES sites.
+    """ Cherche des annonces probablement identiques sur d'AUTRES sites.
 
-    Heuristique conservative : meme marque + meme modele (+ annee compat)
-    et km proche (± 5 % ou ± 3000 km). Réservé pour le bloc "aussi sur".
+    Stricte (quasi-certaine) : meme marque + modele + annee, kilométrage
+    proche (±500 km), prix proche (±3 %), telephone identique si connu des
+    deux. Réservé pour le bloc "aussi sur".
     """
+    def _km_ok(k1, k2):
+        if k1 is None or k2 is None:
+            return True
+        return abs(k1 - k2) <= 500
+    def _price_ok(p1, p2):
+        if p1 is None or p2 is None:
+            return True
+        if p1 <= 0 or p2 <= 0:
+            return True
+        return abs(p1 - p2) / p1 <= 0.03
+    def _phone_ok(ph1, ph2):
+        if ph1 and ph2:
+            return str(ph1) == str(ph2)
+        return True
+
     brand = (ad.get("brand") or "").strip()
     model = (ad.get("model") or "").strip()
     if not brand or not model:
         return []
     year = ad.get("year")
     km = ad.get("km")
-    sql = ("SELECT site, ad_id, title, price, publish_date, city, km, year "
+    phone = ad.get("phone")
+    sql = ("SELECT site, ad_id, title, price, publish_date, city, km, year, phone "
            "FROM ads WHERE site <> %s AND brand = %s AND model = %s")
     params = [site, brand, model]
     if year is not None:
@@ -573,20 +629,22 @@ def _probable_duplicates(site: str, ad: dict) -> list[dict]:
         params.append(year)
     others = query(sql, tuple(params))
     out = []
+    counter = 0
     for o in others:
-        # tolerance km
-        if km and o.get("km"):
-            diff = abs(km - o["km"])
-            tol = max(3000, int(km * 0.05))
-            if diff > tol:
-                continue
-        # tolerance prix
-        price = ad.get("price")
-        if price and o.get("price"):
-            if abs(price - o["price"]) / price > 0.15:
-                continue
+        if (year is not None and o.get("year") is not None
+                and o["year"] != year):
+            continue
+        if not _km_ok(km, o.get("km")):
+            continue
+        if not _price_ok(ad.get("price"), o.get("price")):
+            continue
+        if not _phone_ok(phone, o.get("phone")):
+            continue
         out.append(o)
-    return out[:10]
+        counter += 1
+        if counter >= 10:
+            break
+    return out
 
 
 @app.route("/favicon.ico")
