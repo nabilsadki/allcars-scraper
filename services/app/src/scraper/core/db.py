@@ -585,7 +585,19 @@ class Database:
 
     def upsert_images(self, ad_id, images: list[dict],
                       site: str = "avito") -> None:
-        """Enregistre les photos en un seul aller-retour (jusqu'a 60 par annonce)."""
+        """Enregistre les photos.
+
+        Un re-scrape doit remplacer, pas ajouter : on SUPPRIME d'abord les
+        photos deja stockees pour ce (site, ad_id), sinon l'annonce
+        s'affiche avec un melange des anciennes et nouvelles images.
+        """
+        # effacer le lot precedent (peu importe le nombre de nouvelles images)
+        try:
+            self.safe_exec("DELETE FROM ad_images WHERE site = %s AND ad_id = %s",
+                          (site, ad_id))
+        except Exception:
+            # meme en cas d'echec du delete, on tente l'insertion
+            pass
         rows = [(site, ad_id, img.get("url"), img.get("url_full_hd"),
                  1 if i == 0 else 0)
                 for i, img in enumerate(images or [])]
