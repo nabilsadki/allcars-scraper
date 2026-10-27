@@ -71,6 +71,15 @@ def ensure_tables():
                 except Exception:
                     pass
                 time.sleep(0.5)
+        # prune vieux jobs deja termines pour que la vue "File" reste lisible
+        try:
+            cur.execute("DELETE FROM scrape_queue WHERE status IN ('done','failed',"
+                        "'retries_failed','cancelled') AND "
+                        "finished_at < (NOW() - INTERVAL 1 DAY)")
+            db.commit()
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
     finally:
         cur.close()
 

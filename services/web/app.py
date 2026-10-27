@@ -1070,7 +1070,12 @@ def api_queue():
         limit = max(1, min(100, int(request.args.get("limit", 50))))
     except (TypeError, ValueError):
         limit = 50
-    return jsonify({"queue": automation.get_queue(limit)})
+    rows = automation.get_queue(limit)
+    # surface pending/running en premier; ne garder que les 10 derniers done/failed
+    pending = [r for r in rows if r["status"] in ("pending", "running")]
+    completed = [r for r in rows if r["status"] not in ("pending", "running")][:10]
+    out = pending + completed
+    return jsonify({"queue": out})
 
 @app.route("/health")
 def health():

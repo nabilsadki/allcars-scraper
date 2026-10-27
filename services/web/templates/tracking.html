@@ -136,7 +136,7 @@
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-3 flex-wrap">
     Automatiser le scrap (continu)
-    <span class="normal-case tracking-normal text-[10px] text-muted" id="auto-meta">—</span>
+      <span class="normal-case tracking-normal text-[13px] font-bold px-3 py-1.5 rounded-full border border-line bg-panel2 text-muted" id="auto-meta">—</span>
     <span class="ml-auto flex items-center gap-2">
       <button type="button" id="auto-start" class="border border-ok text-ok bg-ok/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40">▶ Démarrer daemon</button>
       <button type="button" id="auto-stop" class="border border-bad text-bad bg-bad/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40">■ Arrêter daemon</button>
@@ -1035,7 +1035,16 @@ async function refreshAutomation() {
     const r = await fetch('/api/daemons/status');
     const d = await r.json();
     const meta = document.getElementById('auto-meta');
-    if (meta) meta.textContent = d.daemon.enabled ? 'daemon ON' : 'daemon OFF';
+    if (meta) {
+      meta.textContent = d.daemon.enabled ? 'DAEMON ON' : 'DAEMON OFF';
+      meta.className = d.daemon.enabled
+        ? 'normal-case tracking-normal text-[13px] font-bold px-3 py-1 rounded-full border border-ok/60 bg-ok/20 text-ok'
+        : 'normal-case tracking-normal text-[13px] font-bold px-3 py-1 rounded-full border border-line bg-panel2 text-muted';
+    }
+    const btnStart = document.getElementById('auto-start');
+    const btnStop = document.getElementById('auto-stop');
+    if (btnStart) btnStart.disabled = !!d.daemon.enabled;
+    if (btnStop) btnStop.disabled = !d.daemon.enabled;
     const tb = document.getElementById('auto-sched');
     if (tb && d.schedules) {
       tb.innerHTML = d.schedules.map(s =>
@@ -1065,9 +1074,23 @@ async function refreshAutomation() {
     const qbox = document.getElementById('auto-queue');
     if (qbox) {
       const q = d.queue || [];
-      qbox.textContent = q.length
-        ? 'File : ' + q.map(j => j.site + '(' + j.status + ')').join(', ')
-        : 'File vide.';
+      if (!q.length) {
+        qbox.textContent = 'File vide.';
+      } else {
+        const pending = q.filter(j => j.status === 'pending' || j.status === 'running');
+        const done = q.filter(j => j.status !== 'pending' && j.status !== 'running');
+        let html = '';
+        if (pending.length) {
+          html += '<div class="mb-1.5">' +
+            pending.map(j => '<span class="inline-block bg-accent/15 border border-accent/40 text-accent-txt text-[10.5px] font-semibold px-2 py-0.5 rounded mr-1 mb-1">' +
+              j.site + ' &middot; ' + (j.status === 'running' ? 'en cours' : 'en attente') + '</span>').join(' ') + '</div>';
+        }
+        if (done.length) {
+          html += '<div class="text-[10px] text-muted/70 leading-snug">' +
+            done.slice(0, 8).map(j => j.site + '(' + j.status + ')').join(' · ') + '</div>';
+        }
+        qbox.innerHTML = html;
+      }
     }
     const metam = document.getElementById('auto-meta');
     if (metam) metam.textContent = d.daemon.enabled ? 'daemon ON' : 'daemon OFF';
