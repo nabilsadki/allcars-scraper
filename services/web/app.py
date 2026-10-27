@@ -343,7 +343,7 @@ FILTER_LABELS = [
     ("min_note_global", "Note globale"), ("min_confiance", "Confiance"),
     ("with_phone", "Téléphone"), ("with_photos", "Photos"),
     ("with_price", "Prix"), ("with_details", "Fiche complète"),
-    ("active_only", "Actives"),
+    ("with_price_drop", "Prix en baisse"), ("active_only", "Actives"),
 ]
 
 
@@ -413,6 +413,16 @@ def build_filters() -> tuple[str, list]:
         where.append("price IS NOT NULL")
     if request.args.get("with_details") == "1":
         where.append("details_fetched = 1")
+    if request.args.get("with_price_drop") == "1":
+        where.append("""EXISTS (
+            SELECT 1 FROM ad_versions v
+            WHERE v.site = ads.site AND v.ad_id = ads.ad_id
+              AND JSON_EXTRACT(v.diff_json, '$.price.old') IS NOT NULL
+              AND JSON_EXTRACT(v.diff_json, '$.price.new') IS NOT NULL
+              AND CAST(JSON_EXTRACT(v.diff_json, '$.price.old') AS UNSIGNED)
+                    > CAST(JSON_EXTRACT(v.diff_json, '$.price.new') AS UNSIGNED)
+        )""")
+
     return " AND ".join(where), params
 
 

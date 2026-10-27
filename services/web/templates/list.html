@@ -194,6 +194,10 @@
         <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">📄 fiche complète</span>
       </label>
       <label class="cursor-pointer">
+        <input type="checkbox" name="with_price_drop" value="1" class="peer sr-only" {% if request.args.get('with_price_drop')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-ok/15 peer-checked:text-ok">↓ prix en baisse</span>
+      </label>
+      <label class="cursor-pointer">
         <input type="checkbox" name="active_only" value="1" class="peer sr-only" {% if request.args.get('active_only')=='1' %}checked{% endif %}>
         <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">👁 actives</span>
       </label>
@@ -221,7 +225,7 @@
     {% for key in ['site','city','brand','model','fuel','gear','category',
                    'min_price','max_price','min_year','max_year','max_km',
                    'min_note_etat','min_note_achat','min_note_global','min_confiance',
-                   'with_phone','with_photos','with_price','with_details','active_only'] %}
+                   'with_phone','with_photos','with_price','with_details','with_price_drop','active_only'] %}
       {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
     {% endfor %}
     <label class="text-[12px] text-muted">Trier par</label>
