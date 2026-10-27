@@ -128,10 +128,10 @@
       <div class="scorebox bg-panel border border-line rounded-xl p-3">
         <div class="sbtitle text-[12px] text-muted mb-2">Scoring v2 — aide aux acheteurs</div>
         <div class="flex flex-wrap gap-4">
-          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_global or '-' }}</span><small class="text-[11px] text-muted">global</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_etat or '-' }}</span><small class="text-[11px] text-muted">état</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_achat or '-' }}</span><small class="text-[11px] text-muted">achat</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_confiance or '-' }}%</span><small class="text-[11px] text-muted">confiance</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt" title="note globale = état × 65 % + achat × 35 % (qualité + optique véhicule)">{{ ad.note_global or '-' }}</span><small class="text-[11px] text-muted" title="score global combiné">global</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt" title="État : kilométrage, âge, dégradations detection (climatiseur, clim, etc.)">{{ ad.note_etat or '-' }}</span><small class="text-[11px] text-muted" title="État du véhicule / 10">état</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt" title="Achat : rapport qualité-prix par rapport au marché Maroc (annonces similaires)">{{ ad.note_achat or '-' }}</span><small class="text-[11px] text-muted" title="Valeur d'achat / 10">achat</small></div>
+          <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt" title="Confiance : part des critères évaluables (ex. sans prix, l'axe 'achat' n'est pas calculé)">{{ ad.note_confiance or '-' }}%</span><small class="text-[11px] text-muted" title="fiabilité du scoring (axes observés)">confiance</small></div>
         </div>
       </div>
     </div>
