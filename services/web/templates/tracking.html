@@ -142,6 +142,14 @@
       <button type="button" id="auto-stop" class="border border-bad text-bad bg-bad/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40">■ Arrêter daemon</button>
     </span>
   </div>
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-[10.5px] text-muted">Coche les sites a automatiser</span>
+    <div class="flex items-center gap-2 text-[11px]">
+      <button type="button" id="auto-sel-all" class="text-[10.5px] text-accent-txt hover:underline cursor-pointer bg-transparent border-0 p-0">Tout cocher</button>
+      <span class="text-muted/60">&middot;</span>
+      <button type="button" id="auto-sel-none" class="text-[10.5px] text-accent-txt hover:underline cursor-pointer bg-transparent border-0 p-0">Tout decocher</button>
+    </div>
+  </div>
   <table class="w-full text-[13px] border-collapse mb-2">
     <thead><tr class="text-[11px] text-muted uppercase tracking-wide">
       <th class="text-left py-1 pr-2 w-32">Site</th>
@@ -1131,6 +1139,27 @@ async function refreshAutomation() {
     if (metam) metam.textContent = d.daemon.enabled ? 'daemon ON' : 'daemon OFF';
   } catch (e) { const m = document.getElementById('auto-meta'); if (m) m.textContent = 'Erreur : ' + e; }
 }
+// --- Tout cocher / tout decocher dans le panneau Automatiser
+const autoSelAll = document.getElementById('auto-sel-all');
+const autoSelNone = document.getElementById('auto-sel-none');
+async function setSitesEnabled(enabled) {
+  const cbs = document.querySelectorAll('#auto-sched .auto-enable');
+  for (const cb of cbs) {
+    const site = cb.getAttribute('data-site');
+    if (site) {
+      await fetch('/api/schedule/enable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site: site, enabled: enabled })
+      }).catch(() => {});
+    }
+    cb.checked = enabled;
+  }
+  refreshAutomation();
+}
+if (autoSelAll) autoSelAll.addEventListener('click', () => { setSitesEnabled(true); });
+if (autoSelNone) autoSelNone.addEventListener('click', () => { setSitesEnabled(false); });
+
 setInterval(refreshAutomation, 15000);
 refreshAutomation();
 
