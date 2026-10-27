@@ -31,9 +31,15 @@
     <div class="text-accent-txt text-[26px] font-bold mb-2 flex items-center gap-2 flex-wrap">
       {% if ad.price %}{{ '{:,}'.format(ad.price).replace(',', ' ') }} DH{% else %}<em class="text-muted font-normal text-[15px]">sur demande</em>{% endif %}
       {% if ad.price_drop_pct %}
-        <span class="text-[12px] font-semibold px-2 py-0.5 rounded bg-bad/15 border border-bad/50 text-[#ffb3b3]"
-              title="baissé depuis la version précédente">
+        <span class="text-[12px] font-semibold px-2 py-0.5 rounded bg-ok/15 border border-ok/50 text-ok"
+              title="Prix baissé de {{ ad.price_drop_pct }} % par rapport à la version précédente
+{{ '{:,}'.format(ad.price_drop_old).replace(',', ' ') if ad.price_drop_old else '—' }} DH → {{ '{:,}'.format(ad.price).replace(',', ' ') }} DH">
           ↓ {{ ad.price_drop_pct }} %
+          {% if ad.price_drop_old %}
+            <span class="text-[11px] text-muted line-through ml-1">
+              {{ '{:,}'.format(ad.price_drop_old).replace(',', ' ') }} DH
+            </span>
+          {% endif %}
         </span>
       {% endif %}
     </div>

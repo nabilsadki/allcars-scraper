@@ -437,6 +437,7 @@ def index():
 
     # === calcul de la baisse de prix pour ces cartes (vs version precedente) ===
     pdrops = {}
+    pdropsOld = {}
     seen = set()
     for r in rows or []:
         key = (r.get("site"), r.get("ad_id"))
@@ -465,8 +466,11 @@ def index():
             continue
         if a < b and a > 0:
             pdrops[key] = int(round((b - a) * 100.0 / b))
+            pdropsOld[key] = older
     for r in (rows or []):
-        r["price_drop_pct"] = pdrops.get((r.get("site"), r.get("ad_id")))
+        k = (r.get("site"), r.get("ad_id"))
+        r["price_drop_pct"] = pdrops.get(k)
+        r["price_drop_old"] = pdropsOld.get(k)
 
     # === detection des doublons probablement presents sur d'autres sites ===
     # Heuristique stricte (quasi-identique) : meme marque + modele (+ annee
@@ -657,6 +661,7 @@ def _detail(site: str, ad_id: str):
 
     # === baisse de prix par rapport a la version precedente ===
     drop = 0
+    drop_old = None
     if versions:
         v = versions[0]
         pr = (v.get("diff") or {}).get("price") if isinstance(v.get("diff"), dict) else None
@@ -665,9 +670,11 @@ def _detail(site: str, ad_id: str):
             try:
                 if oldp and newp is not None and float(newp) < float(oldp):
                     drop = int(round((float(oldp)-float(newp))*100.0/float(oldp)))
+                    drop_old = oldp
             except (TypeError, ValueError):
-                drop = 0
+                pass
     ad["price_drop_pct"] = drop
+    ad["price_drop_old"] = drop_old
 
     return render_template("detail.html", ad=ad, images=images, versions=versions)
 

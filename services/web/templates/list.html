@@ -270,9 +270,15 @@
       {{ r.brand or '?' }} {{ r.model or '' }} {% if r.year %}· {{ r.year }}{% endif %}
       {% if r.price_drop_pct %}
         <span class="inline-flex items-center gap-0.5 ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded
-                     bg-bad/15 border border-bad/50 text-[#ffb3b3]"
-              title="Prix baissé de {{ r.price_drop_pct }} % lors du dernier scrape">
+                     bg-ok/15 border border-ok/50 text-ok"
+              title="Prix baissé de {{ r.price_drop_pct }} % depuis la version précédente :
+{{ '{:,}'.format(r.price_drop_old).replace(',', ' ') if r.price_drop_old else '—' }} DH → {{ '{:,}'.format(r.price).replace(',', ' ') }} DH">
           ↓ {{ r.price_drop_pct }} %
+          {% if r.price_drop_old %}
+            <span class="line-through text-muted/70 text-[9.5px] ml-1">
+              {{ '{:,}'.format(r.price_drop_old).replace(',', ' ') }} DH
+            </span>
+          {% endif %}
         </span>
       {% endif %}
       {% if r.probably_also_on %}
