@@ -24,6 +24,10 @@
     {% set v2 = ad.notes_v2 or {} %}
     <h1 class="text-[21px] font-semibold leading-snug m-0 mb-1.5">{{ ad.title }}</h1>
     <div class="flex flex-wrap items-center gap-2 mb-3 text-muted">
+      {% set lurl = (ad.brand or '')|brand_logo_url %}
+      {% if lurl %}<img src="{{ lurl }}" alt="" loading="lazy"
+                         class="brand-logo inline-block h-7 w-7 object-contain rounded-md align-middle mr-0.5"
+                         onerror="this.style.display='none'">{% endif %}
       <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold border"
             style="--site-hue: {{ ad.site|site_hue }}">{{ ad.site|site_label }}</span>
       <span class="text-[12px]">annonce #{{ ad.ad_id }}{% if ad.version %} · version {{ ad.version }}{% endif %}</span>

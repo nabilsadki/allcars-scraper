@@ -20,6 +20,7 @@ GET  /api/scrape/logs     dernieres lignes de log
 from __future__ import annotations
 
 import json
+import re
 import os
 from datetime import datetime
 from urllib.parse import urlencode
@@ -1431,6 +1432,30 @@ def api_queue():
 def health():
     return {"ok": True, "time": datetime.now().isoformat()}
 
+
+import unicodedata as _uni
+
+
+def _brand_slug(brand: str) -> str:
+    s_ = _uni.normalize("NFKD", brand or "").encode("ascii", "ignore").decode()
+    s_ = re.sub(r"[^a-z0-9]+", "-", s_.lower()).strip("-")
+    return s_
+
+
+def _brand_logo_url(brand: str) -> str | None:
+    if not brand:
+        return None
+    slug = _brand_slug(brand)
+    candidate = os.path.join("static", "brand_logos", slug + ".png")
+    # chemins possibles : build web /run-time / dev
+    for base in ("/app", os.getcwd(), "/mnt/4TB/allcars-scraper/services/web"):
+        full = os.path.join(base, candidate)
+        if os.path.exists(full):
+            return "/static/brand_logos/" + slug + ".png"
+    return None
+
+
+app.jinja_env.filters["brand_logo_url"] = _brand_logo_url
 
 if __name__ == "__main__":
     # initialisation (DDL) au demarrage, une seule fois

@@ -280,6 +280,10 @@
     </div>
     <div class="text-[13px] leading-[1.35] max-h-[2.7em] overflow-hidden">{{ r.title }}</div>
     <div class="text-xs text-muted flex flex-wrap items-center gap-1">
+      {% set lurl = (r.brand or '')|brand_logo_url %}
+      {% if lurl %}<img src="{{ lurl }}" alt="" loading="lazy"
+                         class="brand-logo inline-block h-5 w-5 object-contain rounded-sm align-middle mr-0.5"
+                         onerror="this.style.display='none'">{% endif %}
       <span class="sitebadge inline-block px-1.5 py-0.5 rounded text-[11px] font-bold mr-1.5 border"
             style="--site-hue: {{ r.site|site_hue }}">{{ r.site|site_label }}</span>
       {{ r.brand or '?' }} {{ r.model or '' }} {% if r.year %}· {{ r.year }}{% endif %}
