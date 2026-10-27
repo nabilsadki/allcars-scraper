@@ -168,29 +168,79 @@
     {% endif %}
 
     {% if versions %}
-    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Historique ({{ versions|length }} version(s))</h3>
+    <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">
+      Historique — versions ({{ versions|length }})
+    </h3>
+    {% macro _label_field(k) -%}
+      {%- set MAP = {
+        "price": "Prix", "km": "Kilométrage", "year": "Année", "brand": "Marque",
+        "model": "Modèle", "city": "Ville", "fuel": "Carburant", "gear": "Boîte",
+        "origin": "Origine", "cond": "État", "first_hand": "1er main",
+        "fiscal_power": "Puissance fiscale", "doors": "Portes", "description": "Description",
+        "options_json": "Options", "publish_date": "Publication", "title": "Titre",
+        "sector": "Secteur", "area": "Quartier", "seller_type": "Type vendeur",
+        "phone": "Téléphone", "km_year": "km / an", "seller": "Vendeur",
+        "seller_id": "ID vendeur", "last_seen_at": "Dernière vue",
+        "seen_count": "Vues", "nb_images": "Nbre photos", "price_str": "Prix (texte)",
+        "is_premium": "Premium", "is_urgent": "Urgent", "is_hot_deal": "Hot deal",
+        "details_fetched": "Fiche complète", "is_active": "Actif",
+        "note": "Note", "note_global": "Note globale", "note_km": "Note km",
+        "note_year": "Note year", "note_etat": "Note état", "note_achat": "Note achat",
+        "note_confiance": "Note confiance"
+      } -%}
+      {{ MAP.get(k, k) }}
+    {%- endmacro %}
+    {% macro _fmt_val(field, value) -%}
+      {%- if value is none -%}<em class="text-muted font-normal">—</em>
+      {%- elif field in ('price', 'km', 'km_year', 'list_id', 'seller_id') and (value is number or (value|string).isdigit()) -%}
+        {{ '{:,}'.format(value|int).replace(',', ' ') }}{{- ' km' if field == 'km' or field == 'km_year' else (' DH' if field == 'price' else '') -}}
+      {%- else -%}{{ value }}{%- endif -%}
+    {%- endmacro %}
     <table class="vers w-full text-[12.5px] border-collapse">
-      <tr><th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Version</th>
-          <th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Type</th>
-          <th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Date</th>
-          <th class="text-left text-muted font-medium py-1 px-2 border-b border-line">Changements</th></tr>
+      <thead>
+        <tr class="text-[11px] text-muted uppercase tracking-wide">
+          <th class="text-left py-1 px-2 border-b border-line w-16">Version</th>
+          <th class="text-left py-1 px-2 border-b border-line w-28">Type</th>
+          <th class="text-left py-1 px-2 border-b border-line w-40">Date</th>
+          <th class="text-left py-1 px-2 border-b border-line">Changements</th>
+        </tr>
+      </thead>
+      <tbody>
       {% for v in versions %}
-      <tr>
+      <tr class="align-top">
         <td class="py-1 px-2 border-b border-line">v{{ v.version }}</td>
         <td class="py-1 px-2 border-b border-line">
-          <span class="ctype inline-block px-1.5 py-0.5 rounded bg-panel2 border border-line text-[11px]
-            {% if v.change_type == 'new' %}text-ok{% elif v.change_type == 'disappeared' %}text-bad{% endif %}">{{ v.change_type }}</span>
+          {% set ct = v.change_type or 'updated' %}
+          {% set badge = 'text-ok border-ok/50 bg-ok/10' if ct in ('new','new_listing') else
+                         ('text-bad border-bad/50 bg-bad/10' if ct in ('disappeared','deleted') else
+                         ('text-accent-txt border-accent bg-accent/10' if ct in ('price_change','content_change') else 'text-muted border-line bg-panel2')) %}
+          <span class="inline-block px-1.5 py-0.5 rounded text-[10.5px] font-medium border {{ badge }}"
+                title="type de changement detecte par le scraper">
+            {{ {'new':'nouvelle','new_listing':'nouvelle','price_change':'prix','content_change':'contenu','updated':'mise à jour','disappeared':'disparue','deleted':'supprimée'}.get(ct, ct) }}
+          </span>
         </td>
-        <td class="py-1 px-2 border-b border-line">{{ v.created }}</td>
+        <td class="py-1 px-2 border-b border-line text-muted">{{ v.created|datefr(true) }}</td>
         <td class="py-1 px-2 border-b border-line">
           {% if v.diff %}
             {% for k, val in v.diff.items() %}
-              <div class="text-[12px]"><b>{{ k }}</b>: {{ val.get('old') }} → {{ val.get('new') }}</div>
+              <div class="text-[12px] flex items-baseline gap-1.5 flex-wrap">
+                <b class="text-[11.5px] uppercase tracking-wide text-muted">{{ _label_field(k) }}</b> :
+                {% if val is mapping and ('old' in val or 'new' in val) %}
+                  {% if 'old' in val %}<span class="line-through text-muted/70">{{ _fmt_val(k, val.old) }}</span>{% endif %}
+                  {% if 'old' in val and 'new' in val %}<span class="text-muted/70"> → </span>{% endif %}
+                  {% if 'new' in val %}<span class="text-accent-txt font-semibold">{{ _fmt_val(k, val.new) }}</span>{% endif %}
+                {% else %}
+                  <span class="text-accent-txt font-semibold">{{ val }}</span>
+                {% endif %}
+              </div>
             {% endfor %}
-          {% else %}<span class="text-muted">—</span>{% endif %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
+      </tbody>
     </table>
     {% endif %}
 
