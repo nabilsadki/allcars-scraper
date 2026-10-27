@@ -433,6 +433,11 @@ class Database:
 
         version = int(existing.get("version") or 1) + 1
         row = self._row_from_ad(ad, site)
+        # ne JAMAIS ecraser un champ connu par un null (fetch incomplet ;
+        # les nouveaux renseignements sont ajoutes, les anciens preserves)
+        for c in list(row.keys()):
+            if row.get(c) is None and existing.get(c) is not None:
+                row[c] = existing.get(c)
         row["version"] = version
         row["content_hash"] = h
         cols = [c for c in row if c != "ad_id"]

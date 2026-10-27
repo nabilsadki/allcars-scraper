@@ -435,6 +435,39 @@ def index():
         tuple(params) + (per_page, offset),
     )
 
+    # === calcul de la baisse de prix pour ces cartes (vs version precedente) ===
+    pdrops = {}
+    seen = set()
+    for r in rows or []:
+        key = (r.get("site"), r.get("ad_id"))
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            qres = query("SELECT snapshot_json FROM ad_versions "
+                         "WHERE site = %s AND ad_id = %s "
+                         "ORDER BY version DESC LIMIT 2", key)
+        except Exception:
+            continue
+        if len(qres) < 2:
+            continue
+        def _p(vr):
+            try:
+                return json.loads(vr.get("snapshot_json") or "{}").get("price")
+            except Exception:
+                return None
+        newest, older = _p(qres[0]), _p(qres[1])
+        if newest is None or older is None:
+            continue
+        try:
+            a, b = float(newest), float(older)
+        except (TypeError, ValueError):
+            continue
+        if a < b and a > 0:
+            pdrops[key] = int(round((b - a) * 100.0 / b))
+    for r in (rows or []):
+        r["price_drop_pct"] = pdrops.get((r.get("site"), r.get("ad_id")))
+
     # === detection des doublons probablement presents sur d'autres sites ===
     # Heuristique stricte (quasi-identique) : meme marque + modele (+ annee
     # si connue) ET kilométrage proche (±500 km) ET prix proche (±3 %),

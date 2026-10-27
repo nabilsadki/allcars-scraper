@@ -100,7 +100,8 @@ def compare(old_ad: dict, new_ad: dict, is_detail: bool = False) -> dict:
     for f in CHANGE_TRIGGER_FIELDS:
         o = old_ad.get(f)
         n = new_ad.get(f)
-        if n is None and not (is_detail and o is not None):
+        if n is None:
+            # on ne laisse JAMAIS un fetch incomplet ecraser ce qu'on savait deja
             continue  # on ignore ce qu'on n'observe pas
         o_n, n_n = _norm_value(o), _norm_value(n)
         if o_n != n_n:
