@@ -359,7 +359,12 @@
     {% for c in counts %}
     <tr class="border-b border-line">
       <th class="text-left text-muted font-medium py-1 pr-3 w-28">{{ c.site }}</th>
-      <td class="py-1">{{ '{:,}'.format(c.n).replace(',', ' ') }} annonces — {{ c.actives }} actives — dernier scrape {{ c.dernier }}</td>
+      <td class="py-1">
+        {{ '{:,}'.format(c.n).replace(',', ' ') }} annonces · {{ c.actives }} actives ·
+        {{ c.details or 0 }} fiches complètes
+        {% if c.avg_conf is not none %} · Ø état {{ c.avg_etat or '—' }} · Ø achat {{ c.avg_achat or '—' }} · conf. {{ (c.avg_conf or 0)|round(1) }} %{% endif %}
+        · dernier scrape {{ c.dernier }}
+      </td>
     </tr>
     {% else %}
     <tr><td class="text-muted">Aucune annonce.</td></tr>
