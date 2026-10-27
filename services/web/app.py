@@ -624,6 +624,20 @@ def detail(ad_id: int):
     return _detail(rows[0]["site"], ad_id)
 
 
+@app.route("/aide-moi")
+def aide_moi():
+    """Assistant interactif d'aide au choix d'une annonce."""
+    brands = [r["brand"] for r in query(
+        "SELECT DISTINCT brand FROM ads WHERE brand IS NOT NULL ORDER BY brand")]
+    cities = [r["city"] for r in query(
+        "SELECT DISTINCT city FROM ads WHERE city IS NOT NULL ORDER BY city")]
+    years = [r["year"] for r in query(
+        "SELECT DISTINCT year FROM ads WHERE year IS NOT NULL "
+        "AND year BETWEEN 1990 AND 2100 ORDER BY year DESC")]
+    return render_template("help_me.html", brands=brands, cities=cities,
+                           years=years, sites=known_sites())
+
+
 @app.route("/compare")
 def compare_view():
     """Page de comparaison de 2 a 4 annonces (par site + ad_id)."""

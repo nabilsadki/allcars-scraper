@@ -211,6 +211,10 @@
     <span class="text-[13px] text-muted">{{ total }} annonce(s) correspondent{% if total > per_page %} — page {{ page }}/{{ pages }}{% endif %}</span>
     <div class="flex items-center gap-2">
       {% if active %}<a class="text-[13px] text-muted hover:text-txt px-2 py-1.5" href="/">Réinitialiser</a>{% endif %}
+      <a href="/aide-moi"
+         class="bg-accent/15 text-accent border border-accent/50 rounded-lg px-5 py-2 text-sm font-medium hover:bg-accent/25 no-underline cursor-pointer">
+        ✨ Aide-moi
+      </a>
       <button type="submit" class="bg-accent text-onaccent border border-accent rounded-lg px-5 py-2 text-sm font-medium hover:opacity-90 cursor-pointer">Appliquer les filtres</button>
     </div>
   </div>

@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Aide-moi à choisir — All Cars{% endblock %}
+{% block content %}
+
+<div id="wizard" class="max-w-3xl mx-auto">
+  <div class="text-center mb-6">
+    <h1 class="text-[26px] font-semibold mb-1">Aide-moi à choisir ma voiture ✨</h1>
+    <p class="text-muted">7 questions rapides — on te montre ensuite les meilleures annonces, triées par note.</p>
+    <div id="wiz-progress" class="mt-4 h-1.5 bg-panel2 border border-line rounded-full overflow-hidden">
+      <div id="wiz-bar" class="h-full bg-accent transition-all duration-300" style="width: 0%"></div>
+    </div>
+    <p class="text-[11.5px] text-muted mt-1.5" id="wiz-step">Question 1 / 7</p>
+  </div>
+
+  <!-- Step 1 : Budget -->
+  <section class="wiz-step hidden" data-step="1">
+    <div class="bg-panel border border-line rounded-2xl p-8 shadow-lg">
+      <h2 class="text-[20px] font-semibold mb-3">Quel est ton budget maximum ?</h2>
+      <p class="text-muted text-[13.5px] mb-5">On privilégie le prix d'achat de la voiture.</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="choices-budget">
+        {% for val, label in [('80000','80 000 DH'),('100000','100 000 DH'),('125000','125 000 DH'),
+                              ('150000','150 000 DH'),('180000','180 000 DH'),('200000','200 000 DH'),
+                              ('250000','250 000 DH'),('300000','300 000 DH'),('500000','500 000 DH+'),('0','Pas de limite')] %}
+        <button type="button" data-val="{{ val }}"
+                class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-3 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[14px] font-medium">
+          {{ label }}
+        </button>
+        {% endfor %}
+      </div>
+      <div class="mt-5 flex gap-2">
+        <input type="number" id="budget-custom" placeholder="Budget précis (DH)"
+               class="flex-1 bg-panel2 border border-line rounded-lg px-3 py-2 text-sm text-txt focus:outline-none focus:border-accent">
+        <button type="button" id="budget-custom-btn"
+                class="bg-accent text-onaccent border border-accent rounded-lg px-4 py-2 text-sm font-medium hover:opacity-90">OK</button>
+      </div>
+      <p class="text-[10.5px] text-muted mt-2">Laisse vide pour « pas de plafond ».</p>
+    </div>
+  </section>
+
+  <!-- Step 2 : Boîte -->
+  <section class="wiz-step hidden" data-step="2">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-5">Quelle boîte de vitesses ?</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {% for val, label, emoj in [('Automatique','Automatique','⚙️'),('Manuelle','Manuelle','🖐️'),('','Peu importe','❯')] %}
+        <button type="button" data-val="{{ val }}"
+                class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-6 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[16px] font-medium">
+          <span class="block text-[28px] mb-1">{{ emoj }}</span>{{ label }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 3 : Carburant -->
+  <section class="wiz-step hidden" data-step="3">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-5">Quel carburant ?</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {% for val, label, emoj in [('Diesel','Diesel','🛢️'),('Essence','Essence','🔥'),('Hybride','Hybride','♻️'),
+                                    ('GPL','GPL','💧'),('Electrique','Électrique','⚡'),('','Peu importe','❯')] %}
+        <button type="button" data-val="{{ val }}"
+                class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-6 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[16px] font-medium">
+          <span class="block text-[28px] mb-1">{{ emoj }}</span>{{ label }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 4 : Marque -->
+  <section class="wiz-step hidden" data-step="4">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-4">Tu as une marque de prédilection ?</h2>
+      <p class="text-muted text-[13.5px] mb-4">Facultatif — laisse vide pour « toutes ».</p>
+      <div class="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[360px] overflow-y-auto pr-1">
+        {% for b in brands %}
+        <button type="button" data-val="{{ b }}"
+                class="wiz-choice bg-panel2 text-txt border border-line rounded-xl px-3 py-2 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[12px] font-medium">
+          {{ b }}
+        </button>
+        {% endfor %}
+        <button type="button" data-val=""
+                class="wiz-choice bg-panel2 text-txt border border-line rounded-xl px-3 py-2 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[12px] font-medium">
+          🎯 Toutes les marques
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 5 : Année minimum -->
+  <section class="wiz-step hidden" data-step="5">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-5">Année minimum de la voiture ?</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {% for val in [2023,2021,2018,2015,2012,2010] %}
+        <button type="button" data-val="{{ val }}"
+                class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-6 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[16px] font-medium">
+          {{ val }} ou plus récent
+        </button>
+        {% endfor %}
+        <button type="button" data-val=""
+                class="wiz-choice bg-panel2 text-txt border border-line rounded-xl px-4 py-6 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[14px] font-medium">
+          Toutes les années
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 6 : Km max -->
+  <section class="wiz-step hidden" data-step="6">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-5">Kilométrage maximum ?</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {% for val, label in [(50000,'50 000 km'),('80000','80 000 km'),('100000','100 000 km'),
+                              (150000,'150 000 km'),('200000','200 000 km'),('0','Peu importe')] %}
+        <button type="button" data-val="{{ val }}"
+                class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-6 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[14px] font-medium">
+          {{ label }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 7 : Ville -->
+  <section class="wiz-step hidden" data-step="7">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-4">Dans quelle ville ?</h2>
+      <p class="text-muted text-[13.5px] mb-4">Facultatif — toutes les villes si vide.</p>
+      <select id="wiz-city" class="w-full bg-panel2 border border-line rounded-lg px-3 py-2 text-sm text-txt focus:outline-none focus:border-accent">
+        <option value="">Toutes les villes</option>
+        {% for c in cities %}
+        <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+      <div class="mt-6 flex items-center justify-center">
+        <button type="button" id="finish-btn"
+                class="bg-accent text-onaccent border border-accent rounded-xl px-8 py-3.5 text-base font-semibold hover:opacity-90 cursor-pointer shadow-lg">
+          ✨ Voir mes résultats (les meilleures notes)
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="mt-6 flex items-center justify-between">
+    <button type="button" id="prev-btn" class="text-muted hover:text-txt px-4 py-2 rounded-lg text-sm hidden">← Précédent</button>
+    <span class="flex-1"></span>
+    <span class="text-[11px] text-muted" id="skip">&nbsp;</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  const answers = { budget:'0', gear:'', fuel:'', brand:'', min_year:'', max_km:'0', city:'' };
+  let step = 1;
+  const total = 7;
+  const steps = document.querySelectorAll('.wiz-step');
+  const bar = document.getElementById('wiz-bar');
+  const stepLabel = document.getElementById('wiz-step');
+  const prevBtn = document.getElementById('prev-btn');
+
+  function showStep(n) {
+    steps.forEach((sec, i) => {
+      sec.classList.toggle('hidden', i + 1 !== n);
+    });
+    step = n;
+    bar.style.width = (n / total * 100) + '%';
+    stepLabel.textContent = 'Question ' + n + ' / ' + total;
+    if (prevBtn) prevBtn.classList.toggle('hidden', n === 1);
+  }
+
+  // Highlight selected choice
+  document.querySelectorAll('.wiz-step').forEach(sec => {
+    sec.querySelectorAll('.wiz-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sec.querySelectorAll('.wiz-choice').forEach(b => {
+          b.classList.remove('border-accent','bg-accent/15','text-accent-txt','ring-1','ring-accent','font-bold');
+          b.classList.add('bg-panel2','text-txt','border-line');
+        });
+        btn.classList.add('border-accent','bg-accent/15','text-accent-txt','ring-1','ring-accent','font-bold');
+        btn.classList.remove('bg-panel2','text-txt','border-line');
+        // store answer
+        const cur = sec.getAttribute('data-step');
+        if (cur === '1') {
+          answers.budget = btn.getAttribute('data-val') || '';
+        } else if (cur === '2') {
+          answers.gear = btn.getAttribute('data-val') || '';
+        } else if (cur === '3') {
+          answers.fuel = btn.getAttribute('data-val') || '';
+        } else if (cur === '4') {
+          answers.brand = btn.getAttribute('data-val') || '';
+        } else if (cur === '5') {
+          answers.min_year = btn.getAttribute('data-val') || '';
+        } else if (cur === '6') {
+          answers.max_km = btn.getAttribute('data-val') || '';
+        }
+        // auto advance
+        if (cur !== '7') {
+          setTimeout(() => { if (step < total) showStep(step + 1); }, 280);
+        }
+      });
+    });
+  });
+
+  // Budget custom entry
+  const customBtn = document.getElementById('budget-custom-btn');
+  if (customBtn) {
+    customBtn.addEventListener('click', () => {
+      const v = document.getElementById('budget-custom').value.trim();
+      if (v) {
+        answers.budget = v;
+        showStep(2);
+      }
+    });
+    document.getElementById('budget-custom').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { customBtn.click(); }
+    });
+  }
+
+  // Prev btn
+  if (prevBtn) prevBtn.addEventListener('click', () => { if (step > 1) showStep(step - 1); });
+
+  // Finish btn
+  const finishBtn = document.getElementById('finish-btn');
+  if (finishBtn) {
+    finishBtn.addEventListener('click', () => {
+      answers.city = (document.getElementById('wiz-city') || {}).value || '';
+      const params = new URLSearchParams();
+      if (answers.brand) params.set('brand', answers.brand);
+      if (answers.budget && answers.budget !== '0') params.set('max_price', answers.budget);
+      if (answers.gear) params.set('gear', answers.gear);
+      if (answers.fuel) params.set('fuel', answers.fuel);
+      if (answers.min_year) params.set('min_year', answers.min_year);
+      if (answers.max_km && answers.max_km !== '0') params.set('max_km', answers.max_km);
+      if (answers.city) params.set('city', answers.city);
+      params.set('sort', 'note');
+      params.set('per_page', '30');
+      window.location.href = '/?' + params.toString();
+    });
+  }
+
+  // init
+  showStep(1);
+  // pre-select sensible defaults
+  // (none) - no preselect to encourage explicit choices
+})();
+</script>
+
+{% endblock %}
