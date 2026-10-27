@@ -127,6 +127,31 @@ def _exec(db=None, sql="", params=()):
         except Exception: pass
 
 
+def cleanup_orphaned_running():
+    """Marque failed les jobs running sans conteneur actif (orphelins)."""
+    import app
+    try:
+        rows = _q(app.db(), "SELECT id, site FROM scrape_queue WHERE status='running'")
+    except Exception:
+        return
+    if not rows:
+        return
+    for r in rows:
+        site = r["site"]; rid = r["id"]
+        try:
+            import scrapectl as _sp
+            if _sp.is_running(site):
+                continue
+        except Exception:
+            pass
+        try:
+            _exec(app.db(), "UPDATE scrape_queue SET status='failed', "
+                            "finished_at=NOW(), error='orphelin: conteneur absent' "
+                            "WHERE id=%s", (rid,))
+        except Exception:
+            pass
+
+
 def get_schedules():
     import app
     import app as _app
@@ -207,6 +232,7 @@ def daemon_status():
 def _loop():
     import app
     ensure_tables()
+    cleanup_orphaned_running()
     while _DAEMON["enabled"]:
         try:
             import app as _app

@@ -1021,13 +1021,18 @@ def api_daemons_status():
         latest_done = [q for q in site_queue if q.get("status") not in ("pending", "running")]
         latest_done.sort(key=lambda q: q.get("finished_at") or q.get("enqueued_at") or "", reverse=True)
         exec_txt = ""
-        qs = None
-        if running_via_container or pending_or_running:
+        # Nettoyage serein des orphelins : on auto-marque les running dont le conteneur est absent
+        automation.cleanup_orphaned_running()
+        pending_or_running = [q for q in pending_or_running
+                            if q.get("status") in ("pending", "running")]
+        if running_via_container:
             ps = next((x for x in states if x.get("site") == site and x.get("status") == "running"), None)
             if ps and (ps.get("total") or ps.get("listed")):
                 exec_txt = f"{ps.get('listed', 0)}/{ps.get('total') or '—'}"
             else:
                 exec_txt = "en cours"
+        elif pending_or_running:
+            exec_txt = "planifié"
         elif latest_done:
             st = latest_done[0].get("status")
             exec_txt = {"done": "terminé",
