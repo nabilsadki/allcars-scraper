@@ -62,7 +62,7 @@ IMAGES_DIR = os.environ.get("IMAGES_DIR", "/data/images")
 
 COLUMNS = [
     "site", "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand", "model",
-    "city", "area", "note", "note_etat", "note_achat", "note_global",
+    "city", "area", "body_type", "note", "note_etat", "note_achat", "note_global",
     "note_confiance", "version", "is_active", "seller", "phone",
     "publish_date", "last_seen_at", "nb_images", "details_fetched",
 ]
@@ -383,6 +383,7 @@ def build_filters() -> tuple[str, list]:
 
     eq("site", request.args.get("site"))
     eq("city", request.args.get("city"))
+    eq("body_type", request.args.get("body_type"))
     eq("brand", request.args.get("brand"))
     eq("model", request.args.get("model"))
     eq("fuel", request.args.get("fuel"))
@@ -588,6 +589,11 @@ def index():
     opts["models"] = model_options(request.args.get("brand", ""),
                                    request.args.get("site", ""))
     opts["sites"] = known_sites()
+    # types de vehicule présents (pour les selects de l'aide-moi)
+    opts = opts if 'opts' in locals() else {}
+    body_types = [r["body_type"] for r in query(
+        "SELECT DISTINCT body_type FROM ads WHERE body_type IS NOT NULL ORDER BY body_type")]
+    opts["body_types"] = body_types
     # annees presentes dans le catalogue (pour les selects)
     years = [r["year"] for r in query(
         "SELECT DISTINCT year FROM ads WHERE year IS NOT NULL "
@@ -634,8 +640,11 @@ def aide_moi():
     years = [r["year"] for r in query(
         "SELECT DISTINCT year FROM ads WHERE year IS NOT NULL "
         "AND year BETWEEN 1990 AND 2100 ORDER BY year DESC")]
+    body_types = [r["body_type"] for r in query(
+        "SELECT DISTINCT body_type FROM ads WHERE body_type IS NOT NULL "
+        "ORDER BY body_type")]
     return render_template("help_me.html", brands=brands, cities=cities,
-                           years=years, sites=known_sites())
+                           years=years, body_types=body_types, sites=known_sites())
 
 
 @app.route("/compare")

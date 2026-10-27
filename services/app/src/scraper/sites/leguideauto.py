@@ -101,6 +101,7 @@ class LeguideautoAdapter(SiteAdapter):
         labels = []
         if body:
             options["carrosserie"] = body
+            out["body_type"] = body
             labels.append(f"Carrosserie {body}")
         if version:
             options["version"] = version.strip()

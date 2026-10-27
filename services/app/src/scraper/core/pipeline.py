@@ -50,8 +50,16 @@ def _apply_notes(ad: dict, market=None, config=None) -> dict:
     ad["note_etat"] = v2["note_etat"]
     ad["note_achat"] = v2["note_achat"]
     ad["note_global"] = v2["note_global"]
-    ad["note_confiance"] = v2["note_confiance"]
+    ad["note_confidence"] = v2["note_confiance"]
     ad["notes_v2"] = v2
+    if not ad.get("body_type"):
+        try:
+            from .body_types import infer_body_type
+            _bt = infer_body_type(ad)
+            if _bt:
+                ad["body_type"] = _bt
+        except Exception:
+            pass
     return ad
 
 

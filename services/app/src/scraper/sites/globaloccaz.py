@@ -147,6 +147,7 @@ class GlobalOccazAdapter(SiteAdapter):
                 option_labels.append(f"Couleur {value}")
             elif key == "body_type":
                 options["carrosserie"] = value
+                out["body_type"] = value
             elif key == "source_type":
                 options["type_offre"] = value
         # le titre contient souvent "MARQUE MODELE ..." : on complete

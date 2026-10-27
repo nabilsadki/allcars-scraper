@@ -61,6 +61,13 @@
         </select>
       </label>
       <label class="flex flex-col gap-1 text-[11px] text-muted">
+        Type
+        <select name="body_type" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+          <option value="">tous</option>
+          {% for t in opts.body_types %}<option value="{{ t }}" {% if request.args.get('body_type')==t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1 text-[11px] text-muted">
         Ville
         <select name="city" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
           <option value="">toutes</option>
@@ -229,7 +236,7 @@
     {% for key in ['site','city','brand','model','fuel','gear','category',
                    'min_price','max_price','min_year','max_year','max_km',
                    'min_note_etat','min_note_achat','min_note_global','min_confiance',
-                   'with_phone','with_photos','with_price','with_details','with_price_drop','active_only'] %}
+                   'with_phone','with_photos','with_price','with_details','with_price_drop','active_only','body_type'] %}
       {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
     {% endfor %}
     <label class="text-[12px] text-muted">Trier par</label>

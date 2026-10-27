@@ -5,19 +5,44 @@
 <div id="wizard" class="max-w-3xl mx-auto">
   <div class="text-center mb-6">
     <h1 class="text-[26px] font-semibold mb-1">Aide-moi à choisir ma voiture ✨</h1>
-    <p class="text-muted">7 questions rapides — on te montre ensuite les meilleures annonces, triées par note.</p>
+    <p class="text-muted">8 questions rapides — on te montre ensuite les meilleures annonces, triées par note.</p>
     <div id="wiz-progress" class="mt-4 h-1.5 bg-panel2 border border-line rounded-full overflow-hidden">
       <div id="wiz-bar" class="h-full bg-accent transition-all duration-300" style="width: 0%"></div>
     </div>
-    <p class="text-[11.5px] text-muted mt-1.5" id="wiz-step">Question 1 / 7</p>
+    <p class="text-[11.5px] text-muted mt-1.5" id="wiz-step">Question 1 / 8</p>
   </div>
 
-  <!-- Step 1 : Budget -->
+  <!-- Step 1 : Type de véhicule -->
   <section class="wiz-step hidden" data-step="1">
+    <div class="bg-panel border border-line rounded-2xl p-8">
+      <h2 class="text-[20px] font-semibold mb-3">Quel type de véhicule recherches-tu ?</h2>
+      <p class="text-muted text-[13.5px] mb-5">Facultatif — toutes catégories si tu passes.</p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {% set types = [('SUV','SUV / 4x4','🚙'),
+                        ('Berline','Berline','🚗'),
+                        ('Citadine','Citadine','🏙️'),
+                        ('Compact','Compact','🚗'),
+                        ('Break','Break / Famille','💨'),
+                        ('Pick-up','Pick-up','🛻'),
+                        ('Monospace','Monospace','🚐'),
+                        ('Utilitaire','Utilitaire','Cargo'),
+                        ('','Peu importe','❯')] %}
+        {% for val, label, emoj in types %}
+        <button type="button" data-val="{{ val }}"
+                class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-5 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[14px] font-medium">
+          <span class="block text-[26px] mb-1">{{ emoj }}</span>{{ label }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2 : Budget -->
+  <section class="wiz-step hidden" data-step="2">
     <div class="bg-panel border border-line rounded-2xl p-8 shadow-lg">
       <h2 class="text-[20px] font-semibold mb-3">Quel est ton budget maximum ?</h2>
       <p class="text-muted text-[13.5px] mb-5">On privilégie le prix d'achat de la voiture.</p>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="choices-budget">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {% for val, label in [('80000','80 000 DH'),('100000','100 000 DH'),('125000','125 000 DH'),
                               ('150000','150 000 DH'),('180000','180 000 DH'),('200000','200 000 DH'),
                               ('250000','250 000 DH'),('300000','300 000 DH'),('500000','500 000 DH+'),('0','Pas de limite')] %}
@@ -37,8 +62,8 @@
     </div>
   </section>
 
-  <!-- Step 2 : Boîte -->
-  <section class="wiz-step hidden" data-step="2">
+  <!-- Step 3 : Boîte -->
+  <section class="wiz-step hidden" data-step="3">
     <div class="bg-panel border border-line rounded-2xl p-8">
       <h2 class="text-[20px] font-semibold mb-5">Quelle boîte de vitesses ?</h2>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -52,13 +77,12 @@
     </div>
   </section>
 
-  <!-- Step 3 : Carburant -->
-  <section class="wiz-step hidden" data-step="3">
+  <!-- Step 4 : Carburant -->
+  <section class="wiz-step hidden" data-step="4">
     <div class="bg-panel border border-line rounded-2xl p-8">
       <h2 class="text-[20px] font-semibold mb-5">Quel carburant ?</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {% for val, label, emoj in [('Diesel','Diesel','🛢️'),('Essence','Essence','🔥'),('Hybride','Hybride','♻️'),
-                                    ('GPL','GPL','💧'),('Electrique','Électrique','⚡'),('','Peu importe','❯')] %}
+        {% for val, label, emoj in [('Diesel','Diesel','🛢️'),('Essence','Essence','🔥'),('Hybride','Hybride','♻️'),('GPL','GPL','💧'),('Electrique','Électrique','⚡'),('','Peu importe','❯')] %}
         <button type="button" data-val="{{ val }}"
                 class="wiz-choice w-44 h-auto bg-panel2 text-txt border border-line rounded-xl px-4 py-6 text-center hover:border-accent hover:bg-accent/10 transition-colors cursor-pointer text-[16px] font-medium">
           <span class="block text-[28px] mb-1">{{ emoj }}</span>{{ label }}
@@ -68,8 +92,8 @@
     </div>
   </section>
 
-  <!-- Step 4 : Marque -->
-  <section class="wiz-step hidden" data-step="4">
+  <!-- Step 5 : Marque -->
+  <section class="wiz-step hidden" data-step="5">
     <div class="bg-panel border border-line rounded-2xl p-8">
       <h2 class="text-[20px] font-semibold mb-4">Tu as une marque de prédilection ?</h2>
       <p class="text-muted text-[13.5px] mb-4">Facultatif — laisse vide pour « toutes ».</p>
@@ -88,8 +112,8 @@
     </div>
   </section>
 
-  <!-- Step 5 : Année minimum -->
-  <section class="wiz-step hidden" data-step="5">
+  <!-- Step 6 : Année minimum -->
+  <section class="wiz-step hidden" data-step="6">
     <div class="bg-panel border border-line rounded-2xl p-8">
       <h2 class="text-[20px] font-semibold mb-5">Année minimum de la voiture ?</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -107,8 +131,8 @@
     </div>
   </section>
 
-  <!-- Step 6 : Km max -->
-  <section class="wiz-step hidden" data-step="6">
+  <!-- Step 7 : Km max -->
+  <section class="wiz-step hidden" data-step="7">
     <div class="bg-panel border border-line rounded-2xl p-8">
       <h2 class="text-[20px] font-semibold mb-5">Kilométrage maximum ?</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -123,8 +147,8 @@
     </div>
   </section>
 
-  <!-- Step 7 : Ville -->
-  <section class="wiz-step hidden" data-step="7">
+  <!-- Step 8 : Ville -->
+  <section class="wiz-step hidden" data-step="8">
     <div class="bg-panel border border-line rounded-2xl p-8">
       <h2 class="text-[20px] font-semibold mb-4">Dans quelle ville ?</h2>
       <p class="text-muted text-[13.5px] mb-4">Facultatif — toutes les villes si vide.</p>
@@ -137,40 +161,34 @@
       <div class="mt-6 flex items-center justify-center">
         <button type="button" id="finish-btn"
                 class="bg-accent text-onaccent border border-accent rounded-xl px-8 py-3.5 text-base font-semibold hover:opacity-90 cursor-pointer shadow-lg">
-          ✨ Voir mes résultats (les meilleures notes)
+          Voir mes résultats (les meilleures notes)
         </button>
       </div>
     </div>
   </section>
 
   <div class="mt-6 flex items-center justify-between">
-    <button type="button" id="prev-btn" class="text-muted hover:text-txt px-4 py-2 rounded-lg text-sm hidden">← Précédent</button>
+    <button type="button" id="prev-btn" class="text-muted hover:text-txt px-4 py-2 rounded-lg text-sm hidden">Précédent</button>
     <span class="flex-1"></span>
-    <span class="text-[11px] text-muted" id="skip">&nbsp;</span>
   </div>
 </div>
 
 <script>
 (function () {
-  const answers = { budget:'0', gear:'', fuel:'', brand:'', min_year:'', max_km:'0', city:'' };
-  let step = 1;
-  const total = 7;
+  const answers = { body_type:'', budget:'0', gear:'', fuel:'', brand:'', min_year:'', max_km:'0', city:'' };
+  const TOTAL = 8;
   const steps = document.querySelectorAll('.wiz-step');
   const bar = document.getElementById('wiz-bar');
   const stepLabel = document.getElementById('wiz-step');
   const prevBtn = document.getElementById('prev-btn');
 
   function showStep(n) {
-    steps.forEach((sec, i) => {
-      sec.classList.toggle('hidden', i + 1 !== n);
-    });
-    step = n;
-    bar.style.width = (n / total * 100) + '%';
-    stepLabel.textContent = 'Question ' + n + ' / ' + total;
+    steps.forEach((sec, i) => { sec.classList.toggle('hidden', i + 1 !== n); });
+    bar.style.width = (n / TOTAL * 100) + '%';
+    stepLabel.textContent = 'Question ' + n + ' / ' + TOTAL;
     if (prevBtn) prevBtn.classList.toggle('hidden', n === 1);
   }
 
-  // Highlight selected choice
   document.querySelectorAll('.wiz-step').forEach(sec => {
     sec.querySelectorAll('.wiz-choice').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -180,70 +198,53 @@
         });
         btn.classList.add('border-accent','bg-accent/15','text-accent-txt','ring-1','ring-accent','font-bold');
         btn.classList.remove('bg-panel2','text-txt','border-line');
-        // store answer
         const cur = sec.getAttribute('data-step');
-        if (cur === '1') {
-          answers.budget = btn.getAttribute('data-val') || '';
-        } else if (cur === '2') {
-          answers.gear = btn.getAttribute('data-val') || '';
-        } else if (cur === '3') {
-          answers.fuel = btn.getAttribute('data-val') || '';
-        } else if (cur === '4') {
-          answers.brand = btn.getAttribute('data-val') || '';
-        } else if (cur === '5') {
-          answers.min_year = btn.getAttribute('data-val') || '';
-        } else if (cur === '6') {
-          answers.max_km = btn.getAttribute('data-val') || '';
-        }
-        // auto advance
-        if (cur !== '7') {
-          setTimeout(() => { if (step < total) showStep(step + 1); }, 280);
-        }
+        const val = btn.getAttribute('data-val') || '';
+        if (cur === '1') { answers.body_type = val; }
+        else if (cur === '2') { answers.budget = val; }
+        else if (cur === '3') { answers.gear = val; }
+        else if (cur === '4') { answers.fuel = val; }
+        else if (cur === '5') { answers.brand = val; }
+        else if (cur === '6') { answers.min_year = val; }
+        else if (cur === '7') { answers.max_km = val; }
+        if (cur !== '8') { setTimeout(() => { if (step < TOTAL) showStep(step + 1); }, 280); }
       });
     });
   });
 
-  // Budget custom entry
   const customBtn = document.getElementById('budget-custom-btn');
   if (customBtn) {
     customBtn.addEventListener('click', () => {
       const v = document.getElementById('budget-custom').value.trim();
-      if (v) {
-        answers.budget = v;
-        showStep(2);
-      }
+      if (v) { answers.budget = v; showStep(3); }
     });
     document.getElementById('budget-custom').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { customBtn.click(); }
+      if (e.key === 'Enter') customBtn.click();
     });
   }
 
-  // Prev btn
   if (prevBtn) prevBtn.addEventListener('click', () => { if (step > 1) showStep(step - 1); });
 
-  // Finish btn
   const finishBtn = document.getElementById('finish-btn');
   if (finishBtn) {
     finishBtn.addEventListener('click', () => {
       answers.city = (document.getElementById('wiz-city') || {}).value || '';
       const params = new URLSearchParams();
-      if (answers.brand) params.set('brand', answers.brand);
+      if (answers.body_type) params.set('body_type', answers.body_type);
+      if (answers.brand && answers.brand !== '🎯 Toutes les marques') params.set('brand', answers.brand);
       if (answers.budget && answers.budget !== '0') params.set('max_price', answers.budget);
       if (answers.gear) params.set('gear', answers.gear);
       if (answers.fuel) params.set('fuel', answers.fuel);
       if (answers.min_year) params.set('min_year', answers.min_year);
       if (answers.max_km && answers.max_km !== '0') params.set('max_km', answers.max_km);
       if (answers.city) params.set('city', answers.city);
-      params.set('sort', 'note');
+      params.set('sort', 'note');  // meilleures notes d'abord
       params.set('per_page', '30');
       window.location.href = '/?' + params.toString();
     });
   }
 
-  // init
   showStep(1);
-  // pre-select sensible defaults
-  // (none) - no preselect to encourage explicit choices
 })();
 </script>
 

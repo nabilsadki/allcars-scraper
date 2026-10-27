@@ -222,6 +222,8 @@ class MoteurAdapter(SiteAdapter):
             desc = _text(html, r'id="description"[^>]*>(.*?)</div>')
         if desc and len(desc) > 20:
             out["description"] = desc
+        if out.get("body"):
+            out["body_type"] = out["body"]
         return out
 
     # -------------------------------------------------------------- images

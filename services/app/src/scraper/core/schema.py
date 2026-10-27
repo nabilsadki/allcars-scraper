@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS ads (
     seller_type     VARCHAR(64)  NULL,
     seller_id       VARCHAR(64)  NULL,
     phone           VARCHAR(64)  NULL,
+    body_type       VARCHAR(64)  NULL,
     link            VARCHAR(1024) NULL,
     description     TEXT         NULL,
     fuel            VARCHAR(64)  NULL,
