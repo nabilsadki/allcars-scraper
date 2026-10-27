@@ -157,6 +157,7 @@
       <th class="py-1 pr-2 w-20 text-center">Cadence</th>
       <th class="py-1 pr-2 text-left">Prochain run</th>
       <th class="py-1 pr-2 text-center">État</th>
+      <th class="py-1 pr-2 text-left">Exécution</th>
     </tr></thead>
     <tbody id="auto-sched" class="text-[12px]"></tbody>
   </table>
@@ -1074,6 +1075,7 @@ async function refreshAutomation() {
         '<td class="py-1 pr-2 text-center"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-16 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
         '<td class="py-1 pr-2 text-[10.5px] text-muted">' + (s.next_due || '—') + (s.last_success_at ? '  (dernier: ' + s.last_success_at + ')' : '') + '</td>' +
         '<td class="py-1 pr-2 text-center text-[10.5px] text-muted">' + (s.last_mode || '—') + '</td>' +
+        '<td class="py-1 pr-2 text-[11px] font-mono text-txt">' + (s.execution || '—') + '</td>' +
         '</tr>'
       ).join('');
       tb.querySelectorAll('.auto-enable').forEach(cb => {

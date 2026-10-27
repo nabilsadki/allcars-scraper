@@ -1006,9 +1006,42 @@ def api_scrape_logs():
 
 @app.route("/api/daemons/status")
 def api_daemons_status():
+    containers = _container_states()
+    states = progress_reader.read_all()
+    queue = automation.get_queue(200)
+    schedules = automation.get_schedules()
+    out_schedules = []
+    for srow in schedules:
+        site = srow["site"]
+        cr = containers.get(site, {})
+        running_via_container = cr.get("state") == "running"
+        # planification actuelle
+        site_queue = [q for q in queue if q.get("site") == site]
+        pending_or_running = [q for q in site_queue if q.get("status") in ("pending", "running")]
+        latest_done = [q for q in site_queue if q.get("status") not in ("pending", "running")]
+        latest_done.sort(key=lambda q: q.get("finished_at") or q.get("enqueued_at") or "", reverse=True)
+        exec_txt = ""
+        qs = None
+        if running_via_container or pending_or_running:
+            ps = next((x for x in states if x.get("site") == site and x.get("status") == "running"), None)
+            if ps and (ps.get("total") or ps.get("listed")):
+                exec_txt = f"{ps.get('listed', 0)}/{ps.get('total') or '—'}"
+            else:
+                exec_txt = "en cours"
+        elif latest_done:
+            st = latest_done[0].get("status")
+            exec_txt = {"done": "terminé",
+                        "failed": "échoué",
+                        "retries_failed": "rétries épuisés",
+                        "cancelled": "annulé"} .get(st, st or "—")
+        else:
+            exec_txt = "planifié" if srow.get("enabled") else "—"
+        srow = dict(srow)
+        srow["execution"] = exec_txt
+        out_schedules.append(srow)
     return jsonify({"dashboard": True,
                     "daemon": automation.daemon_status(),
-                    "schedules": automation.get_schedules(),
+                    "schedules": out_schedules,
                     "queue": automation.get_queue()})
 
 
