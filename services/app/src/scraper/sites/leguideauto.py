@@ -146,6 +146,29 @@ class LeguideautoAdapter(SiteAdapter):
             desc = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", m.group(1))).strip()
             if len(desc) > 20:
                 out["description"] = desc
+        # telephone : <a href="tel:+212-5-22-11-27-37" ...><span>05 22 11 27 37</span>
+        phone = None
+        mm = re.search(r'tel:([+\d\s()-]{6,})', html, re.I)
+        if mm:
+            digits = re.sub(r"[^\d]", "", mm.group(1))
+            if digits.startswith("212") and len(digits) >= 9:
+                digits = "0" + digits[3:]
+            if len(digits) >= 9:
+                phone = digits
+        if not phone:
+            mm = re.search(r'(?:tel|phone|telephone)[^\d]{0,20}(0\d[\d\s_-]{7,})', html, re.I)
+            if mm:
+                phone = re.sub(r"[^\d]", "", mm.group(1))
+                if len(phone) < 9:
+                    phone = None
+        if not phone:
+            mm = re.search(r"\b(0[5-7](?:[\s-]?\d){8,9})\b", html)
+            if mm:
+                phone = re.sub(r"[^\d]", "", mm.group(1))
+                if len(phone) < 9:
+                    phone = None
+        if phone:
+            out["phone"] = phone
         return out
 
     # -------------------------------------------------------------- images
