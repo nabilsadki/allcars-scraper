@@ -499,6 +499,38 @@ def index():
             sites = [s_ for s_ in cand_sites if s_ != r.get("site")]
         r["probably_also_on"] = sorted(sites)
 
+    # === baisse de prix detectee sur la derniere version ===
+    sites_set = {r.get("site") for r in rows if r.get("site")}
+    ids_set = {r.get("ad_id") for r in rows if r.get("ad_id")}
+    latest_price_diff = {}
+    if sites_set and ids_set:
+        qs = query(
+            "SELECT site, ad_id, version, diff_json FROM ad_versions "
+            "WHERE site IN (" + ",".join(["%s"] * len(sites_set)) + ") "
+            "AND ad_id IN (" + ",".join(["%s"] * len(ids_set)) + ") "
+            "ORDER BY version DESC",
+            tuple(sites_set) + tuple(ids_set),
+        )
+        for v in (qs or []):
+            key = (v.get("site"), v.get("ad_id"))
+            if key not in latest_price_diff:
+                latest_price_diff[key] = v
+    for r in rows:
+        v = latest_price_diff.get((r.get("site"), r.get("ad_id")))
+        drop = None
+        if v:
+            try:
+                diff = json.loads(v.get("diff_json") or "{}")
+                pr = diff.get("price") if isinstance(diff, dict) else None
+                if isinstance(pr, dict):
+                    oldp, newp = pr.get("old"), pr.get("new")
+                    if isinstance(oldp, (int, float)) and isinstance(newp, (int, float)):
+                        if oldp and newp < oldp:
+                            drop = int(round((oldp - newp) * 100.0 / oldp))
+            except Exception:
+                drop = None
+        r["price_drop_pct"] = drop
+
     # options pour les filtres
     opts = {}
     for col, label in (("city", "Villes"), ("brand", "Marques"),
@@ -589,6 +621,20 @@ def _detail(site: str, ad_id: str):
 
     # === annonces probablement presentes sur d'autres sites ===
     ad["probable_duplicates"] = _probable_duplicates(site, ad)
+
+    # === baisse de prix par rapport a la version precedente ===
+    drop = 0
+    if versions:
+        v = versions[0]
+        pr = (v.get("diff") or {}).get("price") if isinstance(v.get("diff"), dict) else None
+        if isinstance(pr, dict):
+            oldp, newp = pr.get("old"), pr.get("new")
+            try:
+                if oldp and newp is not None and float(newp) < float(oldp):
+                    drop = int(round((float(oldp)-float(newp))*100.0/float(oldp)))
+            except (TypeError, ValueError):
+                drop = 0
+    ad["price_drop_pct"] = drop
 
     return render_template("detail.html", ad=ad, images=images, versions=versions)
 

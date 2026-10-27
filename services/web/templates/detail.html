@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ ad.title[:60] }} — {{ ad.site|site_label }}{% endblock %}
+{% block title %}{{ (ad.title or 'Annonce')[:60] }} — {{ ad.site|site_label }}{% endblock %}
 {% block content %}
 
 <a class="inline-block text-muted hover:text-txt no-underline mb-3" href="/">← retour au catalogue</a>
@@ -28,8 +28,14 @@
             style="--site-hue: {{ ad.site|site_hue }}">{{ ad.site|site_label }}</span>
       <span class="text-[12px]">annonce #{{ ad.ad_id }}{% if ad.version %} · version {{ ad.version }}{% endif %}</span>
     </div>
-    <div class="text-accent-txt text-[26px] font-bold mb-2">
+    <div class="text-accent-txt text-[26px] font-bold mb-2 flex items-center gap-2 flex-wrap">
       {% if ad.price %}{{ '{:,}'.format(ad.price).replace(',', ' ') }} DH{% else %}<em class="text-muted font-normal text-[15px]">sur demande</em>{% endif %}
+      {% if ad.price_drop_pct %}
+        <span class="text-[12px] font-semibold px-2 py-0.5 rounded bg-bad/15 border border-bad/50 text-[#ffb3b3]"
+              title="baissé depuis la version précédente">
+          ↓ {{ ad.price_drop_pct }} %
+        </span>
+      {% endif %}
     </div>
     <div class="text-muted mb-4">
       {{ ad.brand or '' }} {{ ad.model or '' }}
