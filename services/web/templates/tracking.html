@@ -1092,17 +1092,26 @@ async function refreshAutomation() {
       if (qcount) qcount.textContent = q.length ? '(' + q.length + ' job' + (q.length > 1 ? 's' : '') + ')' : '';
       let html = '';
       if (pending.length) {
-        html += '<div class="flex flex-wrap gap-1.5 mb-2">' +
-          pending.map(j => {
-            const cls = j.status === 'running'
+        html += '<div class="mb-2">' +
+          '<div class="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted font-medium">' +
+            'Ordre d\'exécution prévu' +
+          '</div>' +
+          '<ul class="flex flex-col gap-1.5 list-none m-0 p-0">' +
+          pending.map((j, idx) => {
+            const running = j.status === 'running';
+            const cls = running
               ? 'border-ok/50 bg-ok/15 text-ok'
               : 'border-warn/45 bg-warn/10 text-[#ffd79a]';
-            return '<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border ' + cls + '">' +
-              '<span class="w-1.5 h-1.5 rounded-full ' + (j.status === 'running' ? 'bg-ok pulse-dot' : 'bg-warn') + '"></span>' +
-              j.site + ' &middot; ' + (j.status === 'running' ? 'en cours' : 'attente') +
-              (j.container_name ? ' <code class="text-[9px] opacity-70">' + j.container_name + '</code>' : '') +
-              '</span>';
-          }).join(' ') + '</div>';
+            return '<li class="flex items-center gap-2.5 border border-line/60 bg-panel2/40 rounded-lg px-2 py-1.5">' +
+              '<span class="text-[10px] font-mono tabular-nums text-muted w-5">#' + (idx + 1) + '</span>' +
+              '<span class="w-1.5 h-1.5 rounded-full shrink-0 ' + (running ? 'bg-ok pulse-dot' : 'bg-warn') + '"></span>' +
+              '<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none shrink-0" style="--site-hue:' + hueOf(j.site) + '">' + j.site + '</span>' +
+              '<span class="flex-1 text-[11.5px] truncate">' + (running ? 'en cours' : 'attente') +
+                (j.mode ? ' · ' + j.mode : '') + '</span>' +
+              '<span class="ml-auto text-[9.5px] text-muted/70">prio ' + j.priority + (j.container_name ? ' · ' + j.container_name : '') + '</span>' +
+            '</li>';
+          }).join('') + '</ul>' +
+          '</div>';
       }
       if (done.length) {
         html += '<div class="mt-1 border-t border-line/60 pt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-muted/70">' +
