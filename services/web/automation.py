@@ -76,10 +76,24 @@ def ensure_tables():
             cur.execute("DELETE FROM scrape_queue WHERE status IN ('done','failed',"
                         "'retries_failed','cancelled') AND "
                         "finished_at < (NOW() - INTERVAL 1 DAY)")
+            # dedup : un seul job actif par site (annule les doublons orphelins)
+            for s_ in app.known_sites():
+                name = s_.get("name")
+                if not name:
+                    continue
+                cur.execute("SELECT id FROM scrape_queue WHERE site=%s "
+                            "AND status IN ('pending','running') ORDER BY id DESC",
+                            (name,))
+                kept = [r[0] for r in cur.fetchall()]
+                for rid in kept[1:]:
+                    cur.execute("UPDATE scrape_queue SET status='cancelled', "
+                                "finished_at=NOW(), error='doublon historique' "
+                                "WHERE id=%s", (rid,))
             db.commit()
-        except Exception:
+        except Exception as e:
             try: db.rollback()
             except Exception: pass
+            print("prune/dedup err:", e, flush=True)
     finally:
         cur.close()
 
@@ -205,6 +219,14 @@ def _loop():
             print("  due raw=", due, flush=True)
             for _r in due:
                 site = _r["site"]; cadence = _r["cadence_hours"]; enabled = _r["enabled"]
+                # ne jamais re-enfiler si un scrap tourne deja sur ce site
+                try:
+                    import scrapectl as __sp
+                    if __sp.is_running(site):
+                        print("  skip enqueue (site en cours):", site, flush=True)
+                        continue
+                except Exception:
+                    pass
                 enqueue(site, mode="rescan", payload={"mode": "rescan"}, priority=3,
                         trigger_source="scheduled")
                 print("  enqueued", site, flush=True)
@@ -216,10 +238,24 @@ def _loop():
                            "WHERE status='pending' ORDER BY priority ASC, "
                            "enqueued_at ASC LIMIT 1")
             if rows:
-                print("PROCESSING queue row", rows[0].get('id'), flush=True)
                 _row = rows[0]
+                # si un autre job tourne deja sur ce site, annule celui-ci (pas d'operateur en doublon)
+                try:
+                    _other = _q(db, "SELECT id,container_name FROM scrape_queue "
+                                    "WHERE site=%s AND status='running' AND id<>%s LIMIT 1",
+                                (site, _row['id'])) if False else _q(db, "SELECT id FROM scrape_queue "
+                                    "WHERE site=%s AND status='running' AND id<>%s LIMIT 1",
+                                (_row['site'], _row['id']))
+                except Exception:
+                    _other = []
+                if _other:
+                    print("  cancel duplicate job", _row['id'], "for", _row['site'], flush=True)
+                    _exec(db, "UPDATE scrape_queue SET status='cancelled', finished_at=NOW(), "
+                              "error='remplace par un run plus recent' WHERE id=%s", (_row['id'],))
+                    continue
                 rid = _row["id"]; site = _row["site"]; mode = _row["mode"]
                 payload_json = _row.get("payload_json")
+                print("PROCESSING queue row", rid, site, flush=True)
                 if not payload_json or not str(payload_json).strip():
                     payload = {}
                 else:
