@@ -93,11 +93,26 @@
     <pre class="desc whitespace-pre-wrap bg-panel border border-line rounded-lg p-3 text-[13px] leading-relaxed font-mono">{{ ad.description }}</pre>
     {% endif %}
 
+    {% set OPT_LABELS = {
+      "car_ac": "Climatisation", "car_abs": "ABS", "car_esp": "ESP",
+      "car_rims": "Jantes alliage", "car_roof": "Toit ouvrant",
+      "cd_mp3_bt": "MP3 / Bluetooth", "car_airbags": "Airbags",
+      "car_leather": "Cuir", "car_navigation": "Navigation GPS",
+      "car_reverse_radar": "Radar de recul", "car_speed_limiter": "Limitateur de vitesse",
+      "car_cruise_control": "Régulateur / Cruise control",
+      "car_reverse_camera": "Caméra de recul",
+      "car_central_locking": "Verrouillage centralisé",
+      "car_electric_windows": "Vitres électriques",
+      "car_onboard_computer": "Ordinateur de bord"
+    } %}
     {% if ad.options %}
     <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">Équipements</h3>
     <div class="flex flex-wrap gap-1.5">
       {% for k, v in ad.options.items() %}
-        {% if v %}<span class="opt bg-panel2 border border-line rounded px-2 py-0.5 text-xs">{{ k }}</span>{% endif %}
+        {% if v %}
+        <span class="opt bg-ok/10 border border-ok/35 text-ok rounded px-2.5 py-1 text-xs">
+            {{ OPT_LABELS.get(k, (k.replace('_', ' ')).title()) }}</span>
+        {% endif %}
       {% endfor %}
     </div>
     {% endif %}
@@ -117,19 +132,6 @@
           <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_etat or '-' }}</span><small class="text-[11px] text-muted">état</small></div>
           <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_achat or '-' }}</span><small class="text-[11px] text-muted">achat</small></div>
           <div class="flex flex-col items-center"><span class="big text-[21px] font-bold text-accent-txt">{{ ad.note_confiance or '-' }}%</span><small class="text-[11px] text-muted">confiance</small></div>
-        </div>
-      </div>
-      <div class="scorebox bg-panel border border-line rounded-xl p-3">
-        <div class="sbtitle text-[12px] text-muted mb-2">Scoring legacy (inchangé)</div>
-        <div class="flex flex-wrap gap-4">
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note or '-' }}</span><small class="text-[11px] text-muted">global</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_year or '-' }}</span><small class="text-[11px] text-muted">année</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_km or '-' }}</span><small class="text-[11px] text-muted">km</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_ratio or '-' }}</span><small class="text-[11px] text-muted">ratio</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_cv or '-' }}</span><small class="text-[11px] text-muted">cv</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_fuel or '-' }}</span><small class="text-[11px] text-muted">carburant</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_gear or '-' }}</span><small class="text-[11px] text-muted">boîte</small></div>
-          <div class="flex flex-col items-center"><span class="big text-[17px] font-bold text-muted">{{ ad.note_specs or '-' }}</span><small class="text-[11px] text-muted">équipements</small></div>
         </div>
       </div>
     </div>
@@ -192,6 +194,8 @@
     {%- endmacro %}
     {% macro _fmt_val(field, value) -%}
       {%- if value is none -%}<em class="text-muted font-normal">—</em>
+      {%- elif field == 'options_json' -%}
+        {%- if value is mapping -%}{{ value.keys()|length }} équipement(s){% else %}{{ value }}{%- endif -%}
       {%- elif field in ('price', 'km', 'km_year', 'list_id', 'seller_id') and (value is number or (value|string).isdigit()) -%}
         {{ '{:,}'.format(value|int).replace(',', ' ') }}{{- ' km' if field == 'km' or field == 'km_year' else (' DH' if field == 'price' else '') -}}
       {%- else -%}{{ value }}{%- endif -%}
