@@ -145,14 +145,26 @@
   <table class="w-full text-[13px] border-collapse mb-2">
     <thead><tr class="text-[11px] text-muted uppercase tracking-wide">
       <th class="text-left py-1 pr-2 w-32">Site</th>
-      <th class="py-1 pr-2 w-24 text-center">Auto</th>
-      <th class="py-1 pr-2 w-24 text-center">Cadence (h)</th>
+      <th class="py-1 pr-2 w-20 text-center">Auto</th>
+      <th class="py-1 pr-2 w-20 text-center">Cadence</th>
       <th class="py-1 pr-2 text-left">Prochain run</th>
       <th class="py-1 pr-2 text-center">État</th>
     </tr></thead>
     <tbody id="auto-sched" class="text-[12px]"></tbody>
   </table>
-  <div class="text-[10.5px] text-muted mb-2" id="auto-queue">File vide.</div>
+
+  <details class="group border border-line/60 rounded-lg bg-panel2/30 mb-2" id="auto-queue-details">
+    <summary class="flex items-center justify-between cursor-pointer select-none px-3 py-2 text-[12px] uppercase tracking-wider text-muted hover:bg-panel2/50 transition-colors rounded-lg">
+      <span class="flex items-center gap-2">
+        File d'exécution
+        <span id="auto-queue-count" class="normal-case tracking-normal text-[10.5px] text-muted tabular-nums"></span>
+      </span>
+      <span class="text-[9.5px] text-muted/70 group-open:rotate-180 transition-transform" style="display:inline-block">▾</span>
+    </summary>
+    <div class="px-3 py-2 border-t border-line/60">
+      <div id="auto-queue" class="flex flex-wrap gap-1.5 text-[11px]"></div>
+    </div>
+  </details>
   <div class="text-[10px] text-muted/80 mt-1">
     Source d'état : DB partagée. Cadence min. 1h, max. 720h. Toggle daemon en haut à droite.
   </div>
@@ -1072,25 +1084,39 @@ async function refreshAutomation() {
       });
     }
     const qbox = document.getElementById('auto-queue');
+    const qcount = document.getElementById('auto-queue-count');
     if (qbox) {
       const q = d.queue || [];
-      if (!q.length) {
-        qbox.textContent = 'File vide.';
-      } else {
-        const pending = q.filter(j => j.status === 'pending' || j.status === 'running');
-        const done = q.filter(j => j.status !== 'pending' && j.status !== 'running');
-        let html = '';
-        if (pending.length) {
-          html += '<div class="mb-1.5">' +
-            pending.map(j => '<span class="inline-block bg-accent/15 border border-accent/40 text-accent-txt text-[10.5px] font-semibold px-2 py-0.5 rounded mr-1 mb-1">' +
-              j.site + ' &middot; ' + (j.status === 'running' ? 'en cours' : 'en attente') + '</span>').join(' ') + '</div>';
-        }
-        if (done.length) {
-          html += '<div class="text-[10px] text-muted/70 leading-snug">' +
-            done.slice(0, 8).map(j => j.site + '(' + j.status + ')').join(' · ') + '</div>';
-        }
-        qbox.innerHTML = html;
+      const pending = q.filter(j => j.status === 'pending' || j.status === 'running');
+      const done = q.filter(j => j.status !== 'pending' && j.status !== 'running');
+      if (qcount) qcount.textContent = q.length ? '(' + q.length + ' job' + (q.length > 1 ? 's' : '') + ')' : '';
+      let html = '';
+      if (pending.length) {
+        html += '<div class="flex flex-wrap gap-1.5 mb-2">' +
+          pending.map(j => {
+            const cls = j.status === 'running'
+              ? 'border-ok/50 bg-ok/15 text-ok'
+              : 'border-warn/45 bg-warn/10 text-[#ffd79a]';
+            return '<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border ' + cls + '">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + (j.status === 'running' ? 'bg-ok pulse-dot' : 'bg-warn') + '"></span>' +
+              j.site + ' &middot; ' + (j.status === 'running' ? 'en cours' : 'attente') +
+              (j.container_name ? ' <code class="text-[9px] opacity-70">' + j.container_name + '</code>' : '') +
+              '</span>';
+          }).join(' ') + '</div>';
       }
+      if (done.length) {
+        html += '<div class="mt-1 border-t border-line/60 pt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-muted/70">' +
+          done.slice(0, 12).map(j => {
+            const dotCls = j.status === 'failed' || j.status === 'retries_failed' ? 'text-bad' :
+                           j.status === 'done' ? 'text-ok' : 'text-muted';
+            return '<span class="inline-flex items-center gap-1"><span class="w-1 h-1 rounded-full ' + (dotCls.replace('text-','bg-')) + '"></span>' +
+              j.site + ' · ' + j.status + '</span>';
+          }).join(' ') +
+          (done.length > 12 ? (' <span class="text-muted/50">+' + (done.length - 12) + ' autres terminés</span>') : '') +
+          '</div>';
+      }
+      if (!pending.length && !done.length) html = '<p class="text-[11px] text-muted m-0 py-1">Aucun job en file.</p>';
+      qbox.innerHTML = html;
     }
     const metam = document.getElementById('auto-meta');
     if (metam) metam.textContent = d.daemon.enabled ? 'daemon ON' : 'daemon OFF';
