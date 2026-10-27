@@ -141,16 +141,22 @@
       <div class="bcol">
         <h4 class="text-[12px] uppercase tracking-wider text-muted m-0 mb-1.5">Critères d'état</h4>
         <table class="w-full text-[12.5px] border-collapse">
+          {% set DET_LABELS = {'doors':'Portes','etat':'État','first_hand':'1er main',
+              'km':'Km','origine':'Origine','ratio':'Ratio',
+              'specs':'Équipements','year':'Année'} %}
           {% for k, v in (v2.get('detail_etat') or {}).items() %}
-          <tr class="border-b border-line"><td class="py-0.5">{{ k }}</td><td class="py-0.5 text-right text-accent-txt font-semibold">{{ v if v is not none else '—' }}</td></tr>
+          <tr class="border-b border-line"><td class="py-0.5">{{ DET_LABELS.get(k, k) }}</td><td class="py-0.5 text-right text-accent-txt font-semibold">{{ v if v is not none else '—' }}</td></tr>
           {% endfor %}
         </table>
       </div>
       <div class="bcol">
         <h4 class="text-[12px] uppercase tracking-wider text-muted m-0 mb-1.5">Critères d'achat</h4>
         <table class="w-full text-[12.5px] border-collapse">
+          {% set ACH_LABELS = {'prix_par_annee_restante':'Prix / an restant',
+              'prix_par_km':'Prix / km','prix_vs_marche':'Prix vs marché',
+              'valeur_pour_prix':'Valeur / prix'} %}
           {% for k, v in (v2.get('detail_achat') or {}).items() %}
-          <tr class="border-b border-line"><td class="py-0.5">{{ k.replace('_', ' ') }}</td><td class="py-0.5 text-right text-accent-txt font-semibold">{{ v if v is not none else '—' }}</td></tr>
+          <tr class="border-b border-line"><td class="py-0.5">{{ ACH_LABELS.get(k, k.replace('_',' ').title()) }}</td><td class="py-0.5 text-right text-accent-txt font-semibold">{{ v if v is not none else '—' }}</td></tr>
           {% endfor %}
         </table>
         {% if v2.get('achat_info') %}
