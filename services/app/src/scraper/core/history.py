@@ -84,7 +84,7 @@ def content_hash(ad: dict) -> str:
 # et la fiche detail, ce qui creerait des faux positifs a chaque passage.
 # Ils restent stockes, filtrables et visibles dans le snapshot.
 CHANGE_TRIGGER_FIELDS = [
-    f for f in SIGNIFICANT_FIELDS
+    f for f in (SIGNIFICANT_FIELDS + ["price_anomaly", "price_anomaly_reason"])
     if f not in ("is_premium", "is_urgent", "is_hot_deal", "nb_images")
 ]
 

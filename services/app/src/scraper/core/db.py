@@ -167,7 +167,7 @@ class Database:
                 ("note_etat", "DECIMAL(4,2) NULL"),
                 ("note_achat", "DECIMAL(4,2) NULL"),
                 ("note_global", "DECIMAL(4,2) NULL"),
-                ("note_confiance", "DECIMAL(4,2) NULL"),
+                ("note_confiance", "DECIMAL(5,2) NULL"),
                 ("fiscal_power", "VARCHAR(64) NULL"),
             ("body_type", "VARCHAR(64) NULL"),
             ("price_anomaly", "TINYINT(1) DEFAULT 0"),
@@ -252,6 +252,11 @@ class Database:
         try:
             self.cur.execute("UPDATE scrape_runs SET site = 'avito' "
                              "WHERE site IS NULL")
+        except Exception:
+            pass
+        # --- ALTER durable colonne note_confiance (4,2 -> 5,2) ---
+        try:
+            self.cur.execute("ALTER TABLE ads MODIFY COLUMN note_confiance DECIMAL(5,2) NULL")
         except Exception:
             pass
         if added:

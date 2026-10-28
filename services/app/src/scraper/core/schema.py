@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS ads (
     note_etat       DECIMAL(4,2) NULL,
     note_achat      DECIMAL(4,2) NULL,
     note_global     DECIMAL(4,2) NULL,
-    note_confiance  DECIMAL(4,2) NULL,
+    note_confiance  DECIMAL(5,2) NULL,
     created         DATETIME     DEFAULT CURRENT_TIMESTAMP,
     updated         DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     scraped_at      DATETIME     DEFAULT CURRENT_TIMESTAMP,
