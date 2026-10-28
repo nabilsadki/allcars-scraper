@@ -136,7 +136,8 @@ def cmd_score(args) -> int:
         market = MarketStats(db)
     except Exception:
         market = None
-    sql = ("SELECT ad_id, raw_json FROM ads WHERE site = %s"
+    sql = ("SELECT ad_id, brand, model, year, price, km, category, raw_json "
+           "FROM ads WHERE site = %s"
            + (" AND category = %s" if args.category else "")
            + " ORDER BY ad_id")
     params: list = [site.name]
@@ -151,11 +152,19 @@ def cmd_score(args) -> int:
         try:
             ad = json.loads(r["raw_json"])
         except Exception:
-            continue
-        if not ad.get("ad_id"):
-            ad["ad_id"] = r.get("ad_id")
-        if not ad.get("site"):
-            ad["site"] = site.name
+            ad = {}
+        ad.setdefault("ad_id", r.get("ad_id"))
+        ad.setdefault("site", site.name)
+        ad.setdefault("brand", r.get("brand"))
+        ad.setdefault("model", r.get("model"))
+        if ad.get("year") is None and r.get("year") is not None:
+            ad["year"] = r["year"]
+        if ad.get("price") is None and r.get("price") is not None:
+            ad["price"] = r["price"]
+        if ad.get("km") is None and r.get("km") is not None:
+            ad["km"] = r["km"]
+            ad.setdefault("mileage_km", r.get("km"))
+        ad.setdefault("category", r.get("category"))
         # _apply_notes englobe scoring legacy + v2 + body_type + anomalie prix
         try:
             from .core.pipeline import _apply_notes
