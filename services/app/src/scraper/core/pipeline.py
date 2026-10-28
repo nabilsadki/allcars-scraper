@@ -99,7 +99,7 @@ def _apply_notes(ad: dict, market=None, config=None) -> dict:
                 mn, mx, avg, nseg = bounds
                 ratio, _label, nseg2 = market.price_ratio(ad)
                 if ratio and nseg >= getattr(market, "min_sample", 5):
-                    if ratio > 4:
+                    if ratio > 3:
                         _reason = "prix trop élevé pour le segment"
                     elif ratio < 0.3:
                         _reason = "prix trop bas pour le segment"
