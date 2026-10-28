@@ -1437,6 +1437,60 @@ def api_queue():
     out = pending + completed
     return jsonify({"queue": out})
 
+@app.route("/api/price-evolution")
+def api_price_evolution():
+    """Min/max/moyenne du prix par annee pour un segment (brand + model).
+
+    Utilise pour le graphique d'evolution des prix sur la fiche d'annonce.
+    `site` optionnel (tout site confondu par defaut).
+    """
+    brand = (request.args.get("brand") or "").strip()
+    model = (request.args.get("model") or "").strip()
+    site = (request.args.get("site") or "").strip()
+    ymin = request.args.get("ymin"); ymax = request.args.get("ymax")
+    try:
+        ymin = int(ymin) if ymin else 1990
+    except (TypeError, ValueError):
+        ymin = 1990
+    try:
+        ymax = int(ymax) if ymax else 2030
+    except (TypeError, ValueError):
+        ymax = 2030
+
+    if not brand or not model:
+        return jsonify({"segment": None, "years": [], "min": [],
+                        "max": [], "mean": [], "n": []})
+
+    params = [brand, model, ymin, ymax]
+    extra = ""
+    if site:
+        extra = " AND site = %s"
+        params.insert(2, site)  # brand, model, site, ymin, ymax
+    rows = query("SELECT year, MIN(price) AS mn, MAX(price) AS mx, "
+                 "ROUND(AVG(price)) AS mean, COUNT(*) AS n "
+                 "FROM ads WHERE brand = %s AND model = %s "
+                 + ("AND site = %s " if site else "")
+                 + "AND price IS NOT NULL AND year IS NOT NULL "
+                 "AND year BETWEEN %s AND %s "
+                 "GROUP BY year HAVING COUNT(*) >= 5 "
+                 "ORDER BY year", tuple(params))
+    years = [r["year"] for r in rows]
+    mins = [int(r["mn"]) if r["mn"] is not None else None for r in rows]
+    maxs = [int(r["mx"]) if r["mx"] is not None else None for r in rows]
+    means = [float(r["mean"]) if r["mean"] is not None else None for r in rows]
+    ns = [int(r["n"]) for r in rows]
+    return jsonify({
+        "segment": f"{brand} {model}",
+        "site_filter": site or None,
+        "years": years,
+        "min": mins,
+        "max": maxs,
+        "mean": means,
+        "n": ns,
+        "ymin": ymin,
+        "ymax": ymax,
+    })
+
 @app.route("/health")
 def health():
     return {"ok": True, "time": datetime.now().isoformat()}

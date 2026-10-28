@@ -269,6 +269,90 @@
     </div>
     {% endif %}
 
+
+    {# ---- graphique evolution des prix par millésime ---- #}
+    <div class="bg-panel border border-line rounded-xl p-4 mt-6">
+      <div class="flex flex-wrap items-center gap-3 mb-3">
+        <h3 class="text-[15px] uppercase tracking-wider text-muted m-0">Évolution du prix par millésime</h3>
+        <span class="text-[11.5px] text-muted/80">(barres : min / max ; courbe : moyenne)</span>
+      </div>
+      <div class="h-[260px]"><canvas id="priceEvoCanvas"></canvas></div>
+      <p class="text-[10.5px] text-muted/70 mt-1.5 mb-0" id="priceEvoStatus">
+        Chargement des données…
+      </p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
+    <script>
+    (function () {
+      const BRAND = {{ (ad.brand or '')|tojson if ad.brand else '""' }};
+      const MODEL = {{ (ad.model or '')|tojson if ad.model else '""' }};
+      function init() {
+        if (typeof Chart === 'undefined') { setTimeout(init, 250); return; }
+        const canvas = document.getElementById('priceEvoCanvas');
+        if (!canvas || !BRAND || !MODEL) {
+          const el = document.getElementById('priceEvoStatus');
+          if (el) el.textContent = 'Marque / modele non saisi pour cet segment.';
+          return;
+        }
+        fetch('/api/price-evolution?brand=' + encodeURIComponent(BRAND) + '&model=' + encodeURIComponent(MODEL))
+          .then(r => r.json())
+          .then(data => {
+            const years = data.years || [];
+            if (!years.length) {
+              const el = document.getElementById('priceEvoStatus');
+              if (el) el.textContent = 'Pas suffisamment de donnees pour ' + (data.segment || BRAND + ' ' + MODEL) + '.';
+              return;
+            }
+            new Chart(canvas, {
+              data: {
+                labels: years,
+                datasets: [
+                  { type: 'bar', label: 'Prix min', data: data.min,
+                    backgroundColor: 'rgba(96,165,250,0.25)', borderRadius: 3,
+                    barPercentage: 0.45, categoryPercentage: 0.6 },
+                  { type: 'bar', label: 'Prix max', data: data.max,
+                    backgroundColor: 'rgba(59,130,246,0.55)', borderRadius: 3,
+                    barPercentage: 0.45, categoryPercentage: 0.6 },
+                  { type: 'line', label: 'Moyenne', data: data.mean,
+                    borderColor: '#a78bfa', borderWidth: 2,
+                    pointRadius: 3, pointBackgroundColor: '#a78bfa',
+                    tension: 0.25, fill: false, yAxisID: 'y' }
+                ]
+              },
+              options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                  legend: { labels: { color: '#9ca3af', boxWidth: 12, padding: 8, font: { size: 11 } } },
+                  tooltip: { callbacks: { label: function (c) {
+                    const v = c.parsed.y;
+                    if (v === null || v === undefined) return null;
+                    return c.dataset.label + ' : ' + v.toLocaleString('fr-FR') + ' DH';
+                  } } }
+                },
+                scales: {
+                  x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 11 } } },
+                  y: { beginAtZero: false, ticks: { color: '#9ca3af', font: { size: 10 },
+                      callback: function (v) { return v.toLocaleString('fr-FR') + ' DH'; } } }
+                }
+              }
+            });
+            const el = document.getElementById('priceEvoStatus');
+            if (el) el.textContent = data.segment + ' · ' + years.length + ' millesimes · ' + (data.n || []).reduce((a,b)=>a+b,0) + ' annonces';
+          })
+          .catch(function (e) {
+            const el = document.getElementById('priceEvoStatus');
+            if (el) el.textContent = 'Erreur : ' + e;
+          });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+    </script>
     {% if versions %}
     <h3 class="text-[15px] uppercase tracking-wider text-muted mt-6 mb-2">
       Historique — versions ({{ versions|length }})
