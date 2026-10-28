@@ -338,16 +338,13 @@
                         const mean = (window._priceRange || {}).mean;
                         const i = c.dataIndex || 0;
                         const lines = [
-                          'Min : ' + ((mn && mn[i]) !== null ? (mn[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
-                          'Max : ' + ((mx && mx[i]) !== null ? (mx[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
-                          'Moyenne : ' + ((mean && mean[i]) !== null ? Math.round(mean[i]||0).toLocaleString('fr-FR') : '—') + ' DH'
+                          'Min       : ' + ((mn && mn[i]) !== null ? (mn[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
+                          'Max       : ' + ((mx && mx[i]) !== null ? (mx[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
+                          'Moyenne   : ' + ((mean && mean[i]) !== null ? Math.round(mean[i]||0).toLocaleString('fr-FR') : '—') + ' DH'
                         ];
                         return lines;
                       }
-                      if (v && v.y === null) return null;
-                      const yv = (v && (v.y || v)) ;
-                      if (yv === null || yv === undefined) return null;
-                      return c.dataset.label + ' : ' + (Number(yv)||0).toLocaleString('fr-FR') + ' DH';
+                      return null;  // ne pas re-afficher la ligne "Moyenne" (+double)
                     }
                   } }
                 },
