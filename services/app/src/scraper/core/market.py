@@ -57,6 +57,20 @@ class MarketStats:
             self.by_brand[(r["brand"], r["year"])] = r
 
     # ------------------------------------------------------------------ api
+    def segment_bounds(self, ad: dict) -> Optional[tuple[float, float, float, int]]:
+        """Retourne (min, max, moyenne, n) du segment de l'annonce ; None sinon."""
+        brand, model, year = ad.get("brand"), ad.get("model"), ad.get("year")
+        if not (brand and year):
+            return None
+        ref = self.by_model.get((brand, model, year))
+        if not ref or ref.get("n", 0) < self.min_sample:
+            ref = self.by_brand.get((brand, year))
+        if not ref or ref.get("n", 0) < self.min_sample:
+            return None
+        mn = ref.get("min_p"); mx = ref.get("max_p"); avg = ref.get("avg_p")
+        n = ref.get("n", 0)
+        return (mn, mx, avg, n)
+
     def price_ratio(self, ad: dict) -> tuple[Optional[float], Optional[str], int]:
         """(prix / prix de reference, libelle du segment, taille de l'echantillon)."""
         price = ad.get("price")

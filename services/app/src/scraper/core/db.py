@@ -170,6 +170,8 @@ class Database:
                 ("note_confiance", "DECIMAL(4,2) NULL"),
                 ("fiscal_power", "VARCHAR(64) NULL"),
             ("body_type", "VARCHAR(64) NULL"),
+            ("price_anomaly", "TINYINT(1) DEFAULT 0"),
+            ("price_anomaly_reason", "VARCHAR(128) NULL"),
                 ("sector", "VARCHAR(128) NULL"),
                 ("list_id", "BIGINT NULL"),
                 ("area", "VARCHAR(128) NULL"),
@@ -302,6 +304,8 @@ class Database:
             "model": ad.get("model"),
             "doors": ad.get("doors"),
             "body_type": ad.get("body_type"),
+            "price_anomaly": (1 if ad.get("price_anomaly") else 0),
+            "price_anomaly_reason": ad.get("price_anomaly_reason"),
             "origin": ad.get("origin"),
             "first_hand": ad.get("first_hand"),
             "cond": ad.get("cond"),
@@ -461,7 +465,7 @@ class Database:
         cols = ["note", "note_year", "note_km", "note_ratio", "note_cv",
                 "note_sunroof", "note_fuel", "note_gear", "note_specs",
                 "km_year", "note_etat", "note_achat", "note_global",
-                "note_confiance"]
+                "note_confiance", "price_anomaly", "price_anomaly_reason"]
         sets, vals = [], []
         for c in cols:
             if c in ad and ad.get(c) is not None:

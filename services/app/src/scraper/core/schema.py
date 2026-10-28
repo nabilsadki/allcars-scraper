@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS ads (
     seller_id       VARCHAR(64)  NULL,
     phone           VARCHAR(64)  NULL,
     body_type       VARCHAR(64)  NULL,
+    price_anomaly    TINYINT(1)    NULL,
+    price_anomaly_reason VARCHAR(128) NULL,
     link            VARCHAR(1024) NULL,
     description     TEXT         NULL,
     fuel            VARCHAR(64)  NULL,

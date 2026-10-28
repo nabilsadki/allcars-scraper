@@ -34,6 +34,23 @@ from .site import SiteAdapter
 
 def _apply_notes(ad: dict, market=None, config=None) -> dict:
     """Applique le scoring legacy ET le scoring v2 sur l'annonce."""
+    # normalisation type : certains adapters seportent des year/km en chaine
+    for _k in ("year", "km"):
+        if _k in ad and isinstance(ad[_k], str):
+            try:
+                ad[_k] = int(float(ad[_k].strip()))
+            except (ValueError, TypeError):
+                pass
+    if "mileage_km" in ad and isinstance(ad["mileage_km"], str):
+        try:
+            ad["mileage_km"] = int(float(ad["mileage_km"].strip()))
+        except (ValueError, TypeError):
+            pass
+    if "price" in ad and isinstance(ad["price"], str):
+        try:
+            ad["price"] = int(float(ad["price"].strip()))
+        except (ValueError, TypeError):
+            pass
     notes = compute_notes(ad)
     ad["note"] = notes["global"]
     ad["note_year"] = notes["annee"]
@@ -52,6 +69,42 @@ def _apply_notes(ad: dict, market=None, config=None) -> dict:
     ad["note_global"] = v2["note_global"]
     ad["note_confidence"] = v2["note_confiance"]
     ad["notes_v2"] = v2
+    v2 = compute_notes_v2(ad, market=market, config=config)
+    ad["note_etat"] = v2["note_etat"]
+    ad["note_achat"] = v2["note_achat"]
+    ad["note_global"] = v2["note_global"]
+    ad["note_confiance"] = v2["note_confiance"]
+    ad["notes_v2"] = v2
+
+    # --- price anomaly detection (expose via price_anomaly / price_anomaly_reason)
+    _reason = None
+    _price = ad.get("price")
+    if _price is not None:
+        try:
+            price = float(_price)
+        except (TypeError, ValueError):
+            price = None
+        if price is not None and price < 0:
+            _reason = "prix négatif"
+        elif price is not None and market is not None:
+            try:
+                bounds = market.segment_bounds(ad)
+            except Exception:
+                bounds = None
+            if bounds:
+                mn, mx, avg, nseg = bounds
+                ratio, _label, nseg2 = market.price_ratio(ad)
+                if ratio and nseg >= getattr(market, "min_sample", 5):
+                    if ratio > 4:
+                        _reason = "prix trop élevé pour le segment"
+                    elif ratio < 0.3:
+                        _reason = "prix trop bas pour le segment"
+        ad["price_anomaly"] = (1 if _reason else 0)
+        ad["price_anomaly_reason"] = _reason
+    else:
+        ad["price_anomaly"] = 0
+        ad["price_anomaly_reason"] = None
+
     if not ad.get("body_type"):
         try:
             from .body_types import infer_body_type

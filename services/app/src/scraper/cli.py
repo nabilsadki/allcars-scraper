@@ -152,12 +152,17 @@ def cmd_score(args) -> int:
             ad = json.loads(r["raw_json"])
         except Exception:
             continue
-        v2 = compute_notes_v2(ad, market=market, config=config)
-        ad["note_etat"] = v2["note_etat"]
-        ad["note_achat"] = v2["note_achat"]
-        ad["note_global"] = v2["note_global"]
-        ad["note_confiance"] = v2["note_confiance"]
-        ad["notes_v2"] = v2
+        # _apply_notes englobe scoring legacy + v2 + body_type + anomalie prix
+        try:
+            from .core.pipeline import _apply_notes
+            ad = _apply_notes(ad, market=market, config=config)
+        except Exception:
+            v2 = compute_notes_v2(ad, market=market, config=config)
+            ad["note_etat"] = v2["note_etat"]
+            ad["note_achat"] = v2["note_achat"]
+            ad["note_global"] = v2["note_global"]
+            ad["note_confiance"] = v2["note_confiance"]
+            ad["notes_v2"] = v2
         db.upsert_ad(ad, site=site.name)
         n += 1
     db.commit()
