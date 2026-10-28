@@ -31,7 +31,7 @@ class MarketStats:
             rows = self.db.query(
                 "SELECT brand, model, year, COUNT(*) AS n, AVG(price) AS avg_p, "
                 "MIN(price) AS min_p, MAX(price) AS max_p "
-                "FROM ads WHERE site='avito' AND price IS NOT NULL "
+                "FROM ads WHERE site='avito' AND price IS NOT NULL AND price BETWEEN 10000 AND 3000000 "
                 "AND brand IS NOT NULL AND year IS NOT NULL "
                 "GROUP BY brand, model, year"
             )
@@ -45,7 +45,7 @@ class MarketStats:
         try:
             rows = self.db.query(
                 "SELECT brand, year, COUNT(*) AS n, AVG(price) AS avg_p "
-                "FROM ads WHERE site='avito' AND price IS NOT NULL "
+                "FROM ads WHERE site='avito' AND price IS NOT NULL AND price BETWEEN 10000 AND 3000000 "
                 "AND brand IS NOT NULL AND year IS NOT NULL "
                 "GROUP BY brand, year"
             )

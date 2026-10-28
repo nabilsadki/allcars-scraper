@@ -84,7 +84,11 @@ def _apply_notes(ad: dict, market=None, config=None) -> dict:
             price = float(_price)
         except (TypeError, ValueError):
             price = None
-        if price is not None and price < 0:
+        if price is not None and price < 10000:
+            _reason = "prix inférieur à 10 000 DH"
+        elif price is not None and price > 3000000:
+            _reason = "prix supérieur à 3 000 000 DH"
+        elif price is not None and price < 0:
             _reason = "prix négatif"
         elif price is not None and market is not None:
             try:
