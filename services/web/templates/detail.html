@@ -338,9 +338,9 @@
                         const mean = (window._priceRange || {}).mean;
                         const i = c.dataIndex || 0;
                         const lines = [
-                          'Min       : ' + ((mn && mn[i]) !== null ? (mn[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
-                          'Max       : ' + ((mx && mx[i]) !== null ? (mx[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
-                          'Moyenne   : ' + ((mean && mean[i]) !== null ? Math.round(mean[i]||0).toLocaleString('fr-FR') : '—') + ' DH'
+                          '\ud83d\udd35 Min       : ' + ((mn && mn[i]) !== null ? (mn[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
+                          '\ud83d\udd34 Max       : ' + ((mx && mx[i]) !== null ? (mx[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
+                          '\ud83d\udf63 Moyenne   : ' + ((mean && mean[i]) !== null ? Math.round(mean[i]||0).toLocaleString('fr-FR') : '—') + ' DH'
                         ];
                         return lines;
                       }
