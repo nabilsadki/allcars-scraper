@@ -184,6 +184,7 @@
   const prevBtn = document.getElementById('prev-btn');
 
   function showStep(n) {
+    step = n;
     steps.forEach((sec, i) => { sec.classList.toggle('hidden', i + 1 !== n); });
     bar.style.width = (n / TOTAL * 100) + '%';
     stepLabel.textContent = 'Question ' + n + ' / ' + TOTAL;
@@ -208,7 +209,8 @@
         else if (cur === '5') { answers.brand = val; }
         else if (cur === '6') { answers.min_year = val; }
         else if (cur === '7') { answers.max_km = val; }
-        if (cur !== '8') { setTimeout(() => { if (step < TOTAL) showStep(step + 1); }, 280); }
+        console.log('clicked on step ' + cur + ' stepVar=' + step);
+      if (cur !== '8') { setTimeout(() => { console.log('timer firing, stepVar=' + step); if (step < TOTAL) showStep(step + 1); }, 280); }
       });
     });
   });
