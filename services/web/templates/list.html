@@ -205,6 +205,14 @@
         <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-ok/15 peer-checked:text-ok">↓ prix en baisse</span>
       </label>
       <label class="cursor-pointer">
+        <input type="checkbox" name="exclude_anomalies" value="1" class="peer sr-only" {% if request.args.get('exclude_anomalies')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-bad/15 peer-checked:text-bad">🛡︎ exclure anomalies</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="checkbox" name="only_anomalies" value="1" class="peer sr-only" {% if request.args.get('only_anomalies')=='1' %}checked{% endif %}>
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-warn/15 peer-checked:text-warn">⚠︎ anormal uniquement</span>
+      </label>
+      <label class="cursor-pointer">
         <input type="checkbox" name="active_only" value="1" class="peer sr-only" {% if request.args.get('active_only')=='1' %}checked{% endif %}>
         <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-3 py-1.5 text-[13px] text-muted transition-colors hover:border-accent peer-checked:border-accent peer-checked:bg-accent/15 peer-checked:text-accent-txt">👁 actives</span>
       </label>
@@ -236,7 +244,7 @@
     {% for key in ['site','city','brand','model','fuel','gear','category',
                    'min_price','max_price','min_year','max_year','max_km',
                    'min_note_etat','min_note_achat','min_note_global','min_confiance',
-                   'with_phone','with_photos','with_price','with_details','with_price_drop','active_only','body_type'] %}
+                   'with_phone','with_photos','with_price','with_details','with_price_drop','exclude_anomalies','only_anomalies','body_type'] %}
       {% if request.args.get(key) %}<input type="hidden" name="{{ key }}" value="{{ request.args.get(key) }}">{% endif %}
     {% endfor %}
     <label class="text-[12px] text-muted">Trier par</label>
@@ -298,6 +306,13 @@
               {{ '{:,}'.format(r.price_drop_old).replace(',', ' ') }} DH
             </span>
           {% endif %}
+        </span>
+      {% endif %}
+      {% if r.price_anomaly %}
+        <span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded
+                     bg-bad/15 border border-bad/50 text-bad"
+              title="{{ r.price_anomaly_reason or 'prix anormal' }}">
+          ⚠︎ prix atypique
         </span>
       {% endif %}
       {% if r.probably_also_on %}

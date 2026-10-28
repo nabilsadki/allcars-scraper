@@ -65,6 +65,7 @@ COLUMNS = [
     "site", "ad_id", "title", "price", "year", "km", "fuel", "gear", "brand", "model",
     "city", "area", "body_type", "note", "note_etat", "note_achat", "note_global",
     "note_confiance", "version", "is_active", "seller", "phone",
+    "price_anomaly", "price_anomaly_reason",
     "publish_date", "last_seen_at", "nb_images", "details_fetched",
 ]
 
@@ -344,7 +345,10 @@ FILTER_LABELS = [
     ("min_note_global", "Note globale"), ("min_confiance", "Confiance"),
     ("with_phone", "Téléphone"), ("with_photos", "Photos"),
     ("with_price", "Prix"), ("with_details", "Fiche complète"),
-    ("with_price_drop", "Prix en baisse"), ("active_only", "Actives"),
+    ("with_price_drop", "Prix en baisse"),
+    ("exclude_anomalies", "Anomalies exclues"),
+    ("only_anomalies", "Anomalies uniquement"),
+    ("active_only", "Actives"),
 ]
 
 
@@ -357,7 +361,8 @@ def active_filters() -> list[dict]:
             continue
         rest = [(k, v) for k, v in request.args.items() if k != key]
         # les cases a cocher n'ont pas de valeur a afficher ("1")
-        if key.startswith("with_") or key == "active_only":
+        if (key.startswith("with_") or key in ("active_only", "exclude_anomalies",
+                   "only_anomalies")):
             value = ""
         out.append({
             "key": key,
@@ -415,6 +420,10 @@ def build_filters() -> tuple[str, list]:
         where.append("price IS NOT NULL")
     if request.args.get("with_details") == "1":
         where.append("details_fetched = 1")
+    if request.args.get("exclude_anomalies") == "1":
+        where.append("(price_anomaly = 0 OR price IS NULL)")
+    if request.args.get("only_anomalies") == "1":
+        where.append("(price_anomaly = 1)")
     if request.args.get("with_price_drop") == "1":
         where.append("""EXISTS (
             SELECT 1 FROM ad_versions v

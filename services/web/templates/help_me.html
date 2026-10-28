@@ -238,6 +238,7 @@
       if (answers.min_year) params.set('min_year', answers.min_year);
       if (answers.max_km && answers.max_km !== '0') params.set('max_km', answers.max_km);
       if (answers.city) params.set('city', answers.city);
+      params.set('exclude_anomalies', '1');  // ignore les prix aberrants
       params.set('sort', 'note');  // meilleures notes d'abord
       params.set('per_page', '30');
       window.location.href = '/?' + params.toString();
