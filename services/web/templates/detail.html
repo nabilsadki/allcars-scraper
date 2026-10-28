@@ -299,6 +299,7 @@
           .then(r => r.json())
           .then(data => {
             const years = data.years || [];
+            window._priceRange = { years, min: data.min, max: data.max, mean: data.mean };
             if (!years.length) {
               const el = document.getElementById('priceEvoStatus');
               if (el) el.textContent = 'Pas suffisamment de donnees pour ' + (data.segment || BRAND + ' ' + MODEL) + '.';
@@ -326,11 +327,29 @@
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                   legend: { labels: { color: '#9ca3af', boxWidth: 12, padding: 8, font: { size: 11 } } },
-                  tooltip: { callbacks: { label: function (c) {
-                    const v = c.parsed.y;
-                    if (v === null || v === undefined) return null;
-                    return c.dataset.label + ' : ' + v.toLocaleString('fr-FR') + ' DH';
-                  } } }
+                  tooltip: { callbacks: {
+                    title: function (ctx) { return ctx && ctx[0] ? 'Annee ' + ctx[0].label : ''; },
+                    label: function (c) {
+                      if (!c) return null;
+                      const v = c.parsed;
+                      if (c.dataset.label === 'Fourchette min->max') {
+                        const mn = (window._priceRange || {}).min;
+                        const mx = (window._priceRange || {}).max;
+                        const mean = (window._priceRange || {}).mean;
+                        const i = c.dataIndex || 0;
+                        const lines = [
+                          'Min : ' + ((mn && mn[i]) !== null ? (mn[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
+                          'Max : ' + ((mx && mx[i]) !== null ? (mx[i]||0).toLocaleString('fr-FR') : '—') + ' DH',
+                          'Moyenne : ' + ((mean && mean[i]) !== null ? Math.round(mean[i]||0).toLocaleString('fr-FR') : '—') + ' DH'
+                        ];
+                        return lines;
+                      }
+                      if (v && v.y === null) return null;
+                      const yv = (v && (v.y || v)) ;
+                      if (yv === null || yv === undefined) return null;
+                      return c.dataset.label + ' : ' + (Number(yv)||0).toLocaleString('fr-FR') + ' DH';
+                    }
+                  } }
                 },
                 scales: {
                   x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 11 } } },
