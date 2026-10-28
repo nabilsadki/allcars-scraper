@@ -1471,7 +1471,9 @@ def api_price_evolution():
                  "FROM ads WHERE brand = %s AND model = %s "
                  + ("AND site = %s " if site else "")
                  + "AND price IS NOT NULL AND year IS NOT NULL "
+                 "AND price BETWEEN 10000 AND 3000000 "
                  "AND year BETWEEN %s AND %s "
+                 "AND (price_anomaly = 0 OR price_anomaly IS NULL) "
                  "GROUP BY year HAVING COUNT(*) >= 5 "
                  "ORDER BY year", tuple(params))
     years = [r["year"] for r in rows]
