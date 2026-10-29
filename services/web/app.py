@@ -1604,6 +1604,53 @@ def _brand_logo_url(brand: str) -> str | None:
 
 app.jinja_env.filters["brand_logo_url"] = _brand_logo_url
 
+@app.route("/api/reindex/status")
+def api_reindex_status():
+    # annonces presentes dans le scrapper
+    db_count = 0
+    try:
+        rows = query("SELECT COUNT(*) n FROM ads")
+        if rows:
+            r = rows[0]
+            db_count = int((r.get("n") if isinstance(r, dict) else r[1]) or 0)
+    except Exception:
+        pass
+    # etat de l'index via le site public
+    site_status = {"error": "indisponible"}
+    import urllib.request, json as _j
+    url = None
+    try:
+        import scrapectl as _sp
+        url = getattr(_sp, "SITE_REINDEX_URL", "")
+    except Exception:
+        url = ""
+    if url:
+        req = urllib.request.Request(url)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                site_status = _j.loads(r.read() or b"{}")
+        except Exception as e:
+            site_status = {"error": str(e)}
+    try:
+        state = scrapectl.reindex_state()
+    except Exception:
+        state = "unknown"
+    return jsonify({
+        "db_count": db_count,
+        "site": site_status,
+        "container_state": state,
+    })
+
+
+@app.route("/api/reindex/start", methods=["POST"])
+def api_reindex_start():
+    import scrapectl
+    try:
+        msg = scrapectl.launch_reindex()
+    except scrapectl.DockerCliError as e:
+        return jsonify({"error": str(e)}), 502
+    return jsonify({"message": msg})
+
 if __name__ == "__main__":
     # initialisation (DDL) au demarrage, une seule fois
     try:

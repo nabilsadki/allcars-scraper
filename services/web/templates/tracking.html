@@ -83,6 +83,39 @@
   </div>
 </div>
 
+{# ------------------------ Reindexation (motor de recherche) ------------------------- #}
+<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2 flex-wrap">
+    Réindexation du moteur de recherche
+    <span class="normal-case tracking-normal text-[11px] text-muted">push scrapper → site All Cars</span>
+    <span class="ml-auto">
+      <button type="button" id="reindex-start"
+              class="border border-accent text-accent-txt bg-accent/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-accent/20 disabled:opacity-40">
+        ▶ Réindexer maintenant
+      </button>
+    </span>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-[12px]">
+    <div class="border border-line rounded-lg bg-panel2/40 px-3 py-2.5">
+      <div class="text-[10px] uppercase tracking-wide text-muted">Annonces BDD</div>
+      <div class="text-[15px] font-semibold tabular-nums" id="reindex-db">—</div>
+    </div>
+    <div class="border border-line rounded-lg bg-panel2/40 px-3 py-2.5">
+      <div class="text-[10px] uppercase tracking-wide text-muted">Annonces indexées</div>
+      <div class="text-[15px] font-semibold tabular-nums" id="reindex-index">—</div>
+    </div>
+    <div class="border border-line rounded-lg bg-panel2/40 px-3 py-2.5">
+      <div class="text-[10px] uppercase tracking-wide text-muted">Dernière indexation</div>
+      <div class="text-[12px] font-medium" id="reindex-last">—</div>
+    </div>
+    <div class="border border-line rounded-lg bg-panel2/40 px-3 py-2.5">
+      <div class="text-[10px] uppercase tracking-wide text-muted">Etat</div>
+      <div class="text-[12px] font-medium" id="reindex-state">—</div>
+    </div>
+  </div>
+  <p class="text-[11px] text-muted mt-2.5" id="reindex-msg">La réindexation tourne en arrière-plan ; suivre la console container allcars-reindex-site.</p>
+</div>
+
 {# ----------------------- Resume par site (minimaliste) --------------------------- #}
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
@@ -1208,6 +1241,42 @@ refreshContainers();
 setInterval(refresh, 3000);
 setInterval(refreshLogs, 10000);
 setInterval(refreshContainers, 5000);
+
+  // ---- Reindexation site ----
+  async function refreshReindex() {
+    try {
+      const r = await fetch('/api/reindex/status', {cache:'no-store'});
+      const d = await r.json();
+      const el = id => document.getElementById(id);
+      if (el('reindex-db')) el('reindex-db').textContent = (d.db_count || 0).toLocaleString('fr-FR');
+      const n = (d.site && d.site.index_documents);
+      if (el('reindex-index')) el('reindex-index').textContent = (n == null ? '—' : Number(n).toLocaleString('fr-FR'));
+      const last = d.site && d.site.last_reindex_at;
+      if (el('reindex-last')) el('reindex-last').textContent = last ? new Date(last).toLocaleString() : 'jamais';
+      const state = d.container_state || '—';
+      if (el('reindex-state')) el('reindex-state').textContent = state;
+    } catch (e) { /* ignore */ }
+  }
+  const _rb = document.getElementById('reindex-start');
+  if (_rb) _rb.addEventListener('click', async () => {
+    const btn = _rb;
+    btn.disabled = true;
+    const msg = document.getElementById('reindex-msg');
+    msg.textContent = 'Démarrage…';
+    try {
+      const r = await fetch('/api/reindex/start', {method:'POST'});
+      const d = await r.json();
+      msg.textContent = d.message || d.error || 'lancé';
+    } catch (e) {
+      msg.textContent = 'Erreur : ' + (e && e.message ? e.message : e);
+    } finally {
+      btn.disabled = false;
+      refreshReindex();
+    }
+  });
+  refreshReindex();
+  setInterval(refreshReindex, 5000);
+
 </script>
 
 {% endblock %}

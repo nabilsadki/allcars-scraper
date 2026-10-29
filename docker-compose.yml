@@ -118,6 +118,9 @@ services:
     image: allcars-scraper-web:latest
     container_name: allcars-web
     # l'interface doit rester accessible (elle survit au redemarrage du PC)
+    networks:
+      - default
+      - site
     restart: unless-stopped
     depends_on:
       db:

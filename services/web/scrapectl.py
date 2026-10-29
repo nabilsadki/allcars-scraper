@@ -26,6 +26,9 @@ COMPOSE_FILE = os.path.join(PROJECT_DIR, "docker-compose.yml")
 SERVICE = os.environ.get("SCRAPER_SERVICE", "app")
 #: prefixe des noms de conteneurs
 NAME_PREFIX = os.environ.get("SCRAPER_PREFIX", "allcars-scrape")
+REINDEX_CONTAINER = os.environ.get("REINDEX_CONTAINER", "allcars-reindex-site")
+REINDEX_SERVICE = os.environ.get("REINDEX_SERVICE", "app")
+SITE_REINDEX_URL = os.environ.get("SITE_REINDEX_URL", "http://allcars-site-web:8080/api/reindex").replace("/api/reindex","/api/reindex/status").rstrip("/")
 DOCKER_BIN = os.environ.get("DOCKER_BIN", "docker")
 
 #: etats considers comme "en cours"
@@ -230,3 +233,29 @@ def list_containers(prefix: str = "allcars") -> list[dict]:
 def cleanup(site: str) -> None:
     """Supprime le conteneur d'un site (s'il existe)."""
     _run(["rm", "-f", container_name(site)], timeout=60)
+
+
+# ------------------------------------------------------------------ reindex
+def reindex_state() -> str:
+    """Etat du conteneur de reindex ('running' | 'exited' | 'absent' ...)."""
+    name = REINDEX_CONTAINER
+    res = _run(["inspect", "-f", "{{.State.Status}}", name], timeout=30)
+    if res.returncode != 0:
+        return "absent"
+    out = (res.stdout or "").strip()
+    return out or "unknown"
+
+
+def launch_reindex() -> str:
+    """Lance la reindexation en arriere-plan."""
+    name = REINDEX_CONTAINER
+    if reindex_state() in RUNNING_STATES:
+        return f"Reindexation deja en cours ({name})"
+    _run(["rm", "-f", name], timeout=60)
+    args = ["run", "-d", "--rm", "--name", name, SERVICE,
+            "reindex-site"]
+    res = _compose(args, timeout=240)
+    if res.returncode != 0:
+        raise DockerCliError((res.stderr or res.stdout or "echec du lancement")
+                             .strip()[:500])
+    return f"Reindexation demarree ({name})"
