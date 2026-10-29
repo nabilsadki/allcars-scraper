@@ -1063,6 +1063,12 @@ def tracking():
          SUM(a.details_fetched = 1)                    details,
          MAX(a.scraped_at)                             dernier,
          SUM(a.nb_images > 0)                          avec_photos,
+         ROUND(AVG(a.note_etat), 2)                    avg_etat,
+         ROUND(AVG(a.note_achat), 2)                   avg_achat,
+         ROUND(AVG(a.note_confiance), 1)               avg_conf,
+         COALESCE(MIN(a.price), 0)                     min_price,
+         COALESCE(MAX(a.price), 0)                     max_price,
+         COALESCE(ROUND(AVG(a.price)), 0)              avg_price,
          COALESCE(r.ads_listed, 0)                     last_listed,
          COALESCE(r.ads_details, 0)                    last_details,
          COALESCE(r.ads_inserted, 0)                   last_inserted,
@@ -1084,11 +1090,19 @@ def tracking():
     c_label = containers.get(site, {}).get("label", "inconnu")
     c_css = containers.get(site, {}).get("css", "s-unknown")
     site_meta = next((s for s in all_sites if s.get("name") == site), None)
+    # ---- stats body types par site pour le mini-graph des cartes
+    body_rows = query("SELECT site, body_type, COUNT(*) AS n FROM ads "
+                      "WHERE body_type IS NOT NULL GROUP BY site, body_type "
+                      "ORDER BY COUNT(*) DESC")
+    body_breakdown = {}
+    for r in (body_rows or []):
+        body_breakdown.setdefault(r["site"], []).append((r["body_type"], int(r["n"])))
     job_categories = (site_meta or {}).get("categories", [])
     job_modes = (site_meta or {}).get("modes", ["list", "rescan", "details"])
     return render_template(
         "tracking.html", state=state, states=states, alerts=alerts, runs=runs,
         job=job, container_state=container_state, counts=counts,
+        body_breakdown=body_breakdown,
         container_label=c_label, container_css=c_css,
         hide_category=_hide_category_column(runs),
         live_running_sites=[sn for sn, st in containers.items() if st.get("state") == "running"],
