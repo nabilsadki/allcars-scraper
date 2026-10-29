@@ -1066,9 +1066,12 @@ def tracking():
          ROUND(AVG(a.note_etat), 2)                    avg_etat,
          ROUND(AVG(a.note_achat), 2)                   avg_achat,
          ROUND(AVG(a.note_confiance), 1)               avg_conf,
-         COALESCE(MIN(a.price), 0)                     min_price,
-         COALESCE(MAX(a.price), 0)                     max_price,
-         COALESCE(ROUND(AVG(a.price)), 0)              avg_price,
+         COALESCE(MIN(CASE WHEN a.price IS NOT NULL AND a.price BETWEEN 10000 AND 3000000
+                            AND (a.price_anomaly = 0 OR a.price_anomaly IS NULL) THEN a.price END), 0) min_price,
+         COALESCE(MAX(CASE WHEN a.price IS NOT NULL AND a.price BETWEEN 10000 AND 3000000
+                            AND (a.price_anomaly = 0 OR a.price_anomaly IS NULL) THEN a.price END), 0) max_price,
+         COALESCE(ROUND(AVG(CASE WHEN a.price IS NOT NULL AND a.price BETWEEN 10000 AND 3000000
+                            AND (a.price_anomaly = 0 OR a.price_anomaly IS NULL) THEN a.price END)), 0) avg_price,
          COALESCE(r.ads_listed, 0)                     last_listed,
          COALESCE(r.ads_details, 0)                    last_details,
          COALESCE(r.ads_inserted, 0)                   last_inserted,
