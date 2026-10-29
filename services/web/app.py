@@ -1539,6 +1539,27 @@ def api_price_evolution():
         "ymax": ymax,
     })
 
+@app.route("/stats")
+def stats():
+    """Page de statistiques (blocs progressives).
+
+    Bloc #1 : les 10 marques ayant le plus d'annonces.
+    """
+    try:
+        rows = query("SELECT brand, COUNT(*) n FROM ads "
+                     "WHERE brand IS NOT NULL AND brand <> '' "
+                     "GROUP BY brand ORDER BY n DESC LIMIT 10")
+    except Exception:
+        rows = []
+    top_brands = []
+    for r in (rows or []):
+        brand = r.get("brand") if isinstance(r, dict) else r[0]
+        n = r.get("n") if isinstance(r, dict) else r[1]
+        top_brands.append({"brand": brand, "n": int(n) if n is not None else 0,
+                          "logo": _brand_logo_url(brand)})
+    return render_template("stats.html", top_brands=top_brands)
+
+
 @app.route("/health")
 def health():
     return {"ok": True, "time": datetime.now().isoformat()}

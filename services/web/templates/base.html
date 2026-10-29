@@ -33,6 +33,8 @@
                 {% if request.path == '/' %}!text-txt !bg-panel2 !border-line{% endif %}">Catalogue</a>
       <a href="/tracking" class="px-3 py-1.5 rounded-lg text-sm text-muted border border-transparent hover:text-txt hover:border-line hover:no-underline
                 {% if request.path == '/tracking' %}!text-txt !bg-panel2 !border-line{% endif %}">Suivi du scrap</a>
+      <a href="/stats" class="px-3 py-1.5 rounded-lg text-sm text-muted border border-transparent hover:text-txt hover:border-line hover:no-underline
+                {% if request.path == '/stats' %}!text-txt !bg-panel2 !border-line{% endif %}">Statistiques</a>
       <button type="button" id="theme-toggle" title="Basculer le theme clair / sombre"
               class="theme-toggle w-[34px] h-[30px] rounded-lg bg-panel2 border border-line text-muted hover:text-txt hover:border-accent cursor-pointer text-[15px] leading-none">🌙</button>
     </nav>

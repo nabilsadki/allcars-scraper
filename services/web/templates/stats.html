@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Statistiques — All Cars{% endblock %}
+{% block content %}
+<div class="mb-5">
+  <h1 class="text-[24px] font-semibold mb-1">Statistiques</h1>
+  <p class="text-muted text-sm">Vue d'ensemble du marché (base toutes annonces).</p>
+</div>
+
+<!-- Bloc 1 : top 10 marques -->
+<div class="bg-panel border border-line rounded-xl p-4">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-3 flex items-center gap-2">
+    Les 10 marques ayant le plus d'annonces
+  </div>
+
+  {% if top_brands %}
+  <div class="grid gap-3"
+       style="display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));">
+    {% for b in top_brands %}
+    {% set logo = b.brand|brand_logo_url %}
+    <div class="flex items-center gap-3 border border-line rounded-xl p-3 bg-panel2/40">
+      <div class="w-12 h-12 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line">
+        {% if logo %}
+        <img src="{{ logo }}" alt="{{ b.brand }}" class="max-w-full max-h-full object-contain p-1">
+        {% else %}
+        <span class="text-[16px] font-bold text-muted">{{ (b.brand or '?')[:2]|upper }}</span>
+        {% endif %}
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="text-[13.5px] font-semibold truncate">{{ b.brand }}</div>
+        <div class="text-[11.5px] text-muted">{{ "{:,}".format(b.n).replace(",", " ") }} annonces</div>
+      </div>
+      <div class="text-[11px] text-muted tabular-nums font-semibold">#{{ loop.index }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted text-sm">Aucune donnée ventilée par marque pour le moment.</p>
+  {% endif %}
+</div>
+{% endblock %}
