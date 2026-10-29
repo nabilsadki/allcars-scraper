@@ -184,6 +184,7 @@ SITE_LABELS = {
     "avito": "Avito.ma", "tomobila": "Tomobila.ma", "globaloccaz": "GlobalOccaz.ma",
     "kifal": "Occasion Kifal", "renew": "Renew.ma", "otoclic": "Otoclic.ma",
     "leguideauto": "LeGuideAuto.ma", "moteur": "Moteur.ma", "siaracash": "SiaraCash.ma",
+    "wandaloo": "Wandaloo.com",
 }
 
 
@@ -241,6 +242,7 @@ SITE_HUES = {
     "leguideauto": 45,  # jaune
     "moteur": 300,     # magenta
     "siaracash": 10,     # rouge/corail
+    "wandaloo": 60,      # ambre
 }
 
 
