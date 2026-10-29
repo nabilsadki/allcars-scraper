@@ -404,7 +404,20 @@ def build_filters() -> tuple[str, list]:
     eq("site", request.args.get("site"))
     eq("city", request.args.get("city"))
     eq("body_type", request.args.get("body_type"))
-    eq("brand", request.args.get("brand"))
+    # Marque avec support multi-selection (virgule ou repetition).
+    _brands = request.args.getlist("brand") or [request.args.get("brand")]
+    _brand_list = []
+    for b in _brands:
+        if b is None:
+            continue
+        _brand_list.extend(x.strip() for x in str(b).split(",") if x.strip())
+    if _brand_list:
+        if len(_brand_list) == 1:
+            where.append("brand = %s")
+            params.append(_brand_list[0])
+        else:
+            where.append("brand IN (" + ",".join(["%s"] * len(_brand_list)) + ")")
+            params.extend(_brand_list)
     eq("model", request.args.get("model"))
     eq("fuel", request.args.get("fuel"))
     eq("gear", request.args.get("gear"))
