@@ -1555,8 +1555,23 @@ def stats():
     for r in (rows or []):
         brand = r.get("brand") if isinstance(r, dict) else r[0]
         n = r.get("n") if isinstance(r, dict) else r[1]
-        top_brands.append({"brand": brand, "n": int(n) if n is not None else 0,
-                          "logo": _brand_logo_url(brand)})
+        # top 5 modeles pour cette marque
+        models = []
+        try:
+            mrows = query("SELECT model, COUNT(*) n FROM ads "
+                          "WHERE brand = %s AND model IS NOT NULL AND model <> '' "
+                          "GROUP BY model ORDER BY n DESC LIMIT 5", (brand,))
+            for mr in (mrows or []):
+                mname = mr.get("model") if isinstance(mr, dict) else mr[0]
+                mn = mr.get("n") if isinstance(mr, dict) else mr[1]
+                models.append({"model": mname,
+                               "n": int(mn) if mn is not None else 0})
+        except Exception:
+            models = []
+        top_brands.append({"brand": brand,
+                          "n": int(n) if n is not None else 0,
+                          "logo": _brand_logo_url(brand),
+                          "models": models})
     return render_template("stats.html", top_brands=top_brands)
 
 

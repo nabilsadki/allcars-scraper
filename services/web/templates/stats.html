@@ -26,10 +26,26 @@
         {% endif %}
       </div>
       <div class="min-w-0 flex-1">
-        <div class="text-[13.5px] font-semibold truncate">{{ b.brand }}</div>
-        <div class="text-[11.5px] text-muted">{{ "{:,}".format(b.n).replace(",", " ") }} annonces</div>
+        <div class="flex items-baseline justify-between gap-2">
+          <div class="text-[13.5px] font-semibold truncate">{{ b.brand }}</div>
+          <div class="text-[11px] text-muted tabular-nums font-semibold">#{{ loop.index }}</div>
+        </div>
+        <div class="text-[11.5px] text-muted">
+          {{ "{:,}".format(b.n).replace(",", " ") }} annonces
+        </div>
+        {% if b.models %}
+        <div class="mt-2 pt-2 border-t border-line">
+          <ul class="space-y-1">
+            {% for m in b.models %}
+            <li class="flex items-center justify-between gap-2 text-[11px]">
+              <span class="truncate text-txt">{{ m.model }}</span>
+              <span class="text-muted tabular-nums">{{ "{:,}".format(m.n).replace(",", " ") }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
       </div>
-      <div class="text-[11px] text-muted tabular-nums font-semibold">#{{ loop.index }}</div>
     </div>
     {% endfor %}
   </div>
