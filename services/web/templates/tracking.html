@@ -360,88 +360,40 @@
     <span class="normal-case tracking-normal text-[11px] text-muted">{{ counts|length }} site(s) · auto-stats</span>
   </div>
 
-  <div id="db-cards" class="grid gap-2.5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+  <div id="db-cards" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.625rem;">
     {% for c in counts %}
     {% set hue = c.site|site_hue %}
-    {% set total_db = c.n or 1 %}
     {% set bt = (body_breakdown.get(c.site) or []) %}
-    {% set bt_total = bt|sum(attribute="1") if bt else 1 %}
-    <div class="site-db bg-panel2/40 border border-line rounded-xl p-3 flex flex-col gap-2 min-w-0">
-      <!-- header -->
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-[11px] font-bold"
-             style="background: hsl({{ hue }}, 70%, 50%, .18); border: 1px solid hsl({{ hue }}, 70%, 50%, .55); color: hsl({{ hue }}, 75%, 75%);">
-          {{ (c.site[:2] or '?')|upper }}
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="text-[12.5px] font-semibold truncate">{{ c.site|site_label }}</div>
-          <div class="text-[10.5px] text-muted">{{ '{:,}'.format(c.n).replace(',', ' ') }} annonces · {{ '{:,}'.format(c.actives).replace(',', ' ') if c.actives else 0 }} actives</div>
-        </div>
-      </div>
-      <!-- stats pill line -->
-      <div class="flex flex-wrap gap-1 text-[9.5px] text-muted">
-        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-panel border border-line rounded">
-          fiches {{ c.details or 0 }}/{{ c.n }}
-        </span>
-        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-panel border border-line rounded" title="annonces avec photos">
-          photos {{ c.avec_photos or 0 }}
-        </span>
-        {% if c.avg_conf is not none %}
-        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-panel border border-line rounded"
-              title="Ø état / Ø achat / confiance moyenne">
-          Ø état {{ c.avg_etat or '—' }} · Ø achat {{ c.avg_achat or '—' }} · conf {{ (c.avg_conf or 0)|round(1) }}%
-        </span>
-        {% endif %}
-        {% if c.avg_price %}
-        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-panel border border-line rounded" title="prix moyen">
-          Ø {{ '{:,}'.format(c.avg_price).replace(',', ' ') }} DH
-        </span>
-        {% endif %}
-        {% if c.min_price and c.max_price %}
-        <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-panel border border-line rounded" title="fourchette de prix observée">
-          {{ '{:,}'.format(c.min_price).replace(',', ' ') }} – {{ '{:,}'.format(c.max_price).replace(',', ' ') }} DH
-        </span>
-        {% endif %}
-      </div>
-      <!-- body type mini bar -->
-      {% if bt %}
-      <div>
-        <div class="text-[10px] text-muted mb-0.5 flex items-center gap-1">
-          Répartition par type
-          <span class="tabular-nums text-muted/70">{{ bt_total }} classées</span>
-        </div>
-        <div class="flex h-2 rounded-full overflow-hidden bg-panel2 border border-line">
-          {% set types_hue = {'SUV':200,'Berline':280,'Citadine':145,'Compact':30,'Utilitaire':45,'Break':120,'Pick-up':340,'Monospace':200,'Coupé':300,'Cabriolet':320} %}
+    {% set bt_total = (bt|sum(attribute="1") if bt else 1) %}
+    {% set types_hue = {'SUV':200,'Berline':280,'Citadine':145,'Compact':30,'Utilitaire':45,'Break':120,'Pick-up':340,'Monospace':200,'Coupé':300,'Cabriolet':320} %}
+    <div class="site-db bg-panel2/40 border border-line rounded p-3">
+      <div class="font-semibold truncate mb-1">{{ c.site|site_label }}</div>
+      <div class="text-[10.5px] text-muted mb-1">{{ '{:,}'.format(c.n).replace(',', ' ') }} ann. · {{ c.actives }} act.</div>
+      <div class="text-[10.5px] text-muted mb-1">fiches {{ c.details or 0 }}/{{ c.n }} · photos {{ c.avec_photos or 0 }}</div>
+      <div class="mb-1">
+        <div style="display:flex;height:6px;border-radius:9999px;overflow:hidden;background:#27272a;">
           {% for bt_name, bt_n in bt %}
           {% set pct = (bt_n / bt_total * 100.0) if bt_total else 0 %}
-          <div title="{{ bt_name }} : {{ bt_n }} ({{ '%.1f'|format(pct) }}%)"
-               style="width: {{ '%.1f'|format(pct) }}%;
-                      background: hsl({{ types_hue.get(bt_name, 210) }}, 72%, 52% / .7);"></div>
+          <div title="{{ bt_name }} : {{ bt_n }}" style="width: {{ '%.1f'|format(pct) }}%; background: hsl({{ types_hue.get(bt_name, 210) }}, 72%, 52%);"></div>
           {% endfor %}
         </div>
         <div class="flex flex-wrap gap-1 mt-1">
           {% for bt_name, bt_n in bt %}
-          <span class="inline-flex items-center gap-0.5 text-[9.5px] text-muted/80">
-            <span class="w-1.5 h-1.5 rounded-sm" style="background: hsl({{ types_hue.get(bt_name, 210) }}, 72%, 52% / .7);"></span>
-            {{ bt_name }}: {{ bt_n }}
-          </span>
+          <span class="text-[9px] text-muted/70">{{ bt_name[:8] }}: {{ bt_n }}</span>
           {% endfor %}
         </div>
-      {% else %}
-      <p class="text-[10px] text-muted/70 m-0">Pas de types renseignés (inférence manquante).</p>
-      {% endif %}
-      <div class="text-[9.5px] text-muted/70 mt-0.5 leading-tight">
-        dernier scrape : {{ (c.dernier|datefr(true)) if c.dernier else 'jamais' }}
-        {% if c.actives is not none %}
-          · {{ c.actives }} actives / {{ (c.n - c.actives) if c.actives is not none else '—' }} inactives
-        {% endif %}
+      </div>
+      <div class="text-[9px] text-muted/70 leading-tight">
+        dernier : {{ (c.dernier|datefr(true)) if c.dernier else 'jamais' }}
+        {% if c.avg_etat is not none %} · Øé{{ c.avg_etat|round(1) }} Øa{{ c.avg_achat|round(1) }} conf{{ c.avg_conf|round(1) }}% {% endif %}
       </div>
     </div>
     {% else %}
-    <div class="bg-panel2/40 border border-line rounded-xl p-3.5 text-muted">Aucune annonce en base.</div>
+    <div class="bg-panel2/40 border border-line rounded-xl p-3.5 text-muted col-span-full">Aucune annonce en base.</div>
     {% endfor %}
   </div>
 </div>
+
 
 {# --------------------------------------------------------- historique #}
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
