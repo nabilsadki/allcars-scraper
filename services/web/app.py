@@ -1548,7 +1548,7 @@ def stats():
     try:
         rows = query("SELECT brand, COUNT(*) n FROM ads "
                      "WHERE brand IS NOT NULL AND brand <> '' "
-                     "GROUP BY brand ORDER BY n DESC LIMIT 10")
+                     "GROUP BY brand ORDER BY n DESC LIMIT 8")
     except Exception:
         rows = []
     top_brands = []
