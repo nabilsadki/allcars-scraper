@@ -1057,6 +1057,15 @@ document.getElementById('auto-stop').addEventListener('click', async () => {
     await refreshAutomation();
   } catch (e) { document.getElementById('auto-meta').textContent = 'Erreur : ' + e; }
 });
+function relTime(str) {
+  if (!str) return '\u2014';
+  const t = new Date(str);
+  if (isNaN(t.getTime())) return str;
+  const diff = (t.getTime() - Date.now()) / 1000;
+  const lab = fmt(Math.abs(diff));
+  return diff >= 0 ? ('dans ' + lab) : ('il y a ' + lab);
+}
+
 async function refreshAutomation() {
   try {
     const r = await fetch('/api/daemons/status');
@@ -1079,8 +1088,8 @@ async function refreshAutomation() {
         '<td class="py-1 pr-2 font-medium">' + s.site + '</td>' +
         '<td class="py-1 pr-2 text-center"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
         '<td class="py-1 pr-2 text-center"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-16 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
-        '<td class="py-1 pr-2 text-[10.5px] text-muted">' + (s.next_due || '—') + '</td>' +
-        '<td class="py-1 pr-2 text-[10.5px] text-muted">' + (s.last_success_at || '—') + '</td>' +
+        '<td class="py-1 pr-2 text-[10.5px] text-muted" title="' + (s.next_due || '') + '">' + relTime(s.next_due) + '</td>' +
+        '<td class="py-1 pr-2 text-[10.5px] text-muted" title="' + (s.last_success_at || '') + '">' + relTime(s.last_success_at) + '</td>' +
         '<td class="py-1 pr-2 text-center text-[10.5px] text-muted">' + (s.last_mode || '—') + '</td>' +
         '<td class="py-1 pr-2 text-[11px] font-mono text-txt">' + (s.execution || '—') + '</td>' +
         '</tr>'
