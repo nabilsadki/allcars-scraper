@@ -24,6 +24,7 @@ from .core.pipeline import run_details, run_list, run_rescan
 from .core.progress import install_signal_handlers
 from .core.registry import available_sites, get_site, publish, site_info
 from .core.scoring import compute_notes, compute_notes_v2, load_config
+from .core.site_indexer import push as push_site_index
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
 
 
@@ -184,6 +185,29 @@ def cmd_score(args) -> int:
     return 0
 
 
+def cmd_reindex_site(args) -> int:
+    """Pousse l'etat courant de la BDD vers le site via /api/reindex."""
+    url = args.url or os.environ.get("SITE_REINDEX_URL", "http://host.docker.internal:8081/api/reindex")
+    token = args.token or os.environ.get("SITE_REINDEX_TOKEN", "")
+    if not url:
+        print("URL manquante (--url ou SITE_REINDEX_URL)", file=sys.stderr)
+        return 2
+    if not token:
+        print("token manquant (--token ou SITE_REINDEX_TOKEN)", file=sys.stderr)
+        return 2
+    print("export et push de la BDD vers le site...")
+    started = datetime.now()
+    try:
+        res = push_site_index(url, token,
+                              batch_size=max(100, int(getattr(args, "batch", 1000))),
+                              limit=args.limit)
+    except Exception as e:
+        print(f"{type(e).__name__}: {e}", file=sys.stderr)
+        return 1
+    print(f"termine en {datetime.now() - started}: {res}")
+    return 0
+
+
 def cmd_clean(args) -> int:
     """Supprime les annonces qui n'appartiennent pas a la categorie attendue.
 
@@ -275,6 +299,15 @@ def main(argv=None) -> int:
 
     s5 = sub.add_parser("stats", help="statistiques par site")
     s5.set_defaults(func=cmd_stats)
+
+    sr = sub.add_parser("reindex-site",
+                      help="pousse l'etat courant de la BDD vers le site web")
+    sr.add_argument("--url", default="", help="URL cible (defaut SITE_REINDEX_URL)")
+    sr.add_argument("--token", default="", help="cle d'auth (defaut SITE_REINDEX_TOKEN)")
+    sr.add_argument("--batch", type=int, default=int(os.environ.get("SITE_REINDEX_BATCH", "1000")),
+                    dest="batch", help="taille de lot")
+    sr.add_argument("--limit", type=int, default=0, help="limite de docs (test)")
+    sr.set_defaults(func=cmd_reindex_site)
 
     s7 = sub.add_parser("clean", help="supprimer les annonces hors categorie")
     s7.add_argument("--site", default="avito")

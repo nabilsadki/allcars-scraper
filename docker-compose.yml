@@ -72,6 +72,8 @@ services:
       DB_USER: ${DB_USER:-allcars}
       DB_PASSWORD: ${DB_PASSWORD:-allcars}
       SCORING_CONFIG: /app/config/scoring.json
+      SITE_REINDEX_URL: ${SITE_REINDEX_URL:-http://allcars-site-web:8080/api/reindex}
+      SITE_REINDEX_TOKEN: ${SITE_REINDEX_TOKEN:-allcars-site-reindex-token}
     volumes:
       # donnees scrapees (JSONL/CSV, images, progression) : dans le projet (4 To)
       - ./data/scraped:/data
@@ -80,6 +82,9 @@ services:
     # usage :
     #   docker compose run --rm app list   --category "..." --db
     #   docker compose run --rm app rescan --category "..." --details
+    networks:
+      - default
+      - site
     entrypoint: ["python3", "-m", "scraper.cli"]
 
   # -------------------------------------------------------------- outils
@@ -99,6 +104,8 @@ services:
       DB_USER: ${DB_USER:-allcars}
       DB_PASSWORD: ${DB_PASSWORD:-allcars}
       SCORING_CONFIG: /app/config/scoring.json
+      SITE_REINDEX_URL: ${SITE_REINDEX_URL:-http://host.docker.internal:8081/api/reindex}
+      SITE_REINDEX_TOKEN: ${SITE_REINDEX_TOKEN:-allcars-site-reindex-token}
     volumes:
       - ./data/scraped:/data
       - ./services/app/config:/app/config:ro
@@ -147,4 +154,8 @@ services:
       retries: 5
 
 # Aucun volume Docker nomme : toutes les donnees sont dans ./data (4 To).
-volumes: {}
+
+networks:
+  site:
+    external: true
+    name: allcars-site_default
