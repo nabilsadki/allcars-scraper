@@ -14,13 +14,14 @@ from .leguideauto import LeguideautoAdapter
 from .moteur import MoteurAdapter
 from .otoclic import OtoclicAdapter
 from .renew import RenewAdapter
+from .siaracash import SiaracashAdapter
 from .tomobila import TomobilaAdapter
 
 for _adapter in (AvitoAdapter(), TomobilaAdapter(), GlobalOccazAdapter(),
                  KifalAdapter(), RenewAdapter(), OtoclicAdapter(),
-                 LeguideautoAdapter(), MoteurAdapter()):
+                 LeguideautoAdapter(), MoteurAdapter(), SiaracashAdapter()):
     register_site(_adapter)
 
 __all__ = ["AvitoAdapter", "TomobilaAdapter", "GlobalOccazAdapter",
            "KifalAdapter", "RenewAdapter", "OtoclicAdapter",
-           "LeguideautoAdapter", "MoteurAdapter"]
+           "LeguideautoAdapter", "MoteurAdapter", "SiaracashAdapter"]

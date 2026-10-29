@@ -180,7 +180,11 @@ def execute(sql, params=()) -> int:
         conn.close()
 
 
-SITE_LABELS = {"avito": "Avito.ma", "tomobila": "Tomobila.ma"}
+SITE_LABELS = {
+    "avito": "Avito.ma", "tomobila": "Tomobila.ma", "globaloccaz": "GlobalOccaz.ma",
+    "kifal": "Occasion Kifal", "renew": "Renew.ma", "otoclic": "Otoclic.ma",
+    "leguideauto": "LeGuideAuto.ma", "moteur": "Moteur.ma", "siaracash": "SiaraCash.ma",
+}
 
 
 def _datefr(value, with_time: bool = False) -> str:
@@ -212,7 +216,16 @@ app.jinja_env.filters["datefr"] = _datefr
 
 def site_label(site: str) -> str:
     """Libelle lisible du site ('avito' -> 'Avito.ma')."""
-    return SITE_LABELS.get((site or "").lower(), site or "?")
+    name = (site or "").lower()
+    if not name:
+        return "?"
+    try:
+        for s in known_sites():
+            if (s.get("name") or "").lower() == name and s.get("label"):
+                return s["label"]
+    except Exception:
+        pass
+    return SITE_LABELS.get(name, site or "?")
 
 
 app.jinja_env.filters["site_label"] = site_label
@@ -227,6 +240,7 @@ SITE_HUES = {
     "otoclic": 186,     # cyan
     "leguideauto": 45,  # jaune
     "moteur": 300,     # magenta
+    "siaracash": 10,     # rouge/corail
 }
 
 
