@@ -40,6 +40,7 @@ services:
       # le repertoire de donnees de 1 Go par tranche d'ecriture
       - --skip-log-bin
       - --binlog-expire-logs-seconds=3600
+      - --default-time-zone=+00:00
     volumes:
       # les donnees MySQL vivent dans le dossier du projet (disque 4 To),
       # pas dans un volume Docker sur le disque racine
