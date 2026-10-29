@@ -13,39 +13,57 @@
   </div>
 
   {% if top_brands %}
-  <div class="grid gap-3"
-       style="display:grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));">
+  <div class="grid gap-4"
+       style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
     {% for b in top_brands %}
     {% set logo = b.brand|brand_logo_url %}
-    <div class="flex items-center gap-3 border border-line rounded-xl p-3 bg-panel2/40">
-      <div class="w-12 h-12 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line">
-        {% if logo %}
-        <img src="{{ logo }}" alt="{{ b.brand }}" class="max-w-full max-h-full object-contain p-1">
-        {% else %}
-        <span class="text-[16px] font-bold text-muted">{{ (b.brand or '?')[:2]|upper }}</span>
-        {% endif %}
+    {% set top_model_n = (b.models[0].n if b.models else b.n) %}
+    <div class="flex flex-col gap-3 border border-line rounded-xl p-4 bg-panel2/30">
+      <!-- header -->
+      <div class="flex items-start gap-3">
+        <div class="w-12 h-12 shrink-0 flex items-center justify-center rounded-lg bg-panel border border-line">
+          {% if logo %}
+          <img src="{{ logo }}" alt="{{ b.brand }}" class="max-w-full max-h-full object-contain p-1">
+          {% else %}
+          <span class="text-[16px] font-bold text-muted">{{ (b.brand or '?')[:2]|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="text-[15px] font-semibold truncate">{{ b.brand }}</span>
+            <span class="text-[10.5px] text-muted font-bold tabular-nums">#{{ loop.index }}</span>
+          </div>
+          <div class="text-[11.5px] text-muted">
+            {{ "{:,}".format(b.n).replace(",", " ") }} annonces
+            {% if b.models %} · top {{ b.models|length }} modèles{% endif %}
+          </div>
+        </div>
       </div>
-      <div class="min-w-0 flex-1">
-        <div class="flex items-baseline justify-between gap-2">
-          <div class="text-[13.5px] font-semibold truncate">{{ b.brand }}</div>
-          <div class="text-[11px] text-muted tabular-nums font-semibold">#{{ loop.index }}</div>
+
+      <!-- top modeles, pleine largeur -->
+      {% if b.models %}
+      <div class="space-y-2">
+        {% for m in b.models %}
+        {% set pct = ((m.n / top_model_n * 100.0) if top_model_n else 0) %}
+        {% set share = ((m.n / b.n * 100.0) if b.n else 0) %}
+        <div class="group">
+          <div class="flex items-baseline justify-between gap-2 mb-0.5">
+            <span class="text-[12px] font-medium text-txt truncate">{{ m.model }}</span>
+            <div class="flex items-baseline gap-2 shrink-0">
+              <span class="text-[10px] text-muted tabular-nums">{{ "{:,}".format(m.n).replace(",", " ") }}</span>
+              <span class="text-[9.5px] text-muted/70 tabular-nums">{{ '%.1f'|format(share) }}%</span>
+            </div>
+          </div>
+          <div class="h-1.5 bg-panel border border-line rounded-full overflow-hidden">
+            <div class="h-full bg-accent/80 transition-all duration-300"
+                 style="width: {{ '%.1f'|format(pct) }}%;"></div>
+          </div>
         </div>
-        <div class="text-[11.5px] text-muted">
-          {{ "{:,}".format(b.n).replace(",", " ") }} annonces
-        </div>
-        {% if b.models %}
-        <div class="mt-2 pt-2 border-t border-line">
-          <ul class="space-y-1">
-            {% for m in b.models %}
-            <li class="flex items-center justify-between gap-2 text-[11px]">
-              <span class="truncate text-txt">{{ m.model }}</span>
-              <span class="text-muted tabular-nums">{{ "{:,}".format(m.n).replace(",", " ") }}</span>
-            </li>
-            {% endfor %}
-          </ul>
-        </div>
-        {% endif %}
+        {% endfor %}
       </div>
+      {% else %}
+      <p class="text-[11.5px] text-muted">Pas de détail par modèle.</p>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
