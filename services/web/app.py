@@ -186,7 +186,9 @@ SITE_LABELS = {
     "leguideauto": "LeGuideAuto.ma", "moteur": "Moteur.ma", "siaracash": "SiaraCash.ma",
     "wandaloo": "Wandaloo.com",
     "kia": "Kia Occasion",
+    "autobroker": "Autobroker.ma",
 }
+
 
 
 def _datefr(value, with_time: bool = False) -> str:
@@ -245,6 +247,7 @@ SITE_HUES = {
     "siaracash": 10,     # rouge/corail
     "wandaloo": 60,      # ambre
     "kia": 120,      # teal-ish
+    "autobroker": 195, # teal
 }
 
 

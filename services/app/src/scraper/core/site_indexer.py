@@ -329,14 +329,22 @@ def enrich_docs(docs):
                       or market_brand.get(brand))
         delta = pct = None
         bucket = "unknown"
+        market_anomaly = False
         if market and price is not None and market > 0:
             delta = price - market
             pct = delta / market * 100.0
-            bucket = _deal_bucket(pct)
+            market_anomaly = pct < -50 or pct > 100
+            if market_anomaly:
+                market = None
+                delta = None
+                pct = None
+            else:
+                bucket = _deal_bucket(pct)
         doc["market_price"] = round(market, 2) if market else None
         doc["price_delta"] = round(delta, 2) if delta is not None else None
         doc["price_delta_pct"] = round(pct, 2) if pct is not None else None
         doc["deal_bucket"] = bucket
+        doc["market_anomaly"] = market_anomaly
         doc["monthly_payment"] = round(price * 0.8 / 48) if price else None
         doc["photos_count"] = max(
             int(doc.get("nb_images") or 0),
@@ -352,6 +360,8 @@ def enrich_docs(docs):
         doc["first_hand_key"] = "oui" if first_hand else "non"
         doc["warranty_key"] = "oui" if warranty else "non"
         doc["details_key"] = "oui" if _bool(doc.get("details_fetched")) else "non"
+        doc["photos_key"] = "oui" if max(
+            int(doc.get("nb_images") or 0), len(doc.get("images") or [])) > 0 else "non"
         doc["seller_key"] = _seller_key(doc.get("seller_type"))
         doc["verified"] = bool(doc.get("details_fetched")) or doc.get("site") in ("autocash", "kia", "renew")
     return docs
@@ -590,6 +600,10 @@ def build_stats(docs, key="global", label="Toutes les annonces", since=None,
         "essence_pct": round(fuel_bucket_counts.get("essence", 0) / fuel_base * 100),
         "hybride_pct": round(fuel_bucket_counts.get("hybride", 0) / fuel_base * 100),
     }
+    classified = (deal_bucket_counts.get("super", 0)
+                  + deal_bucket_counts.get("fair", 0)
+                  + deal_bucket_counts.get("above", 0))
+    deal_bucket_counts["unknown"] = max(0, price_count - classified)
 
     return {
         "id": key,
