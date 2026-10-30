@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from datetime import datetime
 from typing import Any, Optional
 
@@ -210,6 +211,37 @@ def _weighted_mean(scores: dict, weights: dict) -> tuple[Optional[float], float]
     return round(num / den, 2), round(100 * den / total_w, 1)
 
 
+
+
+def _norm_score_text(v) -> str:
+    if v is None:
+        return ""
+    if not isinstance(v, str):
+        v = str(v)
+    return unicodedata.normalize("NFKD", v).encode("ascii", "ignore").decode("ascii").lower()
+
+
+def _is_non_dedouanee(ad: dict) -> bool:
+    """True si l'annonce indique un vehicule non dedouane."""
+    values = []
+    for key in ("origin", "cond", "body_type", "description"):
+        v = ad.get(key)
+        if isinstance(v, str):
+            values.append(v)
+    raw = ad.get("raw_json")
+    if isinstance(raw, dict):
+        for v in raw.values():
+            if isinstance(v, str):
+                values.append(v)
+    blob = " ".join(values)
+    n = _norm_score_text(blob)
+    return any(k in n for k in ("pas encore dedouan", "non dedouan", "not custom cleared"))
+
+
+# surcharge estimee des frais de dedouanement pour le scoring achat
+CUSTOMS_SURCHARGE = 0.50
+
+
 def compute_notes_v2(ad: dict, market: Any = None,
                      config: Optional[dict] = None,
                      today: Optional[datetime] = None) -> dict:
@@ -253,7 +285,14 @@ def compute_notes_v2(ad: dict, market: Any = None,
     note_etat, conf_etat = _weighted_mean(etat_scores, etat_weights)
 
     # ---------------------------------------------------------- axe achat
-    price = ad.get("price")
+    raw_price = _num(ad.get("price"))
+    non_dedouanee = _is_non_dedouanee(ad)
+    if non_dedouanee and raw_price:
+        effective_price = raw_price * (1.0 + CUSTOMS_SURCHARGE)
+        flags.append(f"non dedouane : dedouanement estime +{int(CUSTOMS_SURCHARGE * 100)} pourcent")
+    else:
+        effective_price = raw_price
+    price = effective_price
     achat_weights = achat_cfg.get("weights", {})
     achat_scores: dict[str, Optional[float]] = {
         "prix_vs_marche": None,
@@ -266,7 +305,9 @@ def compute_notes_v2(ad: dict, market: Any = None,
     if price:
         # le prix vs le marche a besoin des statistiques de marche
         if market is not None:
-            ratio, ref, ref_n = market.price_ratio(ad)
+            market_ad = dict(ad)
+            market_ad["price"] = price
+            ratio, ref, ref_n = market.price_ratio(market_ad)
             if ratio:
                 market_info = {"ratio": round(ratio, 3), "reference": ref, "n": ref_n}
                 achat_scores["prix_vs_marche"] = _score_by_thresholds(
@@ -280,6 +321,8 @@ def compute_notes_v2(ad: dict, market: Any = None,
             achat_cfg.get("prix_par_annee_restante", {}).get("seuils", []), "max")
         achat_info["annees_restantes"] = remaining
         achat_info["par_annee_restante"] = round(price / remaining)
+        achat_info["prix_effectif"] = round(price)
+        achat_info["douane_surcharge"] = _is_non_dedouanee(ad)
         km = ad.get("mileage_km")
         if km:
             achat_scores["prix_par_km"] = _score_by_thresholds(
