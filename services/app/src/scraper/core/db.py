@@ -256,6 +256,12 @@ class Database:
             pass
         # --- ALTER durable colonne note_confiance (4,2 -> 5,2) ---
         try:
+            # timeout court : ne JAMAIS laisser ce DDL bloquer les requetes
+            # normales pendant une modification en cours (lock metadata)
+            self.cur.execute("SET SESSION lock_wait_timeout = 5")
+        except Exception:
+            pass
+        try:
             self.cur.execute("ALTER TABLE ads MODIFY COLUMN note_confiance DECIMAL(5,2) NULL")
         except Exception:
             pass
