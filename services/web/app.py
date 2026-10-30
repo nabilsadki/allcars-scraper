@@ -1192,10 +1192,16 @@ def _job_from_request() -> dict:
     payload = request.get_json(silent=True) or request.form or {}
     site = str(payload.get("site") or "").strip() or "avito"
     job = progress_reader.read_job(site)
+    if not str(job.get("category") or "").strip():
+        meta = next((s for s in known_sites() if s.get("name") == site), {})
+        job["category"] = (meta.get("default_category") or "")
     for key in ("site", "category", "mode"):
         val = payload.get(key)
         if val:
             job[key] = str(val).strip()
+    if not str(job.get("category") or "").strip():
+        meta = next((s for s in known_sites() if s.get("name") == site), {})
+        job["category"] = (meta.get("default_category") or "")
     if "details" in payload:
         job["details"] = str(payload.get("details")).lower() in ("1", "true", "on", "yes")
     if "slices" in payload:
@@ -1271,6 +1277,9 @@ def api_scrape_start_all():
         # parametres specifiques au site (categorie en particulier)
         job = progress_reader.read_job(name)
         job["site"] = name
+        if not str(job.get("category") or "").strip():
+            meta = next((s for s in all_sites if s.get("name") == name), {})
+            job["category"] = (meta.get("default_category") or "")
         if mode:
             job["mode"] = mode
         if limit_val is not None:

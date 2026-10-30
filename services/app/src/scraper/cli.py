@@ -57,6 +57,8 @@ def _site(args):
 
 def cmd_list(args) -> int:
     site = _site(args)
+    if not (args.category or "").strip():
+        args.category = getattr(site, "default_category", "") or ""
     db = _db(args) if args.db else None
     client = _client(args)
     started = datetime.now()
@@ -87,6 +89,8 @@ def cmd_list(args) -> int:
 
 def cmd_rescan(args) -> int:
     site = _site(args)
+    if not (args.category or "").strip():
+        args.category = getattr(site, "default_category", "") or ""
     db = _db(args)
     client = _client(args)
     started = datetime.now()
@@ -118,6 +122,8 @@ def cmd_rescan(args) -> int:
 
 def cmd_details(args) -> int:
     site = _site(args)
+    if not (args.category or "").strip() and getattr(args, "category", None) is not None:
+        args.category = getattr(site, "default_category", "") or ""
     db = _db(args)
     client = _client(args)
     try:

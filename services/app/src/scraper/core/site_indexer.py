@@ -15,6 +15,7 @@ import re
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from statistics import median
 
 import pymysql
 from pymysql.cursors import DictCursor
@@ -274,9 +275,8 @@ def _doc_listing_dt(doc):
 
 def enrich_docs(docs):
     """Ajoute les champs analytiques utilises par la page listing."""
-    model_sum, model_count = {}, {}
-    brand_year_sum, brand_year_count = {}, {}
-    brand_sum, brand_count = {}, {}
+    model_prices, brand_year_prices = {}, {}
+    model_all_prices, brand_prices = {}, {}
     for doc in docs:
         price = _dec(doc.get("price"))
         if price is None or price < 10000 or price > 3000000 or _bool(doc.get("price_anomaly")):
@@ -290,28 +290,25 @@ def enrich_docs(docs):
             except (TypeError, ValueError):
                 year = None
         if brand:
-            brand_sum[brand] = brand_sum.get(brand, 0) + price
-            brand_count[brand] = brand_count.get(brand, 0) + 1
+            brand_prices.setdefault(brand, []).append(price)
         if brand and year is not None:
-            key = (brand, year)
-            brand_year_sum[key] = brand_year_sum.get(key, 0) + price
-            brand_year_count[key] = brand_year_count.get(key, 0) + 1
+            brand_year_prices.setdefault((brand, year), []).append(price)
+        if brand and model:
+            model_all_prices.setdefault((brand, model), []).append(price)
         if brand and model and year is not None:
-            key = (brand, model, year)
-            model_sum[key] = model_sum.get(key, 0) + price
-            model_count[key] = model_count.get(key, 0) + 1
+            model_prices.setdefault((brand, model, year), []).append(price)
 
     market_model = {
-        key: model_sum[key] / model_count[key]
-        for key in model_sum if model_count.get(key, 0) >= 3
+        key: median(values) for key, values in model_prices.items() if len(values) >= 3
     }
     market_brand_year = {
-        key: brand_year_sum[key] / brand_year_count[key]
-        for key in brand_year_sum if brand_year_count.get(key, 0) >= 5
+        key: median(values) for key, values in brand_year_prices.items() if len(values) >= 5
+    }
+    market_model_all = {
+        key: median(values) for key, values in model_all_prices.items() if len(values) >= 5
     }
     market_brand = {
-        key: brand_sum[key] / brand_count[key]
-        for key in brand_sum if brand_count.get(key, 0) >= 10
+        key: median(values) for key, values in brand_prices.items() if len(values) >= 20
     }
 
     for doc in docs:
@@ -328,6 +325,7 @@ def enrich_docs(docs):
         if price is not None and not _bool(doc.get("price_anomaly")):
             market = (market_model.get((brand, model, year))
                       or market_brand_year.get((brand, year))
+                      or market_model_all.get((brand, model))
                       or market_brand.get(brand))
         delta = pct = None
         bucket = "unknown"
