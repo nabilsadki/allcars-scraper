@@ -8,6 +8,8 @@ Pour ajouter un site :
 
 from ..core.registry import register_site
 from .avito import AvitoAdapter
+from .autocash import AutocashAdapter
+from .kia import KiaAdapter
 from .globaloccaz import GlobalOccazAdapter
 from .kifal import KifalAdapter
 from .leguideauto import LeguideautoAdapter
@@ -18,12 +20,12 @@ from .siaracash import SiaracashAdapter
 from .tomobila import TomobilaAdapter
 from .wandaloo import WandalooAdapter
 
-for _adapter in (AvitoAdapter(), TomobilaAdapter(), GlobalOccazAdapter(),
+for _adapter in (AvitoAdapter(), AutocashAdapter(), KiaAdapter(), TomobilaAdapter(), GlobalOccazAdapter(),
                  KifalAdapter(), RenewAdapter(), OtoclicAdapter(),
                  LeguideautoAdapter(), MoteurAdapter(), SiaracashAdapter(),
                  WandalooAdapter()):
     register_site(_adapter)
 
-__all__ = ["AvitoAdapter", "TomobilaAdapter", "GlobalOccazAdapter",
+__all__ = ["AvitoAdapter", "AutocashAdapter", "KiaAdapter", "TomobilaAdapter", "GlobalOccazAdapter",
            "KifalAdapter", "RenewAdapter", "OtoclicAdapter",
            "LeguideautoAdapter", "MoteurAdapter", "SiaracashAdapter", "WandalooAdapter"]

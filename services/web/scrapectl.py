@@ -215,16 +215,18 @@ def list_containers(prefix: str = "allcars") -> list[dict]:
             img = real.get(item["name"])
             if img:
                 item["image"] = img.split(":")[0]
-    # --- ordre d'affichage : web, db, puis les scraps ---
-    # web et db sont epingles en premier ; les scraps sont tries par
-    # activite (en marche d'abord) puis par date de creation decroissante
-    pinned = [c for c in out if c["name"] in ("allcars-web", "allcars-db")]
-    pinned.sort(key=lambda c: 0 if c["name"] == "allcars-web" else 1)
+    # --- ordre d'affichage : web/db/meilisearch/site-web epingles en premier,
+    # puis les scraps, puis le reste
+    pinned_names = ("allcars-web", "allcars-db",
+                    "allcars-meilisearch", "allcars-site-web")
+    pinned = [c for c in out if c["name"] in pinned_names]
+    order = {n: i for i, n in enumerate(pinned_names)}
+    pinned.sort(key=lambda c: order.get(c["name"], 99))
     scraps = [c for c in out
               if c["name"].startswith("allcars-scrape-")]
     scraps.sort(key=lambda c: (c.get("created_at") or ""), reverse=True)
     scraps.sort(key=lambda c: 0 if c.get("running") else 1, reverse=False)
-    others = [c for c in out if c["name"] not in ("allcars-web", "allcars-db")
+    others = [c for c in out if c["name"] not in pinned_names
               and not c["name"].startswith("allcars-scrape-")]
     others.sort(key=lambda c: c["name"])
     return pinned + scraps + others

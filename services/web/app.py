@@ -185,6 +185,7 @@ SITE_LABELS = {
     "kifal": "Occasion Kifal", "renew": "Renew.ma", "otoclic": "Otoclic.ma",
     "leguideauto": "LeGuideAuto.ma", "moteur": "Moteur.ma", "siaracash": "SiaraCash.ma",
     "wandaloo": "Wandaloo.com",
+    "kia": "Kia Occasion",
 }
 
 
@@ -243,6 +244,7 @@ SITE_HUES = {
     "moteur": 300,     # magenta
     "siaracash": 10,     # rouge/corail
     "wandaloo": 60,      # ambre
+    "kia": 120,      # teal-ish
 }
 
 

@@ -974,6 +974,8 @@ async function refreshContainers() {
       const st = STATE_LABELS[c.state] || [c.state, 'unknown'];
       const icon = c.name === 'allcars-web' ? '🌐'
         : c.name === 'allcars-db' ? '💾' :
+        c.name === 'allcars-meilisearch' ? '🔎' :
+        c.name === 'allcars-site-web' ? '🔎' :
         c.name.startsWith('allcars-scrape-') ? '📦' : '⚙️';
       const dot = '<span class="inline-block w-1.5 h-1.5 rounded-full shrink-0 ' +
         (c.state === 'running' ? 'bg-ok pulse-dot' : 'bg-muted') + '"></span>';
@@ -986,6 +988,8 @@ async function refreshContainers() {
         ? 'border-left:3px solid #818cf8; background:rgba(99,102,241,.08);'
         : c.name === 'allcars-db'
         ? 'border-left:3px solid #38bdf8; background:rgba(56,189,248,.08);'
+        : c.name === 'allcars-meilisearch' || c.name === 'allcars-site-web'
+        ? 'border-left:3px solid #34d399; background:rgba(16,185,129,.08);'
         : '';
       return '<div class="bg-panel2 border border-line rounded-lg p-2.5 flex flex-col gap-1.5 min-w-[180px] flex-1 basis-44 max-w-xs" style="' + infraStyle + '">' +
         '<div class="flex items-center justify-between gap-2">' +
