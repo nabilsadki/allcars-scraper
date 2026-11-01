@@ -100,6 +100,12 @@ class HttpClient:
                 time.sleep(backoff)
                 continue
 
+            if r.status_code in (404, 410):
+                # page absente : inutile de reessayer (fin de liste, annonce
+                # retiree). Le pipeline traite 404 comme une fin normale.
+                self.stats["errors"] += 1
+                raise RuntimeError(f"HTTP {r.status_code}")
+
             self.stats["errors"] += 1
             last_err = RuntimeError(f"HTTP {r.status_code}")
             self.log(f"  ! HTTP {r.status_code} - essai {attempt}/{self.retries}")
