@@ -549,6 +549,33 @@ Points notables :
 * le `ad_id` est une **chaine** (VARCHAR 64) : certains sites utilisent un
   identifiant alphanumerique (`dITj3MBMiY`) ou un slug
 
+### Plafond de pagination d'Avito et decoupage en tranches
+
+Mesures du 2026-11-01 : Avito ne laisse voir que les **~2,8 % premiers
+resultats** d'une requete. Au-dela, `?o=` renvoie une page vide :
+
+```
+offset_max ~= min(4000, total / 36)
+```
+
+Verifie sur 5 jeux de filtres : 830 -> 23, 11 771 -> 327, 34 907 -> 970,
+45 880 -> 1 274, 141 477 -> 3 930. Une requete de `T` annonces rend donc
+`T/36 + 38` annonces, et non `T`.
+
+Consequence : pour couvrir le catalogue il faut **multiplier les requetes
+differentes** plutot que paginer plus loin. `sites/avito.py` decoupe chaque
+ville en sous-tranches de prix (`?price=min-max`) d'environ 40 annonces par
+bissection recursive (`AVITO_SLICE_TARGET`) : une sous-tranche tient dans
+une page, donc elle est couverte en entier.
+
+* la carte des tranches est mise en cache dans `/data/cache/`
+  (`AVITO_SLICE_CACHE_TTL`, 30 jours ; recalcul si le total derive de 10 %).
+  Pour la forcer : `rm data/scraped/cache/avito_slices_*.json`
+* la construction coute ~3 500 requetes de sondage, une seule fois par mois
+* un filet `(toutes)` par ville rattrape les annonces **sans prix** (~21 %
+  du catalogue), exclues des filtres de prix
+* `--no-slices` desactive le decoupage (une seule tranche = categorie)
+
 ## 9. Architecture multi-sites
 
 Le scraper est **modulaire** : le coeur (pipeline, base, versionnement,

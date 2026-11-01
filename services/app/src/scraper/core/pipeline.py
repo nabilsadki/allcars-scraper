@@ -148,7 +148,15 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
     """
     total_seen = 0
     if getattr(site, "use_slices", True) and hasattr(site, "slices"):
+        # certains adaptateurs ont besoin de la progression pendant qu'ils
+        # construisent les tranches (sondages reseau : avito)
+        try:
+            site.progress = progress
+        except Exception:
+            pass
         slices = site.slices(category, client)
+        if getattr(site, "log_slices", ""):
+            print(f"  {site.log_slices}", flush=True)
     else:
         slices = [(category, category)]
     if len(slices) > 1:
@@ -186,11 +194,19 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
         url = site.listing_url(category, offset)
         ads = []
         html = ""
+        # Au-dela de la premiere page d'une tranche, une page vide signifie
+        # "fin de la tranche" : Avito renvoie une page vide des que le
+        # plafond de pagination est atteint. Avec des tranches fines
+        # (~40 annonces) attendre 4 minutes a chaque fin ruinerait le run.
+        # On garde la patience quand on est encore loin de la fin (page
+        # vide = incident passager), on abrege quand on est au bout.
+        near_end = bool(total) and offset > (total or 0) / 8
+        attempts = 2 if near_end else 7
         # certaines pages renvoient une variante incomplete : on reessaye
         try:
             # "pages" en flax (401/502) : on reessay souvent pour eviter d'abandonner
             # prematurerement quand le site ressent le referrer.
-            for attempt in range(1, 8):
+            for attempt in range(1, attempts + 1):
                 html = client.get(url)
                 if total is None:
                     total = site.total_ads(html)
@@ -205,10 +221,14 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
                 ads = site.parse_listing(html, category)
                 if ads:
                     break
-                if attempt < 7:
-                    client.log(f"  ! page vide ({attempt}/8) - nouvel essai")
-                    time.sleep(min(60, 8 * attempt))
+                if attempt < attempts:
+                    client.log(f"  ! page vide ({attempt}/{attempts}) - nouvel essai")
+                    time.sleep(min(60, 8 * attempt) if attempts > 2 else 3)
         except Exception as e:
+            if "HTTP 404" in str(e):
+                # page au-dela de la fin (siaracash, tomobila...) : normal
+                client.log(f"  . fin de liste (404 a l'offset {offset})")
+                break
             # erreur HTTP transitoire (502/503 du site) : on ne tue pas le run
             failures += 1
             client.log(f"  ! page en echec ({type(e).__name__}: {str(e)[:60]}) "
@@ -262,6 +282,16 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
                 return
         offset += len(ads)
         if total and offset >= total:
+            break
+        # plafond de pagination du site (ex. avito : ~total/36)
+        try:
+            cap = site.max_offset(total)
+        except Exception:
+            cap = None
+        if cap is not None and offset > cap:
+            if verbose:
+                print(f"  plafond de pagination atteint ({offset} > {cap})",
+                      flush=True)
             break
 
 

@@ -12,13 +12,41 @@ Detail des acquisitions (mesures du 2026-10-21) :
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import re
+import time
 from typing import Any, Optional
 
 from ..core.site import SiteAdapter, make_ad
 
 BASE = "https://www.avito.ma"
+
+# --- decoupage en tranches (plafond de pagination) -------------------------
+# Mesures du 2026-11-01 : Avito ne laisse voir que les ~2,8 % premiers
+# resultats d'une requete. `?o=` au-dela renvoie une page vide, avec un
+# plafond dur d'environ 4 000 annonces :
+#     offset_max ~= min(4000, total / 36)      (verifie sur 5 jeux de filtres)
+# Une requete de T annonces rend donc environ T/36 + 38 annonces, et non T.
+#
+# Consequence : pour couvrir un gros catalogue il faut multiplier les
+# requetes *differentes* (ville x tranche de prix) plutot que paginer plus
+# loin. On decoupe chaque ville en sous-tranches de ~SLICE_TARGET annonces :
+# une sous-tranche tient dans une page, donc elle est couverte en entier.
+SLICE_TARGET = int(os.environ.get("AVITO_SLICE_TARGET", "40"))
+#: plafond de pagination mesure : offset_max ~= min(4000, total / 36)
+PAGINATION_RATIO = 36
+PAGINATION_HARD_CAP = 4000
+#: nombre maximal de requetes de sondage pour construire les tranches
+SLICE_PROBE_BUDGET = int(os.environ.get("AVITO_SLICE_PROBES", "4500"))
+#: duree de validite du cache de tranches (secondes) : la distribution des
+#: prix bouge lentement, un mois suffit (recalcule si le total derive de 10 %)
+SLICE_CACHE_TTL = int(os.environ.get("AVITO_SLICE_CACHE_TTL", str(30 * 24 * 3600)))
+SLICE_CACHE_DIR = os.environ.get("AVITO_SLICE_CACHE_DIR", "/data/cache")
+#: borne haute des prix pour la bissection (DH) : 99,9 % du catalogue est
+#: en dessous (91 annonces au-dela sur 96 658)
+PRICE_MAX = 20_000_000
 
 _NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
 _DETAIL_URL_RE = re.compile(r'(?:https?:)?//www\.avito\.ma(/fr/[^"\'<>\s]+?\.htm)')
@@ -175,6 +203,11 @@ def _slugify(text: str) -> str:
     return text.replace("-", "_")
 
 
+def _price(n: int) -> str:
+    """150000 -> '150 000' (libelle lisible dans la progression)."""
+    return f"{int(n):,}".replace(",", " ")
+
+
 def _as_int(v: Any) -> Optional[int]:
     if v is None:
         return None
@@ -218,6 +251,8 @@ class AvitoAdapter(SiteAdapter):
     global_total: int = 0
     #: nombre d'annonces ecartees (hors categorie) depuis le demarrage
     log_sponsored: int = 0
+    #: resume du decoupage en tranches (log)
+    log_slices: str = ""
 
     # ------------------------------------------------------------- catalogue
     def catalog_fetcher(self, client):
@@ -273,7 +308,8 @@ class AvitoAdapter(SiteAdapter):
     def listing_url(self, category: str, offset: int) -> str:
         url = f"{BASE}/fr/{category}"
         if offset:
-            url += f"?o={offset}"
+            # la tranche peut deja porter une query (?price=...) : on ajoute
+            url += ("&" if "?" in url else "?") + f"o={offset}"
         return url
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
@@ -322,10 +358,14 @@ class AvitoAdapter(SiteAdapter):
         return out
 
     def slices(self, category: str, client=None) -> list[tuple[str, str]]:
-        """Decoupe la categorie en tranches (une par ville).
+        """Decoupe la categorie en tranches : villes x tranches de prix.
 
-        Avito plafonne la pagination a ~3 966 annonces par tranche ; en
-        filtrant par ville on couvre l'ensemble du catalogue.
+        Avito ne rend que les ~2,8 % premiers resultats d'une requete (voir
+        les constantes en haut du module) : une ville de 35 000 annonces n'en
+        laisse voir qu'environ 1 000. On decoupe donc chaque ville en
+        sous-tranches de prix d'environ SLICE_TARGET annonces : une
+        sous-tranche tient dans une page, donc elle est couverte en entier.
+
         Le chemin attendu est du type "maroc/voitures-a-vendre".
         """
         if not client:
@@ -356,13 +396,130 @@ class AvitoAdapter(SiteAdapter):
             return [(category, category)]
         # on garde les grandes villes d'abord (le plus d'annonces)
         cities.sort(key=lambda x: -x[1])
+
+        cached = self._load_slice_cache(category)
+        if cached:
+            self.log_slices = f"{len(cached)} tranches (cache)"
+            return cached
+
         root, _, cat = category.partition("/")
-        out = []
-        for name, _cnt in cities:
+        budget = [SLICE_PROBE_BUDGET]
+        out: list[tuple[str, str]] = []
+        for name, cnt in cities:
             slug = _slugify(name)
-            out.append((name, f"{root}/{slug}/{cat}"))
+            path = f"{root}/{slug}/{cat}"
+            if cnt <= SLICE_TARGET * 2:
+                out.append((name, path))
+                continue
+            sub = self._city_price_slices(name, path, client, budget)
+            if sub:
+                # filet de securite : les annonces sans prix (~21 % du
+                # catalogue) n'apparaissent dans aucun filtre de prix
+                out.append((f"{name} (toutes)", path))
+                out.extend(sub)
+            else:
+                out.append((name, path))
         out.append((category, category))   # la categorie globale en dernier
+        # on ne met en cache que si le decoupage est complet (budget restant)
+        if 0 < budget[0] < SLICE_PROBE_BUDGET:
+            self._save_slice_cache(category, out)
+        self.log_slices = f"{len(out)} tranches ({SLICE_PROBE_BUDGET - budget[0]} sondages)"
         return out
+
+    # --------------------------------------------------- tranches de prix
+    def _city_price_slices(self, label: str, path: str, client,
+                           budget: list[int]) -> list[tuple[str, str]]:
+        """Sous-tranches de prix d'une ville (bissection recursive)."""
+        priced = self._slice_count(client, f"{path}?price=0-{PRICE_MAX}", budget)
+        if not priced:
+            return []
+        out = self._bisect(label, path, int(priced), client, budget, 0, PRICE_MAX, 0)
+        return out or []
+
+    def _bisect(self, label: str, path: str, total: int, client,
+                budget: list[int], lo: int, hi: int,
+                depth: int) -> list[tuple[str, str]]:
+        """Bissecte [lo, hi] jusqu'a obtenir des tranches <= SLICE_TARGET."""
+        if (total <= SLICE_TARGET or depth >= 24 or hi - lo <= 200
+                or budget[0] <= 0):
+            return [(f"{label} {_price(lo)}-{_price(hi)} DH",
+                     f"{path}?price={lo}-{hi}")]
+        mid = (lo + hi) // 2
+        left = f"{path}?price={lo}-{mid}"
+        n_left = self._slice_count(client, left, budget)
+        if n_left is None:
+            # budget epuise ou erreur reseau : on garde la tranche entiere
+            return [(f"{label} {_price(lo)}-{_price(hi)} DH", left)]
+        out: list[tuple[str, str]] = []
+        if n_left > 0:
+            out += self._bisect(label, path, int(n_left), client, budget,
+                                lo, mid, depth + 1)
+        n_right = total - int(n_left)
+        if n_right > 0:
+            out += self._bisect(label, path, n_right, client, budget,
+                                mid + 1, hi, depth + 1)
+        return out
+
+    def _slice_count(self, client, path: str, budget: list[int]) -> Optional[int]:
+        """Nombre d'annonces d'une requete (consomme 1 sondage)."""
+        if budget[0] <= 0:
+            return None
+        budget[0] -= 1
+        done = SLICE_PROBE_BUDGET - budget[0]
+        if done % 50 == 0:
+            p = getattr(self, "progress", None)
+            if p is not None:
+                try:
+                    p.update(current_slice=f"decoupage des tranches ({done} sondages)")
+                except Exception:
+                    pass
+        try:
+            html = client.get(f"{BASE}/fr/{path}")
+            n = self.total_ads(html)
+            return int(n) if n is not None else None
+        except Exception:
+            return None
+
+    # ------------------------------------------------------- cache tranches
+    def _slice_cache_path(self, category: str) -> str:
+        h = hashlib.sha1(category.encode("utf-8")).hexdigest()[:10]
+        # la version du decoupage fait partie du nom : changer SLICE_TARGET
+        # ou PRICE_MAX invalide le cache automatiquement
+        return os.path.join(SLICE_CACHE_DIR,
+                            f"avito_slices_{h}_{SLICE_TARGET}_{PRICE_MAX}.json")
+
+    def _load_slice_cache(self, category: str) -> Optional[list[tuple[str, str]]]:
+        try:
+            with open(self._slice_cache_path(category), encoding="utf-8") as fh:
+                data = json.load(fh)
+            created = float(data.get("created") or 0)
+            if time.time() - created > SLICE_CACHE_TTL:
+                return None
+            # le catalogue bouge : on recalcule si le total a derive de >10 %
+            old_total = int(data.get("global_total") or 0)
+            if self.global_total and old_total:
+                if abs(self.global_total - old_total) > 0.10 * old_total:
+                    return None
+            slices = data.get("slices") or []
+            if not slices:
+                return None
+            return [(str(a), str(b)) for a, b in slices]
+        except Exception:
+            return None
+
+    def _save_slice_cache(self, category: str,
+                          slices: list[tuple[str, str]]) -> None:
+        path = self._slice_cache_path(category)
+        try:
+            os.makedirs(SLICE_CACHE_DIR, exist_ok=True)
+            tmp = f"{path}.tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump({"created": time.time(),
+                           "global_total": self.global_total,
+                           "slices": slices}, fh, ensure_ascii=False)
+            os.replace(tmp, path)
+        except Exception:
+            pass
 
     def total_ads(self, html: str) -> Optional[int]:
         try:
@@ -374,6 +531,17 @@ class AvitoAdapter(SiteAdapter):
             return (fsr.get("count") or {}).get("total")
         except Exception:
             return None
+
+    def max_offset(self, total: Optional[int]) -> Optional[int]:
+        """Avito ne pagine que les ~1/36 premiers resultats d'une requete.
+
+        Mesure du 2026-11-01 sur 5 jeux de filtres (total -> offset max) :
+        830 -> 23, 11 771 -> 327, 34 907 -> 970, 45 880 -> 1 274,
+        141 477 -> 3 930 (plafond dur ~4 000).
+        """
+        if not total:
+            return None
+        return min(PAGINATION_HARD_CAP, int(total) // PAGINATION_RATIO)
 
     # -------------------------------------------------------------- detail
     def detail_url(self, ad: dict) -> Optional[str]:

@@ -104,6 +104,14 @@ class SiteAdapter(ABC):
         """Nombre total d'annonces du catalogue (si la page l'expose)."""
         return None
 
+    def max_offset(self, total: Optional[int]) -> Optional[int]:
+        """Offset maximal utile pour une tranche (None = pas de limite connue).
+
+        Certains sites ne paginent pas au-dela d'une fraction de leurs
+        resultats : inutile d'aller plus loin, la page revient vide.
+        """
+        return None
+
     def reset_pagination(self) -> None:
         """Reinitialise le compteur de pages (appele au debut de chaque tranche).
 
