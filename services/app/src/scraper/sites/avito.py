@@ -39,7 +39,7 @@ SLICE_TARGET = int(os.environ.get("AVITO_SLICE_TARGET", "40"))
 PAGINATION_RATIO = 36
 PAGINATION_HARD_CAP = 4000
 #: nombre maximal de requetes de sondage pour construire les tranches
-SLICE_PROBE_BUDGET = int(os.environ.get("AVITO_SLICE_PROBES", "4500"))
+SLICE_PROBE_BUDGET = int(os.environ.get("AVITO_SLICE_PROBES", "9000"))
 #: duree de validite du cache de tranches (secondes) : la distribution des
 #: prix bouge lentement, un mois suffit (recalcule si le total derive de 10 %)
 SLICE_CACHE_TTL = int(os.environ.get("AVITO_SLICE_CACHE_TTL", str(30 * 24 * 3600)))
@@ -420,10 +420,15 @@ class AvitoAdapter(SiteAdapter):
             else:
                 out.append((name, path))
         out.append((category, category))   # la categorie globale en dernier
-        # on ne met en cache que si le decoupage est complet (budget restant)
-        if 0 < budget[0] < SLICE_PROBE_BUDGET:
-            self._save_slice_cache(category, out)
-        self.log_slices = f"{len(out)} tranches ({SLICE_PROBE_BUDGET - budget[0]} sondages)"
+        # un decoupage interrompu (budget epuise) reste utilisable : on le
+        # met en cache, mais pour 24 h seulement, le temps de le refaire
+        if budget[0] < SLICE_PROBE_BUDGET:
+            complete = budget[0] > 0
+            ttl = SLICE_CACHE_TTL if complete else min(SLICE_CACHE_TTL, 86400)
+            self._save_slice_cache(category, out, ttl=ttl)
+        self.log_slices = (f"{len(out)} tranches "
+                           f"({SLICE_PROBE_BUDGET - budget[0]} sondages"
+                           + ("" if budget[0] > 0 else ", budget epuise") + ")")
         return out
 
     # --------------------------------------------------- tranches de prix
@@ -440,7 +445,9 @@ class AvitoAdapter(SiteAdapter):
                 budget: list[int], lo: int, hi: int,
                 depth: int) -> list[tuple[str, str]]:
         """Bissecte [lo, hi] jusqu'a obtenir des tranches <= SLICE_TARGET."""
-        if (total <= SLICE_TARGET or depth >= 24 or hi - lo <= 200
+        # largeur minimale 10 DH : au-dela les annonces partagent le meme
+        # prix et aucun filtre ne peut les separer
+        if (total <= SLICE_TARGET or depth >= 26 or hi - lo <= 10
                 or budget[0] <= 0):
             return [(f"{label} {_price(lo)}-{_price(hi)} DH",
                      f"{path}?price={lo}-{hi}")]
@@ -493,7 +500,8 @@ class AvitoAdapter(SiteAdapter):
             with open(self._slice_cache_path(category), encoding="utf-8") as fh:
                 data = json.load(fh)
             created = float(data.get("created") or 0)
-            if time.time() - created > SLICE_CACHE_TTL:
+            ttl = int(data.get("ttl") or SLICE_CACHE_TTL)
+            if time.time() - created > ttl:
                 return None
             # le catalogue bouge : on recalcule si le total a derive de >10 %
             old_total = int(data.get("global_total") or 0)
@@ -508,13 +516,15 @@ class AvitoAdapter(SiteAdapter):
             return None
 
     def _save_slice_cache(self, category: str,
-                          slices: list[tuple[str, str]]) -> None:
+                          slices: list[tuple[str, str]],
+                          ttl: Optional[int] = None) -> None:
         path = self._slice_cache_path(category)
         try:
             os.makedirs(SLICE_CACHE_DIR, exist_ok=True)
             tmp = f"{path}.tmp"
             with open(tmp, "w", encoding="utf-8") as fh:
                 json.dump({"created": time.time(),
+                           "ttl": int(ttl or SLICE_CACHE_TTL),
                            "global_total": self.global_total,
                            "slices": slices}, fh, ensure_ascii=False)
             os.replace(tmp, path)
