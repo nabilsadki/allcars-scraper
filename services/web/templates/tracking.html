@@ -183,11 +183,12 @@
       <button type="button" id="auto-sel-none" class="text-[10.5px] text-accent-txt hover:underline cursor-pointer bg-transparent border-0 p-0">Tout decocher</button>
     </div>
   </div>
+  <div class="overflow-x-auto -mx-1 px-1">
   <table class="w-full text-[13px] border-collapse mb-2">
     <thead><tr class="text-[11px] text-muted uppercase tracking-wide">
-      <th class="text-left py-1 pr-2 w-32">Site</th>
-      <th class="py-1 pr-2 w-20 text-center">Auto</th>
-      <th class="py-1 pr-2 w-20 text-center">Cadence</th>
+      <th class="text-left py-1 pr-2 w-32 sticky left-0 z-20 bg-panel">Site</th>
+      <th class="py-1 pr-2 w-20 text-center sticky left-[128px] z-20 bg-panel">Auto</th>
+      <th class="py-1 pr-2 w-20 text-center sticky left-[208px] z-20 bg-panel">Cadence</th>
       <th class="py-1 pr-2 text-left">Prochain run</th>
       <th class="py-1 pr-2 text-left">Dernier run</th>
       <th class="py-1 pr-2 text-center">État</th>
@@ -195,6 +196,7 @@
     </tr></thead>
     <tbody id="auto-sched" class="text-[12px]"></tbody>
   </table>
+  </div>
 
   <details class="group border border-line/60 rounded-lg bg-panel2/30 mb-2" id="auto-queue-details">
     <summary class="flex items-center justify-between cursor-pointer select-none px-3 py-2 text-[12px] uppercase tracking-wider text-muted hover:bg-panel2/50 transition-colors rounded-lg">
@@ -1144,9 +1146,9 @@ async function refreshAutomation() {
     if (tb && d.schedules) {
       tb.innerHTML = d.schedules.map(s =>
         '<tr class="border-t border-line">' +
-        '<td class="py-1 pr-2 font-medium">' + s.site + '</td>' +
-        '<td class="py-1 pr-2 text-center"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
-        '<td class="py-1 pr-2 text-center"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-16 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
+        '<td class="py-1 pr-2 font-medium sticky left-0 z-10 bg-panel">' + s.site + '</td>' +
+        '<td class="py-1 pr-2 text-center sticky left-[128px] z-10 bg-panel"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
+        '<td class="py-1 pr-2 text-center sticky left-[208px] z-10 bg-panel"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-16 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
         '<td class="py-1 pr-2 text-[10.5px] text-muted" title="' + (s.next_due || '') + '">' + relTime(s.next_due) + '</td>' +
         '<td class="py-1 pr-2 text-[10.5px] text-muted" title="' + (s.last_success_at || '') + '">' + relTime(s.last_success_at) + '</td>' +
         '<td class="py-1 pr-2 text-center text-[10.5px] text-muted">' + (s.last_mode || '—') + '</td>' +
