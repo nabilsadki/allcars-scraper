@@ -184,15 +184,20 @@
     </div>
   </div>
   <div class="overflow-x-auto -mx-1 px-1">
-  <table class="w-full text-[13px] border-collapse mb-2">
+  <table class="w-full min-w-[760px] table-fixed text-[13px] border-collapse mb-2">
+    <colgroup>
+      <col class="w-[128px]">
+      <col class="w-[80px]">
+      <col class="w-[80px]">
+    </colgroup>
     <thead><tr class="text-[11px] text-muted uppercase tracking-wide">
-      <th class="text-left py-1 pr-2 w-32 sticky left-0 z-30 bg-panel">Site</th>
-      <th class="py-1 pr-2 w-20 text-center sticky left-[128px] z-30 bg-panel">Auto</th>
-      <th class="py-1 pr-2 w-20 text-center sticky left-[208px] z-30 bg-panel">Cadence</th>
-      <th class="py-1 pr-2 text-left">Prochain run</th>
-      <th class="py-1 pr-2 text-left">Dernier run</th>
-      <th class="py-1 pr-2 text-center">État</th>
-      <th class="py-1 pr-2 text-left">Exécution</th>
+      <th class="text-left py-1 pr-2 whitespace-nowrap sticky left-0 z-30 bg-panel">Site</th>
+      <th class="py-1 pr-2 text-center whitespace-nowrap sticky left-[128px] z-30 bg-panel">Auto</th>
+      <th class="py-1 pr-2 text-center whitespace-nowrap sticky left-[208px] z-30 bg-panel border-r border-line">Cadence</th>
+      <th class="py-1 pr-2 pl-2 text-left whitespace-nowrap">Prochain run</th>
+      <th class="py-1 pr-2 text-left whitespace-nowrap">Dernier run</th>
+      <th class="py-1 pr-2 text-center whitespace-nowrap">État</th>
+      <th class="py-1 pr-2 text-left whitespace-nowrap">Exécution</th>
     </tr></thead>
     <tbody id="auto-sched" class="text-[12px]"></tbody>
   </table>
@@ -1146,13 +1151,13 @@ async function refreshAutomation() {
     if (tb && d.schedules) {
       tb.innerHTML = d.schedules.map(s =>
         '<tr class="border-t border-line">' +
-        '<td class="py-1 pr-2 font-medium sticky left-0 z-20 bg-panel">' + s.site + '</td>' +
+        '<td class="py-1 pr-2 font-medium whitespace-nowrap overflow-hidden text-ellipsis sticky left-0 z-20 bg-panel">' + s.site + '</td>' +
         '<td class="py-1 pr-2 text-center sticky left-[128px] z-20 bg-panel"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
-        '<td class="py-1 pr-2 text-center sticky left-[208px] z-20 bg-panel"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-16 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
-        '<td class="py-1 pr-2 text-[10.5px] text-muted" title="' + (s.next_due || '') + '">' + relTime(s.next_due) + '</td>' +
-        '<td class="py-1 pr-2 text-[10.5px] text-muted" title="' + (s.last_success_at || '') + '">' + relTime(s.last_success_at) + '</td>' +
-        '<td class="py-1 pr-2 text-center text-[10.5px] text-muted">' + (s.last_mode || '—') + '</td>' +
-        '<td class="py-1 pr-2 text-[11px] font-mono text-txt">' + (s.execution || '—') + '</td>' +
+        '<td class="py-1 pr-2 text-center sticky left-[208px] z-20 bg-panel border-r border-line"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-14 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
+        '<td class="py-1 pr-2 pl-2 text-[10.5px] text-muted whitespace-nowrap overflow-hidden text-ellipsis" title="' + (s.next_due || '') + '">' + relTime(s.next_due) + '</td>' +
+        '<td class="py-1 pr-2 text-[10.5px] text-muted whitespace-nowrap overflow-hidden text-ellipsis" title="' + (s.last_success_at || '') + '">' + relTime(s.last_success_at) + '</td>' +
+        '<td class="py-1 pr-2 text-center text-[10.5px] text-muted whitespace-nowrap overflow-hidden text-ellipsis">' + (s.last_mode || '—') + '</td>' +
+        '<td class="py-1 pr-2 text-[11px] font-mono text-txt whitespace-nowrap overflow-hidden text-ellipsis">' + (s.execution || '—') + '</td>' +
         '</tr>'
       ).join('');
       tb.querySelectorAll('.auto-enable').forEach(cb => {
