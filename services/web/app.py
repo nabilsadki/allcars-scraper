@@ -187,6 +187,7 @@ SITE_LABELS = {
     "wandaloo": "Wandaloo.com",
     "kia": "Kia Occasion",
     "autobroker": "Autobroker.ma",
+    "espacevoiture": "Espacevoiture.com",
 }
 
 
@@ -248,6 +249,7 @@ SITE_HUES = {
     "wandaloo": 60,      # ambre
     "kia": 120,      # teal-ish
     "autobroker": 195, # teal
+    "espacevoiture": 35, # amber-orange
 }
 
 
