@@ -189,6 +189,7 @@ SITE_LABELS = {
     "autobroker": "Autobroker.ma",
     "espacevoiture": "Espacevoiture.com",
     "marocannonces": "MarocAnnonces.com",
+    "derkaoui": "Derkaoui Automotive",
 }
 
 
@@ -252,6 +253,7 @@ SITE_HUES = {
     "autobroker": 195, # teal
     "espacevoiture": 35, # amber-orange
     "marocannonces": 280, # grape
+    "derkaoui": 15, # red/orange
 }
 
 
