@@ -191,6 +191,7 @@ SITE_LABELS = {
     "marocannonces": "MarocAnnonces.com",
     "derkaoui": "Derkaoui Automotive",
     "autoreda": "Auto Reda",
+    "moccaz": "M.OCCAZ",
 }
 
 
@@ -256,6 +257,7 @@ SITE_HUES = {
     "marocannonces": 280, # grape
     "derkaoui": 15, # red/orange
     "autoreda": 175, # teal-cyan
+    "moccaz": 300, # magenta
 }
 
 
