@@ -245,9 +245,14 @@ class WandalooAdapter(SiteAdapter):
             merged["options"] = {e: True for e in equip}
 
         # seller
-        seller_m = re.search(r"Toutes les annonces de ce vendeur\">\s*(.*?)\s*</a>", html, re.S)
+        seller_m = re.search(r'<div id="vendeur".*?<p class="name">\s*(.*?)\s*</p>', html, re.S)
+        if not seller_m:
+            seller_m = re.search(r"Toutes les annonces de ce vendeur\">\s*(.*?)\s*</a>", html, re.S)
         if seller_m:
             merged["seller"] = _kc(seller_m.group(1))
+        seller_type_m = re.search(r'<p class="titre">\s*Vendeur\s*</p>\s*<p class="tag">\s*(.*?)\s*</p>', html, re.S)
+        if seller_type_m:
+            merged["seller_type"] = _kc(seller_type_m.group(1))
         seller_type_m = re.search(r'adress">\s*[^<]*<br\s*/?>\s*([\d\s]{9,})\s*</p>', html, re.S)
         if seller_type_m:
             merged["phone"] = seller_type_m.group(1).strip()
