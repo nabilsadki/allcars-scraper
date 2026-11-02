@@ -518,7 +518,7 @@ HTTP, blocages Cloudflare, statut, erreur.
 
 | site | adaptateur | source | annonces | requetes |
 |------|------------|--------|----------|----------|
-| avito | `sites/avito.py` | Next.js (`__NEXT_DATA__`) + API GraphQL marques | 138 836 | 2 556 pour le catalogue |
+| avito | `sites/avito.py` | Next.js (`__NEXT_DATA__`) + API GraphQL marques | 141 477 | ~4 430 tranches (sous-slices de prix de ~40 annonces), construites en ~7 400 requetes de sondage (cache 30 j) |
 | tomobila | `sites/tomobila.py` | WordPress (tableau d'attributs) | ~4 600 | 1/page |
 | globaloccaz | `sites/globaloccaz.py` | **API REST** `/wp-json/vehica/v1/cars` (plugin Vehica) | 268 | **1 pour tout le catalogue** |
 | kifal | `sites/kifal.py` | HTML + donnees codees dans l'URL | 396 | 1/page (35) |
