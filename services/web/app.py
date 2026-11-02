@@ -190,6 +190,7 @@ SITE_LABELS = {
     "espacevoiture": "Espacevoiture.com",
     "marocannonces": "MarocAnnonces.com",
     "derkaoui": "Derkaoui Automotive",
+    "autoreda": "Auto Reda",
 }
 
 
@@ -254,6 +255,7 @@ SITE_HUES = {
     "espacevoiture": 35, # amber-orange
     "marocannonces": 280, # grape
     "derkaoui": 15, # red/orange
+    "autoreda": 175, # teal-cyan
 }
 
 
