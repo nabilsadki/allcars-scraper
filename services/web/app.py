@@ -188,6 +188,7 @@ SITE_LABELS = {
     "kia": "Kia Occasion",
     "autobroker": "Autobroker.ma",
     "espacevoiture": "Espacevoiture.com",
+    "marocannonces": "MarocAnnonces.com",
 }
 
 
@@ -250,6 +251,7 @@ SITE_HUES = {
     "kia": 120,      # teal-ish
     "autobroker": 195, # teal
     "espacevoiture": 35, # amber-orange
+    "marocannonces": 280, # grape
 }
 
 
