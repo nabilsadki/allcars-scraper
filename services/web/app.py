@@ -192,6 +192,7 @@ SITE_LABELS = {
     "derkaoui": "Derkaoui Automotive",
     "autoreda": "Auto Reda",
     "moccaz": "M.OCCAZ",
+    "maisonoccaz": "Maison Occaz",
 }
 
 
@@ -258,6 +259,7 @@ SITE_HUES = {
     "derkaoui": 15, # red/orange
     "autoreda": 175, # teal-cyan
     "moccaz": 300, # magenta
+    "maisonoccaz": 250, # indigo
 }
 
 
