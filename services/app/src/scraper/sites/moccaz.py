@@ -52,7 +52,9 @@ class MoccazAdapter(SiteAdapter):
 
     def listing_url(self, category: str, offset: int) -> str:
         self._page = getattr(self, "_page", 0) + 1
-        return f"{BASE}/notre-parc-de-vehicules"
+        if self._page <= 1:
+            return f"{BASE}/notre-parc-de-vehicules"
+        return f"{BASE}/notre-parc-de-vehicules/{(self._page - 1) * 20}"
 
     def parse_listing(self, html: str, category: str = "") -> list[dict]:
         out = []
@@ -128,9 +130,10 @@ class MoccazAdapter(SiteAdapter):
         return out
 
     def total_ads(self, html: str) -> Optional[int]:
-        # la premiere page contient l'integralite du stock (20 annonces)
-        n = len(re.findall(r"<!-- Start - Car Card -->", html))
-        return n if n > 0 else None
+        m = re.search(r'<input[^>]*id="total"[^>]*value="(\d+)"', html)
+        if m:
+            return int(m.group(1))
+        return None
 
     def detail_url(self, ad: dict) -> Optional[str]:
         return None
