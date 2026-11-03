@@ -253,7 +253,7 @@ def _loop():
                         continue
                 except Exception:
                     pass
-                enqueue(site, mode="rescan", payload={"mode": "rescan"}, priority=3,
+                enqueue(site, mode="rescan", payload={"mode": "rescan", "mark_missing": True}, priority=3,
                         trigger_source="scheduled")
                 print("  enqueued", site, flush=True)
                 _exec(db, "UPDATE site_schedule SET next_due = DATE_ADD(NOW(), "

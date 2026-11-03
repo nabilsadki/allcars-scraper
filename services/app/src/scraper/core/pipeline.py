@@ -305,6 +305,13 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
         html = client.get(url)
         full = site.parse_detail(html, ad)
     except Exception as e:
+        # fiche introuvable : l'annonce est surement supprimee du site
+        if ("HTTP 404" in str(e) or "HTTP 410" in str(e)):
+            out = dict(ad)
+            out["details_fetched"] = True
+            out["is_active"] = False
+            out["url"] = url
+            return out
         client.log(f"  ! detail en echec ({type(e).__name__}: {e})")
         return ad
     if not full:
@@ -535,16 +542,26 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
     progress.update(listed=len(seen), details=n_details, unchanged=n_unchanged)
     progress.stats(client, db)
 
-    # disparitions : uniquement si le run a couvert TOUTE la categorie
-    total = getattr(client, "catalog_total", None)
-    complete = bool(total) and len(seen) >= int(total)
+    # disparitions : uniquement si le run a couvert une fraction suffisante
+    # de la categorie (la couverture exacte n'est jamais atteinte : le
+    # plafond Avito est ~2,8 %, siaracash coupe a la 404, etc.). Le gate
+    # reste activable au niveau du job (`--mark-missing`) et par le daemon.
+    threshold = getattr(site, "mark_missing_min_coverage", 0.90)
+    total = (site.global_total
+             or getattr(client, "catalog_total", None) or 0)
+    coverage = (len(seen) / total) if total else 0.0
+    complete = bool(total) and coverage >= threshold
     n_gone = 0
     if mark_missing and complete:
         n_gone = db.mark_disappeared(list(known_before - seen), site=site.name)
         if not quiet:
-            print(f"  {n_gone} annonces disparues marquees inactives")
+            print(f"  {n_gone} annonces disparues marquees inactives "
+                  f"(couverture {coverage * 100:.1f} % >= {threshold * 100:.0f} %)")
     elif mark_missing and not quiet:
-        print(f"  run partiel ({len(seen)}/{total or '?'}) : pas de marquage")
+        print(f"  run partiel ({len(seen)}/{total or '?'} = "
+              f"{coverage * 100:.1f} %) : pas de marquage "
+              f"(seuil {threshold * 100:.0f} %)")
+
 
     dt = time.time() - t0
     progress.finish("success")

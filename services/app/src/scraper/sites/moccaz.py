@@ -136,7 +136,7 @@ class MoccazAdapter(SiteAdapter):
         return None
 
     def detail_url(self, ad: dict) -> Optional[str]:
-        return None
+        return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
         return {"details_fetched": True}

@@ -266,6 +266,103 @@ def cmd_stats(args) -> int:
     return 0
 
 
+def cmd_cleanup_stale(args) -> int:
+    """Retire des annonces anciennes: test vie detail URL (404 => désactivée)."""
+    setattr(args, "delay", getattr(args, "delay", 1.5))
+    setattr(args, "jitter", getattr(args, "jitter", 0.8))
+    site = _site(args)
+    db = _db(args)
+    client = _client(args)
+    idle_days = int(getattr(args, "idle_days", 30) or 30)
+    limit = int(getattr(args, "limit", 500) or 500)
+    dry_run = bool(getattr(args, "dry_run", False))
+    quiet = bool(getattr(args, "quiet", False))
+    try:
+        rows = db.query(
+            "SELECT ad_id, link FROM ads "
+            "WHERE site = %s AND is_active = 1 "
+            "AND (last_seen_at IS NULL OR last_seen_at < (NOW() - INTERVAL %s DAY)) "
+            "ORDER BY last_seen_at LIMIT %s",
+            (site.name, idle_days, limit),
+        )
+        if not quiet:
+            print(f"  {len(rows)} candidat(s) inactifs depuis >{idle_days}j", flush=True)
+        if dry_run:
+            for r in rows:
+                print("  -", r.get("ad_id"), r.get("link"))
+            return 0
+        deactivated: list[str] = []
+        touched = 0
+        for r in rows:
+            ad_id = r.get("ad_id")
+            link = r.get("link")
+            if not ad_id:
+                continue
+            try:
+                html = client.get(link) if link else None
+                status = 200
+            except Exception as e:
+                status = 404 if ("HTTP 404" in str(e) or "HTTP 410" in str(e)) else None
+            if status == 404 or status == 410:
+                db.cur.execute(
+                    "UPDATE ads SET is_active = 0, details_fetched = 1, "
+                    "last_seen_at = NOW() WHERE site = %s AND ad_id = %s",
+                    (site.name, ad_id),
+                )
+                deactivated.append(str(ad_id))
+            elif status == 200:
+                db.cur.execute(
+                    "UPDATE ads SET last_seen_at = NOW() WHERE site = %s AND ad_id = %s",
+                    (site.name, ad_id),
+                )
+                touched += 1
+            else:
+                continue
+            # Meilisearch partial update
+            if len(deactivated) % 50 == 0:
+                db.commit()
+        db.commit()
+        # push inactive flags to index (partial update by id)
+        if deactivated:
+            import json as _json, urllib.request as _ur
+            url = os.environ.get("SITE_REINDEX_URL",
+                                 "http://allcars-site-web:8080/api/reindex").replace("reindex", "reindex")
+            # Meilisearch direct (more reliable than full site export)
+            meili_url = os.environ.get("MEILISEARCH_URL")
+            meili_key = os.environ.get("MEILISEARCH_KEY")
+            if not meili_url:
+                meili_url = os.environ.get("MEILISEARCH_URL", "http://meilisearch:7700")
+            if not meili_key:
+                meili_key = os.environ.get("MEILISEARCH_KEY", "allcars-site-master-key")
+            payload = [{"id": f"{site.name}_{aid}", "is_active": False} for aid in deactivated]
+            # batch 100
+            pushed = 0
+            for i in range(0, len(payload), 100):
+                try:
+                    data = _json.dumps(payload[i:i + 100]).encode("utf-8")
+                    req = _ur.Request(f"{meili_url}/indexes/ads/documents",
+                                      data=data, method="PUT")
+                    req.add_header("Content-Type", "application/json")
+                    req.add_header("Authorization", f"Bearer {meili_key}")
+                    with _ur.urlopen(req, timeout=60) as r:
+                        _ = r.read()
+                    pushed += len(data and payload[i:i + 100])
+                except Exception as e:
+                    if not quiet:
+                        print(f"  ! Meilisearch push echec: {e}", file=sys.stderr)
+            if not quiet:
+                print(f"  {len(deactivated)} annonce(s) desactivees dans la BDD "
+                      f"(+{touched} encore vivantes), index Meilisearch mis a jour "
+                      f"({pushed} docs)", flush=True)
+        else:
+            if not quiet:
+                print("  aucune annonce a desactiver", flush=True)
+    finally:
+        db.close()
+    return 0
+
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="scrape", description="Scraper multi-sites (Docker)")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -321,6 +418,16 @@ def main(argv=None) -> int:
                     help="prefixe du nom de categorie a conserver")
     s7.add_argument("--dry-run", action="store_true")
     s7.set_defaults(func=cmd_clean)
+
+    sc = sub.add_parser("cleanup-stale",
+                       help="desactive les annonces non vues depuis N jours (details 404)")
+    sc.add_argument("--site", default="avito")
+    sc.add_argument("--idle-days", type=int, default=30, dest="idle_days")
+    sc.add_argument("--limit", type=int, default=500)
+    sc.add_argument("--db", action="store_true")
+    sc.add_argument("--dry-run", action="store_true", dest="dry_run")
+    sc.add_argument("--quiet", action="store_true")
+    sc.set_defaults(func=cmd_cleanup_stale)
 
     s6 = sub.add_parser("sites", help="liste des sites supportes")
     s6.set_defaults(func=cmd_sites)
