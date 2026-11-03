@@ -26,6 +26,16 @@ def _num(text: str) -> Optional[int]:
     return int(digits) if digits else None
 
 
+def _price(text: str) -> Optional[int]:
+    if not text:
+        return None
+    # "221 000,00 Dhs" -> 221000 (on ignore les centimes)
+    if "," in text:
+        text = text.split(",", 1)[0]
+    digits = re.sub(r"[^\d]", "", text)
+    return int(digits) if digits else None
+
+
 class MoccazAdapter(SiteAdapter):
     name = "m_occaz"
     label = "M.OCCAZ"
@@ -68,23 +78,19 @@ class MoccazAdapter(SiteAdapter):
             seen.add(ad_id)
 
             price_m = re.search(r'<div class="price">\s*([\d\s.,]+)', block)
-            price = _num(price_m.group(1)) if price_m else None
+            price = _price(price_m.group(1)) if price_m else None
 
-            year_m = re.search(r'icons/year\.svg[^>]*>\s*</div>\s*<span[^>]*>\s*(\d{4})', block, re.S)
-            if not year_m:
-                year_m = re.search(r'<img[^>]*year\.svg[^>]*>\s*<span[^>]*>\s*(\d{4})', block, re.S)
+            year_m = re.search(r'year\.svg[^>]*>.*?<span[^>]*>\s*(\d{4})', block, re.S | re.I)
             year = int(year_m.group(1)) if year_m else None
 
-            km_m = re.search(r'kilometrag.svg[^>]*>\s*</div>\s*<span[^>]*>\s*([\d\s]+)\s*km', block, re.S | re.I)
-            if not km_m:
-                km_m = re.search(r'km\.svg".*?span[^>]*>\s*([\d ]+)\s*Km', block, re.S | re.I)
+            km_m = re.search(r'kilometrag\.svg[^>]*>.*?<span[^>]*>\s*(.*?)\s*</span>', block, re.S | re.I)
             km = _num(km_m.group(1)) if km_m else None
 
-            fuel_m = re.search(r'carburant\.svg[^>]*>\s*</div>\s*<span[^>]*>\s*(.*?)\s*</span>', block, re.S | re.I)
-            fuel = _kc(re.sub(r"<[^>]+>", " ", fuel_m.group(1))) if fuel_m else None
+            fuel_m = re.search(r'carburant\.svg[^>]*>.*?<span[^>]*>\s*(.*?)\s*</span>', block, re.S | re.I)
+            fuel = _kc(fuel_m.group(1)) if fuel_m else None
 
             gearbox_m = re.search(r'boite\.svg[^>]*>.*?<span[^>]*>\s*(.*?)\s*</span>', block, re.S | re.I)
-            gearbox = _kc(re.sub(r"<[^>]+>", " ", gearbox_m.group(1))) if gearbox_m else None
+            gearbox = _kc(gearbox_m.group(1)) if gearbox_m else None
 
             img_m = re.search(r'data-src="(https://cloud\.car-cutter\.com/vehicles_images/[^"]+\.jpg)"', block)
             thumb = img_m.group(1) if img_m else None
