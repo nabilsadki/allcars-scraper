@@ -143,11 +143,17 @@ class MoccazAdapter(SiteAdapter):
         phone_m = re.search(r'href="tel:([^"]+)"', html)
         if phone_m:
             merged["phone"] = phone_m.group(1).strip()
-        # images (cloud car-cutter)
-        imgs = sorted(set(re.findall(r"https://cloud\.car-cutter\.com/vehicles_images/[^\"']+\.jpg", html)))
-        imgs = [u.split("?")[0] for u in imgs]
+        # images (cloud car-cutter ou galerie moccaz-crm)
+        imgs = []
+        for m in re.finditer(r'data-src="(https?://[^"]+\.(?:jpe?g|png|webp)(?:\?[^"]*)?)"', html, re.I):
+            u = m.group(1).split("?")[0]
+            if u not in imgs:
+                imgs.append(u)
+        if not imgs:
+            imgs = sorted({u.split("?")[0] for u in re.findall(r'src="(https?://[^"]+\.(?:jpe?g|png|webp))"', html, re.I)})
         if imgs:
             merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in imgs]
+            merged["nb_images"] = len(imgs)
             merged["nb_images"] = len(imgs)
         merged["seller"] = "M.OCCAZ"
         merged["seller_type"] = "Professionnel"
