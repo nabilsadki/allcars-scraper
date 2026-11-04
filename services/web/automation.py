@@ -53,6 +53,16 @@ def ensure_tables():
           trigger_source ENUM('manual','scheduled','daemon') NOT NULL DEFAULT 'manual',
           INDEX idx_priority_status_enqueued (priority,status,enqueued_at)
         )""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS reindex_schedule (
+          id INT PRIMARY KEY,
+          enabled TINYINT(1) NOT NULL DEFAULT 1,
+          cadence_hours INT NOT NULL DEFAULT 1,
+          last_run_at DATETIME NULL,
+          next_run_at DATETIME NULL
+        )""")
+        cur.execute("INSERT IGNORE INTO reindex_schedule (id, enabled, cadence_hours) VALUES (1, 1, 1)")
+        cur.execute("UPDATE reindex_schedule SET next_run_at = DATE_ADD(NOW(), INTERVAL cadence_hours HOUR) "
+                    "WHERE id=1 AND next_run_at IS NULL")
         for s in app.known_sites():
             name = s.get("name")
             if not name:
@@ -259,6 +269,36 @@ def _loop():
                 _exec(db, "UPDATE site_schedule SET next_due = DATE_ADD(NOW(), "
                           "INTERVAL %s HOUR) WHERE site=%s",
                       (int(cadence or 24), site))
+            # phase 1bis: planification automatique de la reindexation
+            try:
+                rows = db.cursor()
+                # ensure table exists
+                import app as _app
+                _app.db().cursor().execute("""CREATE TABLE IF NOT EXISTS reindex_schedule (
+                  id INT PRIMARY KEY, enabled TINYINT(1) NOT NULL DEFAULT 1,
+                  cadence_hours INT NOT NULL DEFAULT 1, last_run_at DATETIME NULL,
+                  next_run_at DATETIME NULL)""")
+                rows = _q(db, "SELECT enabled, cadence_hours, next_run_at FROM reindex_schedule WHERE id=1 LIMIT 1", ())
+                if rows:
+                    r = rows[0]
+                    rs_enabled = int(r[0] if not isinstance(r, dict) else r.get("enabled") or 0)
+                    rs_cadence = int(r[1] if not isinstance(r, dict) else r.get("cadence_hours") or 1)
+                    rs_next = r[2] if not isinstance(r, dict) else r.get("next_run_at")
+                    if rs_enabled and (rs_next is None or rs_next <= now):
+                        try:
+                            import scrapectl
+                            state = scrapectl.reindex_state()
+                            if state not in ("running", "created", "restarting", "starting"):
+                                msg = scrapectl.launch_reindex()
+                                _exec(db, "UPDATE reindex_schedule SET last_run_at = NOW(), "
+                                          "next_run_at = DATE_ADD(NOW(), INTERVAL %s HOUR) "
+                                          "WHERE id = 1", (int(rs_cadence or 1),))
+                                print("reindex enqueued:", msg, flush=True)
+                        except Exception as re:
+                            print("reindex launch failed:", re, flush=True)
+            except Exception as e:
+                print("reindex schedule phase failed:", e, flush=True)
+
             # phase 2: run queue head
             rows = _q(db, "SELECT id,site,mode,payload_json FROM scrape_queue "
                            "WHERE status='pending' ORDER BY priority ASC, "

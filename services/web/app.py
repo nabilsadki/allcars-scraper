@@ -484,6 +484,96 @@ def build_filters() -> tuple[str, list]:
 
 
 # -------------------------------------------------------------------- pages
+
+def _reindex_schedule_db():
+    db = _db_local()
+    try:
+        cur = db.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS reindex_schedule (
+          id INT PRIMARY KEY,
+          enabled TINYINT(1) NOT NULL DEFAULT 1,
+          cadence_hours INT NOT NULL DEFAULT 1,
+          last_run_at DATETIME NULL,
+          next_run_at DATETIME NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )""")
+        cur.execute("INSERT IGNORE INTO reindex_schedule (id, enabled, cadence_hours) VALUES (1, 1, 1)")
+        cur.execute("UPDATE reindex_schedule SET next_run_at = DATE_ADD(NOW(), INTERVAL %s HOUR) "
+                    "WHERE id = 1 AND next_run_at IS NULL", (1,))
+        db.commit()
+    finally:
+        try: db.close()
+        except Exception: pass
+
+
+def _db_local():
+    import pymysql
+    return pymysql.connect(**DB)
+
+
+def reindex_schedule_state():
+    _reindex_schedule_db()
+    db = _db_local()
+    try:
+        cur = db.cursor()
+        cur.execute("SELECT enabled, cadence_hours, last_run_at, next_run_at FROM reindex_schedule WHERE id = 1")
+        row = cur.fetchone()
+        return {
+            "enabled": bool(row.get("enabled", 1)) if isinstance(row, dict) else bool(row[0]) if row else True,
+            "cadence_hours": int((row.get("cadence_hours") if isinstance(row, dict) else row[1]) or 1) if row else 1,
+            "last_run_at": _fmt_dt((row.get("last_run_at") if isinstance(row, dict) else row[2]) if row else None),
+            "next_run_at": _fmt_dt((row.get("next_run_at") if isinstance(row, dict) else row[3]) if row else None),
+            "running": _safe_reindex_state() == "running",
+        }
+    finally:
+        try: db.close()
+        except Exception: pass
+
+
+def _fmt_dt(v):
+    if v is None:
+        return None
+    try:
+        return v.strftime("%Y-%m-%dT%H:%M:%SZ")
+    except Exception:
+        return str(v)
+
+
+def _safe_reindex_state():
+    try:
+        import scrapectl as sp
+        return sp.reindex_state()
+    except Exception:
+        return "absent"
+
+
+def set_reindex_schedule_state(enabled, cadence_hours):
+    enabled = bool(enabled)
+    try:
+        cadence_hours = int(cadence_hours)
+    except (TypeError, ValueError):
+        cadence_hours = 1
+    if cadence_hours < 1:
+        cadence_hours = 1
+    _reindex_schedule_db()
+    db = _db_local()
+    try:
+        cur = db.cursor()
+        if enabled:
+            cur.execute("UPDATE reindex_schedule SET enabled = %s, cadence_hours = %s, "
+                        "next_run_at = DATE_ADD(NOW(), INTERVAL %s HOUR) WHERE id = 1",
+                        (1 if enabled else 0, cadence_hours, cadence_hours))
+        else:
+            cur.execute("UPDATE reindex_schedule SET enabled = %s, cadence_hours = %s, "
+                        "next_run_at = NULL WHERE id = 1",
+                        (0, cadence_hours))
+        db.commit()
+    finally:
+        try: db.close()
+        except Exception: pass
+    return reindex_schedule_state()
+
 @app.route("/")
 def index():
     where, params = build_filters()
@@ -1682,6 +1772,29 @@ def api_reindex_start():
     except scrapectl.DockerCliError as e:
         return jsonify({"error": str(e)}), 502
     return jsonify({"message": msg})
+
+@app.route("/api/reindex/schedule", methods=["GET"])
+def api_reindex_schedule_get():
+    try:
+        return jsonify(reindex_schedule_state())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/reindex/schedule", methods=["POST"])
+def api_reindex_schedule_post():
+    data = request.get_json(silent=True) or {}
+    enabled = data.get("enabled")
+    if isinstance(enabled, str):
+        enabled = enabled.lower() in ("1", "true", "yes", "on")
+    cadence = data.get("cadence_hours")
+    try:
+        row = set_reindex_schedule_state(enabled, cadence)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify(row)
+
+
 
 if __name__ == "__main__":
     # initialisation (DDL) au demarrage, une seule fois
