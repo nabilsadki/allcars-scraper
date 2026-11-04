@@ -20,7 +20,7 @@ import os
 import sys
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from .catalog import Catalog
@@ -147,6 +147,8 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
     pagination (Avito : ~3 966 annonces par tranche).
     """
     total_seen = 0
+    seen_count = 0
+    run_started = datetime.now().replace(microsecond=0)
     if getattr(site, "use_slices", True) and hasattr(site, "slices"):
         # certains adaptateurs ont besoin de la progression pendant qu'ils
         # construisent les tranches (sondages reseau : avito)
@@ -171,6 +173,14 @@ def iter_listing(site: SiteAdapter, client, category: str, limit: int = 0,
             progress.update(current_slice=label, slices_done=idx)
         for ad in _iter_slice(site, client, path, limit, total_seen, page_size,
                               verbose, progress):
+            if isinstance(ad, dict) and not ad.get("list_time") and not ad.get("publish_date"):
+                # sites sans date affichee : on attribue une date synthetique
+                # strictement decroissante suivant l'ordre de lecture de la
+                # liste (premier lu = le plus recent)
+                synth = run_started - timedelta(seconds=seen_count)
+                ad["list_time"] = synth.isoformat(sep=" ")
+                ad["publish_date"] = ad["list_time"]
+            seen_count += 1
             total_seen += 1
             yield ad
             if limit and total_seen >= limit:

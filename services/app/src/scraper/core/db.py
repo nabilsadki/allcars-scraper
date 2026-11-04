@@ -295,7 +295,7 @@ class Database:
             "category": ad.get("category"),
             "title": ad.get("title"),
             "price": ad.get("price"),
-            "publish_date": _to_dt(ad.get("list_time")),
+            "publish_date": _to_dt(ad.get("publish_date") or ad.get("list_time")),
             "city": ad.get("city"),
             "area": ad.get("area"),
             "sector": ad.get("sector"),
