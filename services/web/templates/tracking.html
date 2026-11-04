@@ -1267,7 +1267,11 @@ setInterval(refreshContainers, 5000);
       const r = await fetch('/api/reindex/status', {cache:'no-store'});
       const d = await r.json();
       const el = id => document.getElementById(id);
-      if (el('reindex-db')) el('reindex-db').textContent = (d.db_count || 0).toLocaleString('fr-FR');
+      if (el('reindex-db')) {
+        const complete = (d.db_count_complete || 0).toLocaleString('fr-FR');
+        el('reindex-db').textContent = (d.db_count || 0).toLocaleString('fr-FR') +
+          ' (' + complete + ' complètes)';
+      }
       const n = (d.site && d.site.index_documents);
       if (el('reindex-index')) el('reindex-index').textContent = (n == null ? '—' : Number(n).toLocaleString('fr-FR'));
       const last = d.site && d.site.last_reindex_at;

@@ -1634,11 +1634,16 @@ app.jinja_env.filters["brand_logo_url"] = _brand_logo_url
 def api_reindex_status():
     # annonces presentes dans le scrapper
     db_count = 0
+    complete_count = 0
     try:
         rows = query("SELECT COUNT(*) n FROM ads")
         if rows:
             r = rows[0]
             db_count = int((r.get("n") if isinstance(r, dict) else r[1]) or 0)
+        rows2 = query("SELECT SUM(details_fetched = 1) n FROM ads")
+        if rows2:
+            r = rows2[0]
+            complete_count = int((r.get("n") if isinstance(r, dict) else r[1]) or 0)
     except Exception:
         pass
     # etat de l'index via le site public
@@ -1663,6 +1668,7 @@ def api_reindex_status():
         state = "unknown"
     return jsonify({
         "db_count": db_count,
+        "db_count_complete": complete_count,
         "site": site_status,
         "container_state": state,
     })
