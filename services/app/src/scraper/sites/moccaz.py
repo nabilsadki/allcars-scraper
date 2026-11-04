@@ -139,7 +139,22 @@ class MoccazAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        return {"details_fetched": True}
+        merged = {}
+        phone_m = re.search(r'href="tel:([^"]+)"', html)
+        if phone_m:
+            merged["phone"] = phone_m.group(1).strip()
+        # images (cloud car-cutter)
+        imgs = sorted(set(re.findall(r"https://cloud\.car-cutter\.com/vehicles_images/[^\"']+\.jpg", html)))
+        imgs = [u.split("?")[0] for u in imgs]
+        if imgs:
+            merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in imgs]
+            merged["nb_images"] = len(imgs)
+        merged["seller"] = "M.OCCAZ"
+        merged["seller_type"] = "Professionnel"
+        merged["details_fetched"] = True
+        merged["ad_id"] = ad.get("ad_id")
+        merged["url"] = ad.get("url") or merged.get("url")
+        return merged
 
     def image_url(self, img, variant="images"):
         return img.get("url") or img.get("url_full_hd") or ""
