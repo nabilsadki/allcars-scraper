@@ -193,8 +193,10 @@
     <span class="ml-auto flex items-center gap-2">
       <button type="button" id="auto-start" class="border border-ok text-ok bg-ok/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40">▶ Démarrer daemon</button>
       <button type="button" id="auto-stop" class="border border-bad text-bad bg-bad/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-bad/20 disabled:opacity-40">■ Arrêter daemon</button>
+      <button type="button" id="auto-collapse" aria-expanded="true" class="border border-line text-muted bg-panel2/80 rounded-lg px-2.5 py-1 text-[13px] font-medium cursor-pointer hover:bg-panel2">▾</button>
     </span>
   </div>
+  <div id="auto-body" class="mt-2 space-y-2">
   <div class="flex items-center justify-between mb-2">
     <span class="text-[10.5px] text-muted">Coche les sites a automatiser</span>
     <div class="flex items-center gap-2 text-[11px]">
@@ -233,6 +235,7 @@
   </details>
   <div class="text-[10px] text-muted/80 mt-1">
     Source d'état : DB partagée. Cadence min. 1h, max. 720h. Toggle daemon en haut à droite.
+  </div>
   </div>
 </div>
 
@@ -1159,6 +1162,24 @@ function syncFrozenColumns() {
   tbl.style.setProperty('--fz-auto', ths[1].getBoundingClientRect().width + 'px');
 }
 window.addEventListener('resize', syncFrozenColumns);
+
+  const _autoBody = document.getElementById('auto-body');
+  const _autoToggle = document.getElementById('auto-collapse');
+  function applyAutoCollapse(collapsed) {
+    if (_autoBody) _autoBody.style.display = collapsed ? 'none' : '';
+    if (_autoToggle) {
+      _autoToggle.textContent = collapsed ? '▸' : '▾';
+      _autoToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
+  }
+  if (_autoToggle && _autoBody) {
+    applyAutoCollapse(localStorage.getItem('tracking:autoCollapsed') === '1');
+    _autoToggle.addEventListener('click', () => {
+      const collapsed = _autoBody.style.display !== 'none';
+      applyAutoCollapse(collapsed);
+      localStorage.setItem('tracking:autoCollapsed', collapsed ? '1' : '0');
+    });
+  }
 
 async function refreshAutomation() {
   try {
