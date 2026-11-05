@@ -725,3 +725,87 @@ def push(url, token, batch_size=1000, limit=0):
         raise RuntimeError(f"stats HTTP {e.code}: {resp}")
     print("  document de statistiques pousse", flush=True)
     return {"total": total_docs, "accepted": sent, "stats": True}
+
+
+def prune_meilisearch() -> int:
+    """Supprime de Meilisearch les documents absents de la BDD.
+
+    Rend l'indexation idempotente : une annonce supprimee de la BDD
+    disparait aussi de l'index lors du prochain reindex-site.
+    """
+    import os
+    import json
+    import re
+    import time
+    import pymysql
+    import urllib.request
+
+    meili_url = (os.environ.get("MEILI_URL", "http://meilisearch:7700") or "").rstrip("/")
+    meili_key = os.environ.get("MEILI_KEY", "allcars-site-master-key") or ""
+    db_host = os.environ.get("DB_HOST", "db")
+    db_port = int(os.environ.get("DB_PORT", "3306") or 3306)
+    db_name = os.environ.get("DB_NAME", "allcars")
+    db_user = os.environ.get("DB_USER", "allcars")
+    db_pass = os.environ.get("DB_PASSWORD", "allcars")
+
+    conn = pymysql.connect(host=db_host, port=db_port, user=db_user,
+                           password=db_pass, database=db_name,
+                           cursorclass=pymysql.cursors.DictCursor)
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT site, ad_id FROM ads")
+        db_ids = set()
+        for row in cur.fetchall():
+            sid = row.get("site")
+            aid = row.get("ad_id")
+            if sid is None or aid is None:
+                continue
+            raw = f"{sid}_{aid}"
+            db_ids.add(re.sub(r"[^A-Za-z0-9_-]", "_", raw))
+        cur.close()
+    finally:
+        conn.close()
+
+    def _request(method, path, data=None):
+        url = meili_url + path
+        body = None
+        headers = {"Authorization": "Bearer " + meili_key}
+        if data is not None:
+            body = json.dumps(data).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=body, headers=headers, method=method)
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return resp.status, json.loads(resp.read().decode("utf-8"))
+
+    # recuperation paginee de tous les ids present dans l'index
+    meili_ids = []
+    offset = 0
+    limit = 1000
+    while True:
+        status, body = _request("GET", f"/indexes/ads/documents?fields=id&limit={limit}&offset={offset}")
+        hits = body.get("results", []) if isinstance(body, dict) else []
+        chunk = [h.get("id") for h in hits if h.get("id")]
+        meili_ids.extend(chunk)
+        if len(chunk) < limit:
+            break
+        offset += limit
+
+    orphans = [doc_id for doc_id in meili_ids if doc_id not in db_ids]
+    if not orphans:
+        return 0
+
+    deleted = 0
+    batch_size = 100
+    for start in range(0, len(orphans), batch_size):
+        chunk = orphans[start:start + batch_size]
+        quoted = ", ".join(json.dumps(x) for x in chunk)
+        payload = {"filter": "id IN [" + quoted + "]"}
+        try:
+            _request("POST", "/indexes/ads/documents/delete", payload)
+            deleted += len(chunk)
+        except Exception:
+            # on ne fait pas echouer tout le reindex si une purge parte
+            break
+        if start % 1000 == 0:
+            time.sleep(0.2)
+    return deleted

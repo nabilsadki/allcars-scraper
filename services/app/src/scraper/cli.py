@@ -25,6 +25,7 @@ from .core.progress import install_signal_handlers
 from .core.registry import available_sites, get_site, publish, site_info
 from .core.scoring import compute_notes, compute_notes_v2, load_config
 from .core.site_indexer import push as push_site_index
+from .core import site_indexer
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
 
 
@@ -210,6 +211,12 @@ def cmd_reindex_site(args) -> int:
     except Exception as e:
         print(f"{type(e).__name__}: {e}", file=sys.stderr)
         return 1
+    try:
+        pruned = site_indexer.prune_meilisearch()
+        if pruned:
+            print(f"purge orphelins index : {pruned} document(s)")
+    except Exception as e:
+        print(f"purge orphelins index echouee : {e}", file=sys.stderr)
     print(f"termine en {datetime.now() - started}: {res}")
     return 0
 

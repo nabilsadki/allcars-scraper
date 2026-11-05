@@ -74,6 +74,8 @@ services:
       SCORING_CONFIG: /app/config/scoring.json
       SITE_REINDEX_URL: ${SITE_REINDEX_URL:-http://allcars-site-web:8080/api/reindex}
       SITE_REINDEX_TOKEN: ${SITE_REINDEX_TOKEN:-allcars-site-reindex-token}
+      MEILI_URL: ${MEILI_URL:-http://meilisearch:7700}
+      MEILI_KEY: ${MEILI_KEY:-allcars-site-master-key}
     volumes:
       # donnees scrapees (JSONL/CSV, images, progression) : dans le projet (4 To)
       - ./data/scraped:/data
