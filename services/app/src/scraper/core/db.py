@@ -437,6 +437,11 @@ class Database:
             extra = {}
             if ad.get("publish_date") and not existing.get("publish_date"):
                 extra["publish_date"] = ad["publish_date"]
+            # une fiche detaillee observee doit marquer l'annonce comme lue,
+            # meme si son contenu SQL etait deja identique (les details peuvent
+            # enrichir les colonnes sans changer les champs compares).
+            if ad.get("details_fetched") and not existing.get("details_fetched"):
+                extra["details_fetched"] = int(bool(ad.get("details_fetched")))
             sets = "".join(f"{c} = %s, " for c in extra)
             self.cur.execute(
                 f"UPDATE ads SET {sets}last_seen_at = NOW(), "
@@ -569,6 +574,78 @@ class Database:
                 "link": src.get("link"),
             }
         return src  # deja un dict d'annonce
+
+
+    def details_fetched(self, ad_id: Any, site: str = "avito") -> bool:
+        """Indique si une annonce deja connue a une fiche complete en base."""
+        try:
+            rows = self.query(
+                "SELECT details_fetched FROM ads WHERE site = %s AND ad_id = %s LIMIT 1",
+                (site, ad_id),
+            )
+        except Exception:
+            return False
+        row = rows[0] if rows else None
+        if not row:
+            return False
+        v = row.get("details_fetched") if isinstance(row, dict) else (row[1] if len(row) > 1 else row[0])
+        return bool(v)
+
+    def complete_ad_details(self, ad: dict, site: str = "avito") -> None:
+        """Complete une fiche deja connue (colonnes detail, images, scores),
+        sans creer de version SQL (la liste + la fiche complete est le meme
+        evenement commercial)."""
+        ad_id = ad.get("ad_id")
+        if ad_id is None:
+            return
+        existing = None
+        try:
+            rows = self.query(
+                "SELECT version FROM ads WHERE site = %s AND ad_id = %s LIMIT 1",
+                (site, ad_id),
+            )
+            existing = rows[0] if rows else None
+        except Exception:
+            existing = None
+
+        row = _row_from_ad(ad, site)
+        if existing:
+            persisted = existing.get("version") if isinstance(existing, dict) else None
+            if persisted is not None:
+                row["version"] = persisted
+        # ne pas ecraser les colonnes deja connues par des nulls
+        for c in list(row.keys()):
+            if row.get(c) is None and existing is not None:
+                try:
+                    current = existing.get(c) if isinstance(existing, dict) else None
+                except Exception:
+                    current = None
+                if current is not None:
+                    row[c] = current
+        cols = [c for c in row if c != "ad_id"]
+        sets = ", ".join(f"{c} = %s" for c in cols)
+        try:
+            self.cur.execute(
+                f"UPDATE ads SET {sets} WHERE site = %s AND ad_id = %s",
+                [row[c] for c in cols] + [site, ad_id],
+            )
+        except Exception as e:
+            print(f"complete details echoue pour {site}/{ad_id}: {e}", flush=True)
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+            return
+        # images
+        try:
+            self.upsert_images(ad.get("ad_id"), ad.get("images"), site=site)
+        except Exception:
+            pass
+        # scores / notes hot-path (sans version)
+        try:
+            self._update_scores(ad_id, ad, site=site)
+        except Exception:
+            pass
 
     def mark_disappeared(self, ad_ids: list[int], site: str = "avito") -> int:
         """Marque comme inactives les annonces non vues lors d'un run complet."""

@@ -489,11 +489,29 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
 
         # 1) detection SANS ecriture : la page de liste suffit
         state, _changes = db.check(ad, site=site.name)
+
+        # fiches manquantes : on profite du passage de liste pour detaller
+        # les annonces connues mais encore incomplete, meme si rien n'a
+        # change (compare les details triggering field sans faux positif).
+        need_detail = (details and ad_id is not None and
+                       not db.details_fetched(ad_id, site.name))
         if state == "unchanged":
+            if need_detail:
+                try:
+                    ad_before = bool(ad.get("details_fetched"))
+                    ad = fetch_detail(site, client, ad)
+                    if ad.get("details_fetched"):
+                        n_details += 1
+                        _apply_notes(ad, market=market, config=config)
+                        db.complete_ad_details(ad, site=site.name)
+                except Exception as e:
+                    client.log(f"  ! detail en echec sur fiche manquante "
+                              f"({type(e).__name__}: {str(e)[:60]})")
             n_unchanged += 1
             continue
 
         if state == "new":
+
             n_new += 1
         else:
             n_candidates += 1
