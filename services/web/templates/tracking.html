@@ -93,8 +93,13 @@
               class="border border-accent text-accent-txt bg-accent/10 rounded-lg px-3 py-1 text-[11.5px] font-medium cursor-pointer hover:bg-accent/20 disabled:opacity-40">
         ▶ Réindexer maintenant
       </button>
+      <button type="button" id="reindex-collapse" aria-expanded="true"
+              class="ml-1 border border-line text-muted bg-panel2/80 rounded-lg px-2.5 py-1 text-[13px] font-medium cursor-pointer hover:bg-panel2">
+        ▾
+      </button>
     </span>
   </div>
+  <div id="reindex-body" class="mt-2 space-y-2.5">
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-[12px]">
     <div class="border border-line rounded-lg bg-panel2/40 px-3 py-2.5">
       <div class="text-[10px] uppercase tracking-wide text-muted">Annonces BDD</div>
@@ -134,6 +139,7 @@
     </div>
   </div>
   <p class="text-[11px] text-muted mt-2.5" id="reindex-msg">La réindexation tourne en arrière-plan ; suivre la console container allcars-reindex-site.</p>
+  </div>
 </div>
 
 {# ----------------------- Resume par site (minimaliste) --------------------------- #}
@@ -1346,6 +1352,24 @@ setInterval(refreshContainers, 5000);
       } catch (e) {}
     } catch (e) { /* ignore */ }
   }
+  const _reindexBody = document.getElementById('reindex-body');
+  const _reindexToggle = document.getElementById('reindex-collapse');
+  function applyReindexCollapse(collapsed) {
+    if (_reindexBody) _reindexBody.style.display = collapsed ? 'none' : '';
+    if (_reindexToggle) {
+      _reindexToggle.textContent = collapsed ? '▸' : '▾';
+      _reindexToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
+  }
+  if (_reindexToggle && _reindexBody) {
+    applyReindexCollapse(localStorage.getItem('tracking:reindexCollapsed') === '1');
+    _reindexToggle.addEventListener('click', () => {
+      const collapsed = _reindexBody.style.display !== 'none';
+      applyReindexCollapse(collapsed);
+      localStorage.setItem('tracking:reindexCollapsed', collapsed ? '1' : '0');
+    });
+  }
+
   const _rb = document.getElementById('reindex-start');
   if (_rb) _rb.addEventListener('click', async () => {
     const btn = _rb;
