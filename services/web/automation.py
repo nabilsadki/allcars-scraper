@@ -67,8 +67,16 @@ def ensure_tables():
             name = s.get("name")
             if not name:
                 continue
-            cur.execute("INSERT IGNORE INTO site_schedule (site) VALUES (%s)", (name,))
-            # default pour un nouveau site : cadence 0 => disabled, next_due now
+            cur.execute("INSERT IGNORE INTO site_schedule (site, mode) VALUES (%s, 'rescan')", (name,))
+            # default pour un nouveau site : cadence 1 => inactif jusqu'a activation
+        try:
+            cur.execute("ALTER TABLE site_schedule ADD COLUMN mode VARCHAR(20) NOT NULL DEFAULT 'rescan'")
+        except Exception:
+            pass
+        try:
+            cur.execute("UPDATE site_schedule SET mode='rescan' WHERE mode IS NULL OR mode=''")
+        except Exception:
+            pass
         for _ in range(5):
             try:
                 cur.execute("UPDATE site_schedule SET next_due = NOW() "
@@ -166,8 +174,26 @@ def get_schedules():
     import app
     import app as _app
     db = _app.db()
-    return _q(db, "SELECT site,enabled,cadence_hours,last_success_at,last_mode,next_due "
+    return _q(db, "SELECT site,enabled,cadence_hours,last_mode,mode,next_due,last_success_at "
                   "FROM site_schedule ORDER BY site")
+
+
+def set_mode(site, mode):
+    import app
+    import app as _app
+    db = _app.db()
+    mode = (mode or "").strip().lower()
+    allowed = ["list", "rescan", "details"]
+    try:
+        meta = {s.get("name"): s.get("modes", allowed) for s in app.known_sites() if s.get("name")}
+        if site in meta:
+            allowed = meta.get(site) or allowed
+    except Exception:
+        pass
+    if mode not in allowed:
+        mode = allowed[0] if allowed else "rescan"
+    _exec(db, "UPDATE site_schedule SET mode = %s WHERE site = %s", (mode, site))
+    return mode
 
 
 def set_enabled(site, enabled):
@@ -250,11 +276,15 @@ def _loop():
             # phase 1: enqueue due sites
             now = _now()
             print("LOOP", now.isoformat(), flush=True)
-            due = _q(db, "SELECT site, cadence_hours, enabled FROM site_schedule "
+            due = _q(db, "SELECT site, cadence_hours, enabled, mode FROM site_schedule "
                           "WHERE enabled=1 AND (next_due IS NULL OR next_due <= NOW())", ())
             print("  due raw=", due, flush=True)
             for _r in due:
                 site = _r["site"]; cadence = _r["cadence_hours"]; enabled = _r["enabled"]
+                mode = _r.get("mode") if isinstance(_r, dict) else (_r[3] if len(_r) > 3 else None)
+                mode = (mode or "rescan").strip().lower()
+                if mode not in ("list", "rescan", "details"):
+                    mode = "rescan"
                 # ne jamais re-enfiler si un scrap tourne deja sur ce site
                 try:
                     import scrapectl as __sp
@@ -263,9 +293,10 @@ def _loop():
                         continue
                 except Exception:
                     pass
-                enqueue(site, mode="rescan", payload={"mode": "rescan", "mark_missing": True}, priority=3,
-                        trigger_source="scheduled")
-                print("  enqueued", site, flush=True)
+                enqueue(site, mode=mode, payload={
+                    "mode": mode, "mark_missing": True, "details": mode in ("rescan", "details"),
+                }, priority=3, trigger_source="scheduled")
+                print("  enqueued", site, "mode=", mode, flush=True)
                 _exec(db, "UPDATE site_schedule SET next_due = DATE_ADD(NOW(), "
                           "INTERVAL %s HOUR) WHERE site=%s",
                       (int(cadence or 24), site))

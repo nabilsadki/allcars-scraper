@@ -209,6 +209,7 @@
       <th class="text-left py-1 pr-2 whitespace-nowrap w-[1%] sticky left-0 z-30 bg-panel">Site</th>
       <th class="py-1 pr-2 text-center whitespace-nowrap w-[80px] sticky z-30 bg-panel" style="left:var(--fz-site,128px)">Auto</th>
       <th class="py-1 pr-2 text-center whitespace-nowrap w-[80px] sticky z-30 bg-panel border-r border-line" style="left:calc(var(--fz-site,128px) + var(--fz-auto,80px))">Cadence</th>
+      <th class="py-1 pr-2 text-center whitespace-nowrap w-[84px]">Mode</th>
       <th class="py-1 pr-2 pl-2 text-left whitespace-nowrap">Prochain run</th>
       <th class="py-1 pr-2 text-left whitespace-nowrap">Dernier run</th>
       <th class="py-1 pr-2 text-center whitespace-nowrap">État</th>
@@ -1181,12 +1182,28 @@ async function refreshAutomation() {
         '<td class="py-1 pr-2 font-medium whitespace-nowrap sticky left-0 z-20 bg-panel">' + s.site + '</td>' +
         '<td class="py-1 pr-2 text-center sticky z-20 bg-panel" style="left:var(--fz-site,128px)"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
         '<td class="py-1 pr-2 text-center sticky z-20 bg-panel border-r border-line" style="left:calc(var(--fz-site,128px) + var(--fz-auto,80px))"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-14 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
+        (function () {
+          const modes = Array.isArray(s.modes) && s.modes.length ? s.modes : (['list','rescan','details']);
+          const opts = modes.map(m =>
+            '<option value="' + m + '"' + (m === s.mode ? ' selected' : '') + '>' + m + '</option>'
+          ).join('');
+          return '<td class="py-1 pr-2 text-center whitespace-nowrap">' +
+            '<select class="w-[74px] bg-panel2 border border-line rounded px-1.5 py-0.5 text-[11.5px] auto-mode" data-site="' + s.site + '">' + opts + '</select>' +
+          '</td>';
+        }()) +
         '<td class="py-1 pr-2 pl-2 text-[10.5px] text-muted whitespace-nowrap overflow-hidden text-ellipsis" title="' + (s.next_due || '') + '">' + relTime(s.next_due) + '</td>' +
         '<td class="py-1 pr-2 text-[10.5px] text-muted whitespace-nowrap overflow-hidden text-ellipsis" title="' + (s.last_success_at || '') + '">' + relTime(s.last_success_at) + '</td>' +
         '<td class="py-1 pr-2 text-center text-[10.5px] text-muted whitespace-nowrap overflow-hidden text-ellipsis">' + (s.last_mode || '—') + '</td>' +
         '<td class="py-1 pr-2 text-[11px] font-mono text-txt whitespace-nowrap overflow-hidden text-ellipsis">' + (s.execution || '—') + '</td>' +
         '</tr>'
       ).join('');
+      tb.querySelectorAll('.auto-mode').forEach(sel => {
+        sel.addEventListener('change', async () => {
+          await fetch('/api/schedule/mode', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({site: sel.getAttribute('data-site'), mode: sel.value})});
+          refreshAutomation();
+        });
+      });
       tb.querySelectorAll('.auto-enable').forEach(cb => {
         cb.addEventListener('change', async () => {
           await fetch('/api/schedule/enable', {method:'POST', headers:{'Content-Type':'application/json'},

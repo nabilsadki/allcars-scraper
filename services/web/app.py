@@ -1494,6 +1494,7 @@ def api_daemons_status():
     states = progress_reader.read_all()
     queue = automation.get_queue(200)
     schedules = automation.get_schedules()
+    site_modes = {s.get("name"): s.get("modes", ["list", "rescan", "details"]) for s in known_sites()}
     out_schedules = []
     for srow in schedules:
         site = srow["site"]
@@ -1526,6 +1527,7 @@ def api_daemons_status():
         else:
             exec_txt = "planifié" if srow.get("enabled") else "—"
         srow = dict(srow)
+        srow["modes"] = list(site_modes.get(site) or ["list", "rescan", "details"])
         srow["execution"] = exec_txt
         out_schedules.append(srow)
     return jsonify({"dashboard": True,
@@ -1571,8 +1573,22 @@ def api_schedule_cadence():
     return jsonify({"ok": True})
 
 
-@app.route("/api/scrape/enqueue", methods=["POST"])
-def api_scrape_enqueue():
+@app.route("/api/schedule/mode", methods=["POST"])
+def api_schedule_mode():
+    payload = request.get_json(silent=True) or request.form or {}
+    site = (payload.get("site") or "").strip()
+    mode = (payload.get("mode") or "").strip()
+    if not site:
+        return jsonify({"ok": False, "error": "site manquant"}), 400
+    meta = next((s for s in known_sites() if (s.get("name") or "") == site), None)
+    allowed = (meta.get("modes") if meta else None) or ["list", "rescan", "details"]
+    if mode not in allowed:
+        return jsonify({"ok": False, "error": "mode invalide"}), 400
+    try:
+        mode = automation.set_mode(site, mode)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+    return jsonify({"ok": True, "mode": mode, "allowed": allowed})
     payload = request.get_json(silent=True) or request.form or {}
     site = str(payload.get("site") or "").strip() or "avito"
     mode = str(payload.get("mode") or "rescan").strip()
