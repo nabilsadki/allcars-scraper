@@ -27,13 +27,14 @@ from .tomobila import TomobilaAdapter
 from .wandaloo import WandalooAdapter
 from .autobroker import AutobrokerAdapter
 from .autoreda import AutoredaAdapter
+from .marochub import MarochubAdapter
 
 for _adapter in (AvitoAdapter(), AutocashAdapter(), KiaAdapter(), TomobilaAdapter(), GlobalOccazAdapter(),
                  KifalAdapter(), RenewAdapter(), OtoclicAdapter(),
-                 LeguideautoAdapter(), MoteurAdapter(), SiaracashAdapter(),
+                 MarochubAdapter(), LeguideautoAdapter(), MoteurAdapter(), SiaracashAdapter(),
                  WandalooAdapter(), AutobrokerAdapter(), EspacevoitureAdapter(), MarocannoncesAdapter(), DerkaouiAdapter(), AutoredaAdapter(), SuperoccazAdapter(), MoccazAdapter(), MaisonoccazAdapter()):
     register_site(_adapter)
 
 __all__ = ["AvitoAdapter", "AutocashAdapter", "KiaAdapter", "TomobilaAdapter", "GlobalOccazAdapter",
            "KifalAdapter", "RenewAdapter", "OtoclicAdapter",
-           "LeguideautoAdapter", "MoteurAdapter", "SiaracashAdapter", "WandalooAdapter", "AutobrokerAdapter", "EspacevoitureAdapter", "MarocannoncesAdapter", "DerkaouiAdapter", "AutoredaAdapter", "SuperoccazAdapter", "MoccazAdapter", "MaisonoccazAdapter"]
+           "LeguideautoAdapter", "MarochubAdapter", "MoteurAdapter", "SiaracashAdapter", "WandalooAdapter", "AutobrokerAdapter", "EspacevoitureAdapter", "MarocannoncesAdapter", "DerkaouiAdapter", "AutoredaAdapter", "SuperoccazAdapter", "MoccazAdapter", "MaisonoccazAdapter"]

@@ -193,6 +193,7 @@ SITE_LABELS = {
     "autoreda": "Auto Reda",
     "moccaz": "M.OCCAZ",
     "maisonoccaz": "Maison Occaz",
+    "marochub": "MarocHub",
 }
 
 
@@ -260,6 +261,7 @@ SITE_HUES = {
     "autoreda": 175, # teal-cyan
     "moccaz": 300, # magenta
     "maisonoccaz": 250, # indigo
+    "marochub": 200, # green-blue
 }
 
 
