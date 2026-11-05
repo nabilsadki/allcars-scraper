@@ -255,7 +255,10 @@
     </button>
   </div>
   <div id="pilotage-body" class="space-y-2">
-  <form id="job-form" class="flex flex-wrap lg:flex-nowrap items-end gap-3 overflow-x-auto pb-1" onsubmit="return false;">
+  <form id="job-form" class="flex flex-col gap-3" onsubmit="return false;">
+    <div class="flex flex-wrap items-end gap-3 overflow-x-auto pb-1">
+      <label class="flex flex-col gap-1 text-[12px] text-muted">
+      Site
       <select name="site" id="f-site" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         {% for s in sites %}
         <option value="{{ s.name }}" {% if job.site == s.name %}selected{% endif %}>{{ s.label }}</option>
@@ -301,6 +304,7 @@
       <input type="checkbox" name="slices" id="f-slices" {% if job.slices %}checked{% endif %}
              class="accent-accent w-4 h-4"> découpe en tranches
     </label>
+    </div>
     <div class="basis-full flex flex-col gap-1.5 mt-2 w-full">
       <div class="flex flex-wrap items-center gap-2 text-[12px] text-muted">
         <span class="uppercase tracking-wider">Sites à lancer (multi-sélection)</span>
@@ -326,7 +330,7 @@
       </div>
       <p class="text-[10.5px] text-muted m-0">Cliquez pour sélectionner / désélectionner. "Ma sélection" lance uniquement ces sites.</p>
     </div>
-    <div class="flex gap-2 ml-auto flex-wrap">
+    <div class="flex flex-wrap justify-end gap-2 pt-1">
       <button type="button" id="btn-start"
               class="btn-ok border border-ok text-ok bg-ok/10 rounded-lg px-4 py-1.5 text-sm font-medium cursor-pointer hover:bg-ok/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ok/10"
               {% if container_state == 'running' %}disabled{% endif %}>Démarrer</button>
