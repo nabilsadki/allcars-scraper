@@ -362,6 +362,16 @@ def _loop():
                 job["site"] = site
                 for k, v in (payload or {}).items():
                     job[k] = v if not isinstance(v, (list, dict)) else v
+                # injecter la categorie par defaut du site si aucune n'est
+                # fournie (evite d'heriter d'une categorie d'un autre site).
+                if "category" not in (payload or {}) or not str((payload or {}).get("category") or "").strip():
+                    try:
+                        meta = next((s for s in app.known_sites() if s.get("name") == site), None)
+                        dcat = (meta or {}).get("default_category")
+                        if dcat:
+                            job["category"] = dcat
+                    except Exception:
+                        pass
                 app.progress_reader.write_job(job)
                 try:
                     import scrapectl

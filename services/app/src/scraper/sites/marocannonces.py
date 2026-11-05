@@ -65,6 +65,11 @@ class MarocannoncesAdapter(SiteAdapter):
                 continue
             url = urljoin(BASE, url_m.group(1))
             ad_id = url_m.group(2)
+            # ne garder que les annonces de la categorie Voitures (314),
+            # meme si la page visitee est une autre (garde-fou contre la
+            # pollution croisee : emploi, immobilier, services, ...).
+            if "/categorie/314/" not in url_m.group(1):
+                continue
             if not ad_id or ad_id in seen:
                 continue
             seen.add(ad_id)
