@@ -247,8 +247,14 @@
 
 <!-- ---------------------------------------------------------- pilotage -->
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
-  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Pilotage</div>
-  <form id="job-form" class="flex flex-wrap items-end gap-3" onsubmit="return false;">
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center justify-between">
+    <span>Pilotage</span>
+    <button type="button" id="pilotage-collapse" aria-expanded="true"
+            class="border border-line text-muted bg-panel2/80 rounded-lg px-2.5 py-1 text-[13px] font-medium cursor-pointer hover:bg-panel2">
+      ▾
+    </button>
+  </div>
+  <div id="pilotage-body" class="space-y-2">
     <label class="flex flex-col gap-1 text-[12px] text-muted">
       Site
       <select name="site" id="f-site" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
@@ -343,6 +349,7 @@
     </div>
   </form>
   <div id="action-msg" class="text-muted text-[12px] mt-2"></div>
+  </div>
 </div>
 
 {# ---------------------------------------------------------- progression #}
@@ -420,11 +427,16 @@
 
 {# ------------------------------------------------------------- base #}
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
-  <div class="text-[12px] uppercase tracking-wider text-muted mb-3 flex items-center gap-2">
-    Base de données
-    <span class="normal-case tracking-normal text-[11px] text-muted">{{ counts|length }} site(s) · auto-stats</span>
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-3 flex items-center justify-between gap-2">
+    <span>Base de données
+        <span class="normal-case tracking-normal text-[11px] text-muted">{{ counts|length }} site(s) · auto-stats</span>
+    </span>
+    <button type="button" id="database-collapse" aria-expanded="true"
+            class="border border-line text-muted bg-panel2/80 rounded-lg px-2.5 py-1 text-[13px] font-medium cursor-pointer hover:bg-panel2">
+      ▾
+    </button>
   </div>
-
+  <div id="database-body" class="space-y-2.5">
   <div id="db-cards" class="grid gap-2.5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
     {% for c in counts %}
     {% set hue = c.site|site_hue %}
@@ -457,12 +469,20 @@
     <div class="bg-panel2/40 border border-line rounded-xl p-3.5 text-muted col-span-full">Aucune annonce en base.</div>
     {% endfor %}
   </div>
+  </div>
 </div>
 
 
 {# --------------------------------------------------------- historique #}
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
-  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5">Scrapes passés ({{ runs|length }})</div>
+  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center justify-between gap-2">
+    <span>Scrapes passés ({{ runs|length }})</span>
+    <button type="button" id="runs-collapse" aria-expanded="true"
+            class="border border-line text-muted bg-panel2/80 rounded-lg px-2.5 py-1 text-[13px] font-medium cursor-pointer hover:bg-panel2">
+      ▾
+    </button>
+  </div>
+  <div id="runs-body" class="space-y-2.5">
 
   <form class="flex flex-wrap items-end gap-3 mb-2.5" method="get" action="/tracking">
     <label class="flex flex-col gap-1 text-[12px] text-muted">
@@ -550,6 +570,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   </div>
 </div>
 
@@ -1186,6 +1207,26 @@ window.addEventListener('resize', syncFrozenColumns);
       localStorage.setItem('tracking:autoCollapsed', collapsed ? '1' : '0');
     });
   }
+
+  function bindCollapse(toggleId, bodyId, storageKey) {
+    const body = document.getElementById(bodyId);
+    const btn = document.getElementById(toggleId);
+    if (!body || !btn) return;
+    const apply = (collapsed) => {
+      body.style.display = collapsed ? 'none' : '';
+      btn.textContent = collapsed ? '▸' : '▾';
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    };
+    apply(localStorage.getItem(storageKey) === '1');
+    btn.addEventListener('click', () => {
+      const collapsed = body.style.display !== 'none';
+      apply(collapsed);
+      localStorage.setItem(storageKey, collapsed ? '1' : '0');
+    });
+  }
+  bindCollapse('pilotage-collapse', 'pilotage-body', 'tracking:pilotageCollapsed');
+  bindCollapse('database-collapse', 'database-body', 'tracking:databaseCollapsed');
+  bindCollapse('runs-collapse', 'runs-body', 'tracking:runsCollapsed');
 
 async function refreshAutomation() {
   try {
