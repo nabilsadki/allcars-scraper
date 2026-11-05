@@ -255,8 +255,7 @@
     </button>
   </div>
   <div id="pilotage-body" class="space-y-2">
-    <label class="flex flex-col gap-1 text-[12px] text-muted">
-      Site
+  <form id="job-form" class="flex flex-wrap lg:flex-nowrap items-end gap-3 overflow-x-auto pb-1" onsubmit="return false;">
       <select name="site" id="f-site" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         {% for s in sites %}
         <option value="{{ s.name }}" {% if job.site == s.name %}selected{% endif %}>{{ s.label }}</option>
