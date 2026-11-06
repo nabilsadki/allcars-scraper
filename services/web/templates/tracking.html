@@ -1391,8 +1391,8 @@ setInterval(refreshContainers, 5000);
         const s2 = await r2.json();
         if (el('reindex-auto')) el('reindex-auto').checked = !!s2.enabled;
         if (el('reindex-cadence')) el('reindex-cadence').value = String(s2.cadence_hours || 24);
-        if (el('reindex-auto-last')) el('reindex-auto-last').textContent = s2.last_run_at ? new Date(s2.last_run_at).toLocaleString() : 'jamais';
-        if (el('reindex-auto-next')) el('reindex-auto-next').textContent = s2.next_run_at ? new Date(s2.next_run_at).toLocaleString() : '—';
+        if (el('reindex-auto-last')) el('reindex-auto-last').textContent = s2.last_run_at ? new Date(String(s2.last_run_at).replace(' ', 'T') + 'Z').toLocaleString() : 'jamais';
+        if (el('reindex-auto-next')) el('reindex-auto-next').textContent = s2.next_run_at ? new Date(String(s2.next_run_at).replace(' ', 'T') + 'Z').toLocaleString() : '—';
       } catch (e) {}
     } catch (e) { /* ignore */ }
   }
