@@ -1383,7 +1383,7 @@ setInterval(refreshContainers, 5000);
       const n = (d.site && d.site.index_documents);
       if (el('reindex-index')) el('reindex-index').textContent = (n == null ? '—' : Number(n).toLocaleString('fr-FR'));
       const last = d.site && d.site.last_reindex_at;
-      if (el('reindex-last')) el('reindex-last').textContent = last ? new Date(last).toLocaleString() : 'jamais';
+      if (el('reindex-last')) el('reindex-last').textContent = last ? new Date(last).toLocaleString('fr-FR') : 'jamais';
       const state = d.container_state || '—';
       if (el('reindex-state')) el('reindex-state').textContent = state;
       try {
@@ -1391,8 +1391,8 @@ setInterval(refreshContainers, 5000);
         const s2 = await r2.json();
         if (el('reindex-auto')) el('reindex-auto').checked = !!s2.enabled;
         if (el('reindex-cadence')) el('reindex-cadence').value = String(s2.cadence_hours || 24);
-        if (el('reindex-auto-last')) el('reindex-auto-last').textContent = s2.last_run_at ? new Date(s2.last_run_at).toLocaleString() : 'jamais';
-        if (el('reindex-auto-next')) el('reindex-auto-next').textContent = s2.next_run_at ? new Date(s2.next_run_at).toLocaleString() : '—';
+        if (el('reindex-auto-last')) el('reindex-auto-last').textContent = s2.last_run_at ? new Date(s2.last_run_at).toLocaleString('fr-FR') : 'jamais';
+        if (el('reindex-auto-next')) el('reindex-auto-next').textContent = s2.next_run_at ? new Date(s2.next_run_at).toLocaleString('fr-FR') : '—';
       } catch (e) {}
     } catch (e) { /* ignore */ }
   }
