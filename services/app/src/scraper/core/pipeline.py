@@ -493,8 +493,19 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
         # fiches manquantes : on profite du passage de liste pour detaller
         # les annonces connues mais encore incomplete, meme si rien n'a
         # change (compare les details triggering field sans faux positif).
+        # fraicheur : une annonce non revue depuis plus de 4 jours doit etre
+        # rescrapee (detail), meme si son contenu n'a pas change.
+        stale = False
+        if details and ad_id is not None:
+            try:
+                ls = db.last_seen_at(ad_id, site.name)
+                if ls is None or (datetime.now() - ls).total_seconds() > 4 * 86400:
+                    stale = True
+            except Exception:
+                stale = True
+
         need_detail = (details and ad_id is not None and
-                       not db.details_fetched(ad_id, site.name))
+                       (not db.details_fetched(ad_id, site.name) or stale))
         if state == "unchanged":
             if need_detail:
                 try:
@@ -503,10 +514,31 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
                     if ad.get("details_fetched"):
                         n_details += 1
                         _apply_notes(ad, market=market, config=config)
-                        db.complete_ad_details(ad, site=site.name)
+                        # on re-pousse l'annonce pour rafraichir last_seen_at
+                        # et, le cas echeant, les colonnes enrichies.
+                        try:
+                            db.upsert_ad(ad, site=site.name)
+                            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+                        except Exception as e:
+                            db.conn.rollback()
+                            client.log(f"  ! ecriture stale en echec ({type(e).__name__}: {str(e)[:60]})")
                 except Exception as e:
-                    client.log(f"  ! detail en echec sur fiche manquante "
+                    client.log(f"  ! detail en echec sur fiche manquante/stale "
                               f"({type(e).__name__}: {str(e)[:60]})")
+            # mise a jour du last_seen pour les annonces simplement revues
+            # (sinon le compteur de fraicheur ne progresse jamais)
+            if not need_detail:
+                try:
+                    db.cur.execute(
+                        "UPDATE ads SET last_seen_at = NOW(), seen_count = seen_count + 1, "
+                        "is_active = 1 WHERE site = %s AND ad_id = %s",
+                        (site.name, ad_id),
+                    )
+                except Exception:
+                    try:
+                        db.conn.rollback()
+                    except Exception:
+                        pass
             n_unchanged += 1
             continue
 
@@ -575,7 +607,7 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
     # plafond Avito est ~2,8 %, siaracash coupe a la 404, etc.). Le gate
     # reste activable au niveau du job (`--mark-missing`) et par le daemon.
     threshold = getattr(site, "mark_missing_min_coverage", 0.90)
-    total = (site.global_total
+    total = (getattr(site, "global_total", None)
              or getattr(client, "catalog_total", None) or 0)
     coverage = (len(seen) / total) if total else 0.0
     complete = bool(total) and coverage >= threshold

@@ -647,6 +647,29 @@ class Database:
         except Exception:
             pass
 
+    def last_seen_at(self, ad_id: Any, site: str = "avito") -> Optional[datetime]:
+        """Renvoie la date de derniere synchronisation (last_seen_at) connue."""
+        try:
+            rows = self.query(
+                "SELECT last_seen_at FROM ads WHERE site = %s AND ad_id = %s LIMIT 1",
+                (site, ad_id),
+            )
+        except Exception:
+            return None
+        if not rows:
+            return None
+        r = rows[0]
+        v = r.get("last_seen_at") if isinstance(r, dict) else (r[0] if r else None)
+        if v is None:
+            return None
+        if hasattr(v, "timetuple"):
+            return v
+        try:
+            from datetime import datetime as _dt
+            return _dt.fromisoformat(str(v).replace("Z", "").replace(" ", "T")[:19])
+        except Exception:
+            return None
+
     def mark_disappeared(self, ad_ids: list[int], site: str = "avito") -> int:
         """Marque comme inactives les annonces non vues lors d'un run complet."""
         if not ad_ids:
