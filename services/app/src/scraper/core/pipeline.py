@@ -331,7 +331,10 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
         if v is None or v == [] or v == {}:
             continue
         merged[k] = v
-    merged["url"] = url
+    # Laisser le connecteur fournir une URL publique (ex. kia, qui scrape
+    # l'API mais dont le lien final doit pointer vers la fiche du site).
+    if not merged.get("url"):
+        merged["url"] = url
     merged["details_fetched"] = True
     if merged.get("images"):
         merged["images"] = site.clean_images(merged["images"], merged)

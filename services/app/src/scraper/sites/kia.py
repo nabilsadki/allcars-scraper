@@ -81,9 +81,9 @@ class KiaAdapter(SiteAdapter):
                 is_premium=bool(item.get("is_promo")),
                 is_urgent=False,
                 is_hot_deal=bool(item.get("is_vente_flash")),
-                url=None,
+                url=f"https://kiaoccasion.ma/vehicules-occasion/{item.get('id')}",
                 details_fetched=False,
-                link=None,
+                link=f"https://kiaoccasion.ma/vehicules-occasion/{item.get('id')}",
             )
             out.append(ad)
         return out
@@ -154,8 +154,8 @@ class KiaAdapter(SiteAdapter):
             "images": images or ad.get("images") or [],
             "nb_images": len(images) if images else ad.get("nb_images"),
             "details_fetched": True,
-            "link": None,
-            "url": None,
+            "link": f"https://kiaoccasion.ma/vehicules-occasion/{item.get('id') or ad.get('ad_id')}",
+            "url": f"https://kiaoccasion.ma/vehicules-occasion/{item.get('id') or ad.get('ad_id')}",
         })
         if images:
             ad["images"] = images
