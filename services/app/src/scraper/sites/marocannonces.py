@@ -68,7 +68,9 @@ class MarocannoncesAdapter(SiteAdapter):
             # ne garder que les annonces de la categorie Voitures (314),
             # meme si la page visitee est une autre (garde-fou contre la
             # pollution croisee : emploi, immobilier, services, ...).
-            if "/categorie/314/" not in url_m.group(1):
+            # attention : les href sont relatifs ("categorie/314/..."), on
+            # teste donc l'URL absolue et non le href brut.
+            if "/categorie/314/" not in url:
                 continue
             if not ad_id or ad_id in seen:
                 continue
