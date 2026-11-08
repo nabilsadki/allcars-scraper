@@ -50,7 +50,7 @@ class KiaAdapter(SiteAdapter):
                 sizes = im.get("sizes") or {}
                 images.append({
                     "url": url,
-                    "url_full_hd": sizes.get("1600x1200") or sizes.get("1024x768") or url,
+                    "url_full_hd": sizes.get("1024x768") or sizes.get("800x600") or url,
                 })
             if not images and item.get("image"):
                 images.append({"url": item["image"], "url_full_hd": item["image"]})
@@ -112,7 +112,7 @@ class KiaAdapter(SiteAdapter):
             sizes = im.get("sizes") or {}
             images.append({
                 "url": url,
-                "url_full_hd": sizes.get("1600x1200") or sizes.get("1024x768") or url,
+                "url_full_hd": sizes.get("1024x768") or sizes.get("800x600") or url,
             })
         if not images and item.get("image"):
             images.append({"url": item["image"], "url_full_hd": item["image"]})
@@ -176,7 +176,7 @@ class KiaAdapter(SiteAdapter):
             if variant == "card":
                 return sizes.get("400x300") or (img.get("url") if isinstance(img, dict) else None)
             if variant == "full_hd":
-                return sizes.get("1600x1200") or sizes.get("1024x768") or (img.get("url") if isinstance(img, dict) else None)
+                return sizes.get("1024x768") or sizes.get("800x600") or (img.get("url") if isinstance(img, dict) else None)
             return sizes.get("800x600") or (img.get("url") if isinstance(img, dict) else None)
         return img.get("url") if isinstance(img, dict) else str(img)
 
