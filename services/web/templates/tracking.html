@@ -1,19 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Suivi du scrap — All Cars{% endblock %}
 {% block content %}
+{% set n_run = live_running_sites|length %}
 
-<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+<div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between mb-4">
   <h1 class="text-[21px] font-semibold m-0">Suivi du scrap</h1>
-  
-  <div class="flex items-center gap-2.5 flex-wrap" id="live-scrap-wrap">
-    <span id="live-scrap-pill" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border
+
+  <div class="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5 min-w-0"
+       id="live-scrap-wrap">
+    <span id="live-scrap-pill" class="inline-flex shrink-0 items-center gap-1.5 px-3 py-1 rounded-full text-[12.5px] font-semibold border
            {{ 'border-ok/40 bg-ok/10 text-ok' if n_run else 'border-line bg-panel2 text-muted' }}">
       <span id="live-scrap-dot" class="w-1.5 h-1.5 rounded-full {{ 'bg-ok pulse-dot' if n_run else 'bg-muted' }}"></span>
       <span id="live-scrap-n">{{ live_running_sites|length }}</span> scrap(s) en cours
     </span>
-    <span id="live-scrap-list" class="flex items-center gap-1 text-[12px] text-muted">
-      {%- for sn in live_running_sites -%}<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none mr-1"
-            style="--site-hue: {{ sn|site_hue }}">{{ sn|site_label }}</span>{{ '' if loop.last else '' }}{%- endfor -%}
+    <span id="live-scrap-list" class="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 text-[12px] text-muted">
+      {%- for sn in live_running_sites -%}<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none"
+            style="--site-hue: {{ sn|site_hue }}">{{ sn|site_label }}</span>{%- endfor -%}
       {%- if not live_running_sites -%}<span class="text-muted text-[10.5px]">aucun</span>{%- endif -%}
     </span>
   </div>
@@ -872,7 +874,7 @@ async function refresh() {
     }
     if (liveList) {
       liveList.innerHTML = __running.length
-        ? __running.map(s => '<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none mr-1" style="--site-hue:' + hueOf(s) + '">' + siteLabelOf(s) + '</span>').join('')
+        ? __running.map(s => '<span class="sitebadge inline-block px-1.5 py-px rounded text-[9.5px] font-bold border leading-none" style="--site-hue:' + hueOf(s) + '">' + siteLabelOf(s) + '</span>').join('')
         : '<span class="text-muted text-[10.5px]">aucun</span>';
     }
     // etat des boutons par bloc de site (démarrer/arrêtter/relancer)
