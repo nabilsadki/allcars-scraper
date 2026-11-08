@@ -143,17 +143,26 @@ class MoccazAdapter(SiteAdapter):
         phone_m = re.search(r'href="tel:([^"]+)"', html)
         if phone_m:
             merged["phone"] = phone_m.group(1).strip()
-        # images (cloud car-cutter ou galerie moccaz-crm)
+        # images : uniquement la galerie du vehicule (bloc "Product Photos").
+        # Le reste de la page contient les annonces similaires (memes URL
+        # car-cutter partagees par plusieurs annonces).
         imgs = []
-        for m in re.finditer(r'data-src="(https?://[^"]+\.(?:jpe?g|png|webp)(?:\?[^"]*)?)"', html, re.I):
-            u = m.group(1).split("?")[0]
-            if u not in imgs:
+        m = re.search(r'<!--\s*Start\s*-\s*Product Photos\s*-->', html, re.I)
+        seg = html[m.end():] if m else html
+        cut = seg.lower().find("start - car card")
+        if cut < 0:
+            cut = seg.find('class="car-card')
+        if cut > 0:
+            seg = seg[:cut]
+        for m2 in re.finditer(
+                r'data-src="(https?://[^"]+?\.(?:jpe?g|png|webp)(?:\?[^"]*)?)"',
+                seg, re.I):
+            u = m2.group(1).split("?")[0]
+            if ("cloud.car-cutter.com/vehicles_images/" in u
+                    or "crm/vehicules/images/" in u) and u not in imgs:
                 imgs.append(u)
-        if not imgs:
-            imgs = sorted({u.split("?")[0] for u in re.findall(r'src="(https?://[^"]+\.(?:jpe?g|png|webp))"', html, re.I)})
         if imgs:
             merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in imgs]
-            merged["nb_images"] = len(imgs)
             merged["nb_images"] = len(imgs)
         merged["seller"] = "M.OCCAZ"
         merged["seller_type"] = "Professionnel"

@@ -25,6 +25,39 @@ def _num(text: str) -> Optional[int]:
     return int(digits) if digits else None
 
 
+def _gallery_images(html: str) -> list[str]:
+    """Photos de la galerie produit uniquement (pas les annonces similaires).
+
+    Prestashop liste les photos du produit dans une suite de balises
+    `og:image` (une par photo). A defaut, on se limite au bloc
+    `product-images`, puis a la premiere `og:image` : mieux vaut une seule
+    vraie photo que les photos d'autres annonces.
+    """
+    urls = re.findall(r'<meta\s+property="og:image"\s+content="([^"]+)"', html)
+    if not urls:
+        urls = re.findall(r'data-image-(?:large|medium|zoom)-src="([^"]+)"', html)
+    if not urls:
+        m = re.search(r'<(?:div|ul)[^>]+(?:id|class)="[^"]*product[-_]images[^"]*"[^>]*>',
+                      html, re.I)
+        if m:
+            block = html[m.start():m.start() + 20000]
+            urls = re.findall(r'https://superoccaz\.ma/\d+-large_default/[^"\']+', block)
+    if not urls:
+        m = re.search(r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"', html)
+        if not m:
+            m = re.search(r'<meta[^>]+content="([^"]+)"[^>]+property="og:image"', html)
+        if m:
+            urls = [m.group(1)]
+    out: list[str] = []
+    for u in urls:
+        u = u.replace("&amp;", "&").split("?")[0]
+        if not u.startswith("http") or "no-photo" in u or "/logo" in u:
+            continue
+        if u not in out:
+            out.append(u)
+    return out
+
+
 class SuperoccazAdapter(SiteAdapter):
     name = "superoccaz"
     label = "SuperOccaz.ma"
@@ -167,8 +200,8 @@ class SuperoccazAdapter(SiteAdapter):
             mr = re.search(r'"price":\s*(\d+)', html)
             if mr:
                 merged["price"] = int(mr.group(1))
-        # images
-        imgs = sorted({u.split("?")[0] for u in re.findall(r"https://superoccaz\.ma/\d+-large_default/[^\"]+", html)})
+        # images : uniquement la galerie du produit
+        imgs = _gallery_images(html)
         if imgs:
             merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in imgs]
             merged["nb_images"] = len(imgs)

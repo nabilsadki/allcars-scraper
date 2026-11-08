@@ -156,15 +156,22 @@ class TomobilaAdapter(SiteAdapter):
             desc = _clean(m.group(1))
             if len(desc) > 30:
                 out["description"] = desc
-        # images
-        imgs = []
-        for u in dict.fromkeys(re.findall(
-                r'https://www\.tomobila\.ma/wp-content/uploads/[^"\']+?'
-                r'\.(?:jpg|jpeg|png|webp)', html)):
-            imgs.append({"url": u, "url_full_hd": u, "thumb": u})
-        if imgs:
-            out["images"] = imgs
-            out["nb_images"] = len(imgs)
+        # images : uniquement les photos de CETTE annonce. La page contient
+        # aussi les vignettes des annonces "similaires" ; les photos propres
+        # au vehicule portent son identifiant dans le nom de fichier.
+        ad_id = str(ad.get("ad_id") or "")
+        urls = list(dict.fromkeys(re.findall(
+            r'https://www\.tomobila\.ma/wp-content/uploads/[^"\']+?'
+            r'\.(?:jpg|jpeg|png|webp)', html)))
+        own = [u for u in urls if ad_id and f"-{ad_id}-" in u]
+        if not own:
+            m = re.search(r'property="og:image"\s+content="([^"]+)"', html)
+            og = m.group(1) if m else ""
+            if og.startswith("https://www.tomobila.ma/wp-content/uploads/"):
+                own = [og]
+        if own:
+            out["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in own]
+            out["nb_images"] = len(own)
         return out
 
     # -------------------------------------------------------------- images

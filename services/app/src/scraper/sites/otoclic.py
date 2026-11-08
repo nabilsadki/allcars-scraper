@@ -179,11 +179,21 @@ class OtoclicAdapter(SiteAdapter):
 
     def parse_detail(self, html: str, ad: dict) -> dict:
         out = dict(ad)
-        images = [i["url"] for i in (ad.get("images") or [])]
-        for url in re.findall(r'https://otoclic\.com/wp-content/uploads/[^"\']+?'
-                              r'\.(?:webp|jpg|jpeg|png)', html):
-            if url not in images:
+        # Galerie de l'annonce : Elementor marque chaque photo avec
+        # data-elementor-lightbox-slideshow="boxcar-gallery". Le reste de la
+        # page contient les vignettes d'autres annonces et les logos du site.
+        images = []
+        for tag in re.findall(
+                r'<a\b[^>]*data-elementor-lightbox-slideshow="boxcar-gallery"[^>]*>',
+                html):
+            m = re.search(r'href="([^"]+)"', tag)
+            if not m:
+                continue
+            url = m.group(1).replace("&amp;", "&")
+            if url.startswith("https://otoclic.com/wp-content/uploads/") and url not in images:
                 images.append(url)
+        if not images:
+            images = [i["url"] for i in (ad.get("images") or []) if i.get("url")]
         if images:
             out["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in images[:60]]
             out["nb_images"] = len(out["images"])

@@ -334,7 +334,8 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
     merged["url"] = url
     merged["details_fetched"] = True
     if merged.get("images"):
-        merged["nb_images"] = len(merged["images"])
+        merged["images"] = site.clean_images(merged["images"], merged)
+    merged["nb_images"] = len(merged.get("images") or [])
     return merged
 
 
@@ -383,7 +384,8 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
                 try:
                     db.upsert_ad(ad, site=site.name)
                     db.upsert_images(ad.get("ad_id"), ad.get("images"),
-                                      site=site.name)
+                                      site=site.name,
+                                      only_if_empty=not ad.get("details_fetched"))
                 except Exception as e:
                     # une annonce en echec ne doit pas arreter le run
                     n_db_errors += 1
@@ -518,7 +520,8 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
                         # et, le cas echeant, les colonnes enrichies.
                         try:
                             db.upsert_ad(ad, site=site.name)
-                            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+                            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name,
+                                             only_if_empty=not ad.get("details_fetched"))
                         except Exception as e:
                             db.conn.rollback()
                             client.log(f"  ! ecriture stale en echec ({type(e).__name__}: {str(e)[:60]})")
@@ -569,7 +572,8 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
             n_unchanged += 1
             n_candidates -= 1
         try:
-            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name,
+                             only_if_empty=not ad.get("details_fetched"))
         except Exception as e:
             n_db_errors += 1
             client.log(f"  ! images en echec ({type(e).__name__}: {e})")
@@ -670,7 +674,8 @@ def run_details(site: SiteAdapter, client, db: Database, *,
             ad = site.enrich(ad, client)
         _apply_notes(ad, market=market, config=config)
         db.upsert_ad(ad, site=site.name)
-        db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name)
+        db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name,
+                         only_if_empty=not ad.get("details_fetched"))
         n += 1
         if n % 5 == 0:
             progress.update(details=n)

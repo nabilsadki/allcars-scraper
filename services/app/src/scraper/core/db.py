@@ -701,13 +701,23 @@ class Database:
         return n
 
     def upsert_images(self, ad_id, images: list[dict],
-                      site: str = "avito") -> None:
+                      site: str = "avito", only_if_empty: bool = False) -> None:
         """Enregistre les photos.
 
         Un re-scrape doit remplacer, pas ajouter : on SUPPRIME d'abord les
         photos deja stockees pour ce (site, ad_id), sinon l'annonce
         s'affiche avec un melange des anciennes et nouvelles images.
+
+        `only_if_empty` protege une galerie complete : une simple page de
+        liste ne doit pas remplacer plusieurs photos par une vignette.
         """
+        if only_if_empty:
+            self.cur.execute(
+                "SELECT COUNT(*) AS n FROM ad_images WHERE site = %s AND ad_id = %s",
+                (site, ad_id))
+            row = self.cur.fetchone() or {}
+            if int((row or {}).get("n") or 0) > 0:
+                return
         # effacer le lot precedent (peu importe le nombre de nouvelles images)
         try:
             self.safe_exec("DELETE FROM ad_images WHERE site = %s AND ad_id = %s",

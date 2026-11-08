@@ -119,6 +119,9 @@ def _images(ad: dict) -> list[dict]:
         std = paths.get("standard")
         if not std:
             continue
+        # image de couverture de la boutique (placeholder), pas une photo
+        if "/stores-covers/" in std:
+            continue
         full = paths.get("fullHd") or re.sub(r"\?t=\w+", "?t=full_hd", std)
         out.append({
             "url": std,

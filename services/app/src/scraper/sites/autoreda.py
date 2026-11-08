@@ -162,6 +162,16 @@ class AutoredaAdapter(SiteAdapter):
         merged.setdefault("seller_type", "Professionnel")
         return merged
 
+    def clean_images(self, images, ad=None):
+        out = []
+        for img in super().clean_images(images, ad):
+            u = img.get("url") or ""
+            # logo de l'organisation (JSON-LD) et visuel "Sans-titre"
+            if "db70d53a-ff2c" in u or "/Sans-titre-" in u:
+                continue
+            out.append(img)
+        return out
+
     def image_url(self, img, variant="images"):
         return img.get("url") or img.get("url_full_hd") or ""
 

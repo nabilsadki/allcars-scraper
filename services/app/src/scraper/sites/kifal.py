@@ -182,9 +182,13 @@ class KifalAdapter(SiteAdapter):
             if url not in images:
                 images.append(url)
         if not images:
-            for url in re.findall(r'<img[^>]+src="(https?://[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"', html):
-                if url not in images:
-                    images.append(url)
+            images = [i["url"] for i in (ad.get("images") or [])
+                      if i.get("url") and "/images/kifal/" not in i["url"]]
+        if not images:
+            m = re.search(r'property="og:image"[^>]+content="([^"]+)"', html)
+            og = m.group(1) if m else ""
+            if og.startswith("https://occasion.kifal.ma/") and "/images/kifal/" not in og:
+                images = [og]
         if images:
             out["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in images[:40]]
             out["nb_images"] = len(out["images"])

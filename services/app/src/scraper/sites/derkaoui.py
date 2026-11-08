@@ -202,9 +202,19 @@ class DerkaouiAdapter(SiteAdapter):
         merged.setdefault("seller_type", None)
         merged.setdefault("seller", "Derkaoui Automotive")
 
-        # images (full-size, sans les vignettes)
-        raw_imgs = re.findall(r"https://derkaouiautomotive\.ma/wp-content/uploads/[^\"]+\.(?:jpe?g|png|webp)", html, re.I)
-        full = sorted({u.split("?")[0] for u in raw_imgs if not re.search(r"-\d+x\d+\.", u)})
+        # images : galerie WooCommerce uniquement (`data-large_image`).
+        # Une regex sur toute la page attrape les bannieres et les vignettes
+        # des autres produits.
+        full = list(dict.fromkeys(
+            u.split("?")[0].replace("&amp;", "&")
+            for u in re.findall(
+                r'data-large_image="(https://derkaouiautomotive\.ma/wp-content/uploads/[^"]+?\.(?:jpe?g|png|webp))"',
+                html, re.I)))
+        if not full:
+            m = re.search(r'property="og:image"[^>]+content="([^"]+)"', html)
+            og = m.group(1) if m else ""
+            if og.startswith("https://derkaouiautomotive.ma/wp-content/uploads/"):
+                full = [og]
         if full:
             merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in full]
             merged["nb_images"] = len(full)

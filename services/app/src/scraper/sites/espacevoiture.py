@@ -205,17 +205,21 @@ class EspacevoitureAdapter(SiteAdapter):
         merged.setdefault("phone", ad.get("phone"))
         merged.setdefault("seller_type", None)
 
-        imgs = sorted(set(re.findall(r"https://image\.espacevoiture\.com/dynamique/images/original/[^\"]+", html)))
-        imgs = [u.split("?")[0] for u in imgs]
+        # images : uniquement les photos propres a l'annonce (`/original/`).
+        # Les images `/small/` proviennent des blocs "#similaires" et
+        # "#lastAnnonces" et n'ont rien a voir avec ce vehicule.
+        imgs = [u.split("?")[0] for u in
+                dict.fromkeys(re.findall(
+                    r"https://image\.espacevoiture\.com/dynamique/images/original/[^\"]+",
+                    html))]
+        if not imgs:
+            m = re.search(r'property="og:image"[^>]+content="([^"]+)"', html)
+            og = m.group(1) if m else ""
+            if og.startswith("https://image.espacevoiture.com/") and "no-photo" not in og:
+                imgs = [og.split("?")[0]]
         if imgs:
             merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in imgs]
             merged["nb_images"] = len(imgs)
-        else:
-            thumbs = sorted(set(re.findall(r"https://image\.espacevoiture\.com/dynamique/images/small/[^\"]+", html)))
-            thumbs = [u.split("?")[0] for u in thumbs]
-            if thumbs:
-                merged["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in thumbs]
-                merged["nb_images"] = len(thumbs)
 
         merged["details_fetched"] = True
         merged["ad_id"] = ad.get("ad_id")

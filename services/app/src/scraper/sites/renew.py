@@ -373,8 +373,35 @@ class RenewAdapter(SiteAdapter):
 
     def parse_detail(self, html: str, ad: dict) -> dict:
         out = dict(ad)
-        images = [i["url"] for i in (ad.get("images") or [])]
-        for url in re.findall(r'https://prod\.renew\.ma/renew/argus/datas/photos/[^"\']+', html):
+        images = [i["url"] for i in (ad.get("images") or []) if i.get("url")]
+        # Galerie complete : l'etat Nuxt de la fiche contient les `visuels` de
+        # l'annonce. On ne prend que l'objet dont l'argusid correspond, sinon
+        # on recupererait les photos des autres modeles presents dans l'etat.
+        target = str(ad.get("ad_id") or "")
+        car = None
+        try:
+            for obj in self._state(html).objects():
+                if str(obj.get("argusid")) == target:
+                    car = obj
+                    break
+        except Exception:
+            car = None
+        gallery: list[str] = []
+        if car:
+            default_img = car.get("default_img")
+            if default_img:
+                gallery.append(f"{PHOTO_BASE}{default_img}")
+            for vis in (car.get("visuels") or []):
+                fname = vis.get("file_name") if isinstance(vis, dict) else None
+                if fname:
+                    gallery.append(f"{PHOTO_BASE}{fname}")
+        if not gallery:
+            # repli : galerie affichee dans le HTML (photos visibles)
+            m = re.search(r'<agile[^>]*voiture-occasion-page__gallery[^>]*>(.*?)</agile>',
+                          html, re.S)
+            if m:
+                gallery = re.findall(r'<img[^>]+src="([^"]+)"', m.group(1))
+        for url in gallery:
             if url not in images:
                 images.append(url)
         if images:

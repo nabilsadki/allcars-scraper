@@ -14,6 +14,87 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
+# ---------------------------------------------------------------------------
+# Nettoyage des images
+#
+# Les fiches detail sont analysees par des regex appliquees a toute la page :
+# elles attrapent donc aussi les carrousels "annonces similaires", les logos,
+# favicons, bannieres et images de placeholder du site. Ces URLs se retrouvent
+# ensuite melangees aux vraies photos de l'annonce (et parfois partagees par
+# plusieurs annonces).
+#
+# Regles communes :
+#   * on jette les URL manifestement hors sujet (chrome du site) ;
+#   * on deduplique les variantes de taille d'une meme photo
+#     (`photo-300x225.jpg` == `photo.jpg`) en gardant la plus grande.
+# ---------------------------------------------------------------------------
+
+#: motifs d'URL qui ne sont jamais une photo d'annonce
+_IMAGE_CHROME_PATTERNS = (
+    r"/no[-_]?photo",            # no-photo.jpg, no_photo.png
+    r"placeholder",              # placeholder_car.png, /placeholder/
+    r"/favicon", r"/fav[._-]", r"fav-\d+", r"/fav/",
+    r"/logo[-_./]", r"^logo-", r"/logo-[^/]+\.(?:png|jpe?g|webp|svg)",
+    r"/avatar",                  # avatar-lg, /avatars/
+    r"/cropped-",                # icone WordPress (cropped-...)
+    r"/stores-covers/",          # couverture de boutique Avito
+    r"/banner", r"/slider/", r"/slide-\d+",
+    r"/elementor/thumbs/",       # vignettes Elementor (doublons)
+    r"/images/kifal/",           # logo / exclamation / google de Kifal
+    r"/assets/img/",             # assets du site (M.OCCAZ, etc.)
+    r"wp-off-mobile",            # visuel d'accueil Otoclic
+    r"/achat-voiture[-_]", r"/vente-achat-voiture",
+)
+_IMAGE_CHROME_RE = re.compile("|".join(_IMAGE_CHROME_PATTERNS), re.I)
+
+#: suffixe de redimensionnement WordPress (`-300x225`) avant l'extension
+_IMAGE_SIZE_SUFFIX_RE = re.compile(r"-\d{2,4}x\d{2,4}(?=\.[A-Za-z0-9]+$)")
+#: variante de taille dans le chemin (leguideauto, espacevoiture...)
+_IMAGE_PATH_VARIANT_RE = re.compile(r"/(?:small|medium|large|thumb|thumbs|mini|big)/",
+                                    re.I)
+
+
+def normalise_image_url(url: str) -> str:
+    """Nettoie les artefacts d'extraction (HTML, `);`, espaces, ancre)."""
+    u = (url or "").strip()
+    u = u.replace("&amp;", "&")
+    u = u.split("#")[0]
+    # certaines pages collent la fin d'un `url(...)` ou d'un tableau JS
+    u = u.rstrip(" \t\r\n);,'\"")
+    return u
+
+
+def image_key(url: str) -> str:
+    """Cle de deduplication : ignore la variante de taille et la query."""
+    u = normalise_image_url(url).split("?")[0]
+    u = _IMAGE_SIZE_SUFFIX_RE.sub("", u)
+    u = _IMAGE_PATH_VARIANT_RE.sub("/", u)
+    return u.lower()
+
+
+def clean_image_urls(urls) -> list[str]:
+    """Filtre le chrome du site et deduplique les variantes de taille."""
+    kept: dict[str, str] = {}
+    order: list[str] = []
+    for raw in urls or []:
+        u = normalise_image_url(raw)
+        if not re.match(r"^https?://", u, re.I):
+            continue
+        if _IMAGE_CHROME_RE.search(u):
+            continue
+        key = image_key(u)
+        current = kept.get(key)
+        if current is None:
+            kept[key] = u
+            order.append(key)
+            continue
+        # une variante redimensionnee a deja ete retenue : on la remplace
+        # par l'original non redimensionne s'il arrive plus tard.
+        if _IMAGE_SIZE_SUFFIX_RE.search(current) and not _IMAGE_SIZE_SUFFIX_RE.search(u):
+            kept[key] = u
+    return [kept[k] for k in order]
+
+
 # Contrat de l'annonce normalisee (un dict, comme partout dans le projet).
 # Les cles sont communes a tous les sites ; un site peut en ajouter d'autres
 # (elles sont alors stockees dans raw_json / options_json).
@@ -142,6 +223,36 @@ class SiteAdapter(ABC):
         import re
         name = os.path.basename(url.split("?")[0])
         return re.sub(r"[^0-9A-Za-z_.-]", "_", name) or "img"
+
+    def clean_images(self, images: list[dict], ad: Optional[dict] = None) -> list[dict]:
+        """Nettoie la liste d'images avant ecriture en base.
+
+        Ecarte le chrome du site, les placeholders et les variantes de taille
+        d'une meme photo. Les adaptateurs peuvent surcharger cette methode
+        quand le site expose une regle specifique (galerie, id d'annonce dans
+        l'URL, variante `/large/`...).
+        """
+        items = list(images or [])
+        sources: dict[str, dict] = {}
+        raw: list[str] = []
+        for img in items:
+            if not isinstance(img, dict):
+                continue
+            u = img.get("url") or img.get("url_full_hd") or ""
+            if not isinstance(u, str) or not u:
+                continue
+            key = normalise_image_url(u)
+            sources.setdefault(key, img)
+            raw.append(u)
+        out: list[dict] = []
+        for u in clean_image_urls(raw):
+            src = sources.get(u) or {}
+            item = dict(src)
+            item["url"] = u
+            item["url_full_hd"] = item.get("url_full_hd") or u
+            item["thumb"] = item.get("thumb") or u
+            out.append(item)
+        return out
 
 
 def relative_date(text: str, today: Optional[datetime] = None) -> Optional[str]:

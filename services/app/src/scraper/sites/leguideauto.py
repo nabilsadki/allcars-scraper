@@ -127,11 +127,17 @@ class LeguideautoAdapter(SiteAdapter):
 
     def parse_detail(self, html: str, ad: dict) -> dict:
         out = dict(ad)
-        images = []
-        for url in re.findall(r'https://www\.leguideauto\.ma/contents/announcements/pictures/[^"\']+'
-                              r'\.(?:webp|jpg|jpeg|png)', html):
-            if url not in images:
-                images.append(url)
+        # Photos propres : la galerie de l'annonce est exposee en `/large/`
+        # (preload + og:image). Les `/small/` et `/medium/` de la page sont
+        # les vignettes des annonces similaires.
+        images = list(dict.fromkeys(re.findall(
+            r'https://www\.leguideauto\.ma/contents/announcements/pictures/[^"\']+?'
+            r'/large/[^"\']+?\.(?:webp|jpg|jpeg|png)', html)))
+        if not images:
+            m = re.search(r'property="og:image"[^>]+content="([^"]+)"', html)
+            og = m.group(1) if m else ""
+            if og.startswith("https://www.leguideauto.ma/contents/announcements/pictures/"):
+                images = [og]
         if images:
             out["images"] = [{"url": u, "url_full_hd": u, "thumb": u} for u in images[:40]]
             out["nb_images"] = len(out["images"])
