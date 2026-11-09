@@ -8,6 +8,21 @@ from typing import Any
 from ..core.site import SiteAdapter, make_ad
 
 
+def _equip_options(labels) -> dict:
+    """Transforme la liste d'equipements en dict {libelle: True}.
+
+    L'API renvoie deja des libelles lisibles ("Bluetooth", "Airbags : 6").
+    Le site public affiche la section "Equipements & Options" a partir de
+    ce dict ; sans lui, la fiche reste vide meme si les details existent.
+    """
+    out: dict[str, bool] = {}
+    for label in labels or []:
+        text = str(label).strip()
+        if text:
+            out[text] = True
+    return out
+
+
 class KiaAdapter(SiteAdapter):
     name = "kia"
     label = "Kia Occasion"
@@ -54,6 +69,7 @@ class KiaAdapter(SiteAdapter):
                 })
             if not images and item.get("image"):
                 images.append({"url": item["image"], "url_full_hd": item["image"]})
+            equip = item.get("equipements") or []
             ad = make_ad(
                 ad_id=str(item.get("id")),
                 list_id=item.get("id"),
@@ -73,8 +89,8 @@ class KiaAdapter(SiteAdapter):
                 gearbox=None,
                 color=None,
                 doors=item.get("nb_place"),
-                options=None,
-                option_labels=item.get("equipements") or [],
+                options=_equip_options(equip),
+                option_labels=equip,
                 specs=[],
                 images=images,
                 nb_images=len(images),
@@ -123,6 +139,7 @@ class KiaAdapter(SiteAdapter):
         elif gear == "Manuelle":
             gear = "Manuelle"
 
+        equip = item.get("equipements") or ad.get("option_labels") or []
         ad = dict(ad)
         ad.update({
             "title": item.get("title") or ad.get("title"),
@@ -149,8 +166,8 @@ class KiaAdapter(SiteAdapter):
             "fiscal_power": str(item.get("puissance_cv")) if item.get("puissance_cv") is not None else None,
             "cv": item.get("puissance_cv"),
             "category": item.get("category") or ad.get("category"),
-            "options": None,
-            "option_labels": item.get("equipements") or ad.get("option_labels") or [],
+            "options": _equip_options(equip) or ad.get("options") or {},
+            "option_labels": equip,
             "images": images or ad.get("images") or [],
             "nb_images": len(images) if images else ad.get("nb_images"),
             "details_fetched": True,
