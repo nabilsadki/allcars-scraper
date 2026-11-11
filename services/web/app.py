@@ -1199,6 +1199,7 @@ def tracking():
          COUNT(*)                                      n,
          SUM(a.is_active = 1)                          actives,
          SUM(a.details_fetched = 1)                    details,
+         SUM(a.last_seen_at >= NOW() - INTERVAL 2 DAY) recent_2d,
          MAX(a.last_seen_at)                           dernier,
          SUM(a.nb_images > 0)                          avec_photos,
          ROUND(AVG(a.note_etat), 2)                    avg_etat,

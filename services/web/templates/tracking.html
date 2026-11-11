@@ -166,40 +166,71 @@
   <div class="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
     {% for c in counts %}
     {% set hue = c.site|site_hue %}
-    <div class="flex items-center gap-2.5 rounded-lg border border-line bg-panel2/40 px-3 py-2 transition-colors hover:bg-panel2/60">
-      <div class="site-mark shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-[12px] font-bold"
-           style="--site-hue: {{ hue }}; background: hsl(var(--site-hue, 214) 72% 50% / .15); border: 1px solid hsl(var(--site-hue, 214) 72% 50% / .45); color: hsl(var(--site-hue, 214) 75% 75%)">
-        {{ (c.site[:2] or '?')|upper }}
+    {% set aged = c.dernier|freshness %}
+    <div class="rounded-lg border border-line bg-panel2/40 px-3 py-2.5 transition-colors hover:bg-panel2/60">
+      {# en-tete : icone a gauche, puis nom, total, date #}
+      <div class="flex items-start gap-2.5">
+        <div class="site-mark shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-[12px] font-bold"
+             style="--site-hue: {{ hue }}; background: hsl(var(--site-hue, 214) 72% 50% / .15); border: 1px solid hsl(var(--site-hue, 214) 72% 50% / .45); color: hsl(var(--site-hue, 214) 75% 75%)">
+          {{ (c.site[:2] or '?')|upper }}
+        </div>
+        <div class="min-w-0 flex-1 leading-tight">
+          <div class="flex items-baseline gap-2 min-w-0">
+            <div class="text-[12.5px] font-semibold truncate" data-site-title>{{ c.site|site_label }}</div>
+            <b class="ml-auto shrink-0 text-[12.5px] tabular-nums {{ 'text-ok' if (c.details or 0) >= c.n else 'text-warn' }}" data-site-count
+               title="{{ 'toutes les annonces ont leur page detail' if (c.details or 0) >= c.n else ((c.n - (c.details or 0))|string) + ' annonce(s) sans fiche complete' }}">
+              {{ '{:,}'.format(c.n).replace(',', ' ') }}
+            </b>
+          </div>
+          <div class="text-[10px] mt-0.5">
+            <span class="{{ 'text-ok font-semibold' if aged == 'freshness-fresh' else 'text-warn' }}">
+              {{ (c.dernier|datefr(true)) if c.dernier else 'jamais' }}
+            </span>
+            {% if c.dernier %}
+            <span class="text-muted/80 text-[9.5px] ml-1"
+                  title="{{ 'mis a jour il y a moins de 2 jours' if aged == 'freshness-fresh' else 'plus de 2 jours : il faudrait re-scaper ce site' }}">
+              {{ 'fraîs' if aged == 'freshness-fresh' else 'périmé' }}
+            </span>
+            {% endif %}
+          </div>
+        </div>
       </div>
-      <div class="min-w-0 flex-1 leading-tight">
-        <div class="text-[12.5px] font-semibold truncate" data-site-title>{{ c.site|site_label }}</div>
-        <div class="text-[11px] text-muted mt-0.5">
-          <b class="tabular-nums {{ 'text-ok' if (c.details or 0) >= c.n else 'text-warn' }}" data-site-count
-             title="{{ 'toutes les annonces ont leur page detail' if (c.details or 0) >= c.n else ((c.n - (c.details or 0))|string) + ' annonce(s) sans fiche complete' }}">
-              {{ '{:,}'.format(c.n).replace(',', ' ') }}</b> annonces
+      {# detail : une statistique par ligne #}
+      <dl class="mt-2 space-y-0.5 text-[10.5px] leading-tight m-0">
+        <div class="flex items-baseline justify-between gap-2">
+          <dt class="text-muted">Fiches complètes</dt>
+          <dd class="m-0 tabular-nums font-medium {{ 'text-ok' if (c.details or 0) >= c.n else 'text-warn' }}">
+            {{ '{:,}'.format(c.details or 0).replace(',', ' ') }}</dd>
         </div>
-        <div class="text-[10px] text-muted">
-          {{ c.details or 0 }} complètes{% if c.avec_photos %} · {{ c.avec_photos }} photos{% endif %}
+        <div class="flex items-baseline justify-between gap-2">
+          <dt class="text-muted">Fiches activées</dt>
+          <dd class="m-0 tabular-nums font-medium text-txt">
+            {{ '{:,}'.format(c.actives or 0).replace(',', ' ') }}</dd>
         </div>
-        {% set aged = c.dernier|freshness %}
-        <div class="text-[10.5px] mt-0.5">
-          <span class="{{ 'text-ok font-semibold' if aged == 'freshness-fresh' else 'text-warn' }}">
-            {{ (c.dernier|datefr(true)) if c.dernier else 'jamais' }}
-          </span>
-          {% if c.dernier %}
-          <span class="text-muted/80 text-[9.5px] ml-1"
-                title="{{ 'mis a jour il y a moins de 2 jours' if aged == 'freshness-fresh' else 'plus de 2 jours : il faudrait re-scaper ce site' }}">
-            {{ 'fraîs' if aged == 'freshness-fresh' else 'périmé' }}
-          </span>
-          {% endif %}
+        <div class="flex items-baseline justify-between gap-2">
+          <dt class="text-muted">À jour &lt; 2 j</dt>
+          <dd class="m-0 tabular-nums font-medium {{ 'text-ok' if (c.recent_2d or 0) >= (c.n or 0) else 'text-warn' }}"
+              title="annonces dont last_seen_at date de moins de 2 jours">
+            {{ '{:,}'.format(c.recent_2d or 0).replace(',', ' ') }}</dd>
         </div>
-        {% if c.last_listed is not none %}
-        <div class="text-[9.5px] text-muted/85 mt-0.5 leading-tight"
-             title="Dernier run reussi ({{ c.last_mode or '—' }}) : {{ c.last_listed }} listees, {{ c.last_inserted }} inserees, {{ c.last_updated }} modifiees, {{ c.last_unchanged }} inchang., {{ c.last_details }} fiches detail.">
-          {{ c.last_listed }} trouvées · {{ c.last_inserted + c.last_updated }} récupérées
-        </div>
-        {% endif %}
+      </dl>
+      {# etat du dernier scrap, en badges #}
+      {% if c.last_mode %}
+      <div class="mt-2 flex flex-wrap items-center gap-1"
+           title="Dernier run reussi ({{ c.last_mode }}) : {{ c.last_listed }} listées, {{ c.last_inserted }} insérées, {{ c.last_updated }} modifiées, {{ c.last_unchanged }} inchangées, {{ c.last_details }} fiches détail.">
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-line bg-panel text-[9.5px] font-medium text-muted">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+          {{ '{:,}'.format(c.last_listed or 0).replace(',', ' ') }} trouvées
+        </span>
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-ok/40 bg-ok/10 text-[9.5px] font-medium text-ok">
+          <span class="w-1.5 h-1.5 rounded-full bg-ok"></span>
+          {{ '{:,}'.format((c.last_inserted or 0) + (c.last_updated or 0)).replace(',', ' ') }} récupérées
+        </span>
+        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full border border-line/70 bg-panel2/70 text-[9px] font-mono text-muted/80">
+          {{ c.last_mode }}
+        </span>
       </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
