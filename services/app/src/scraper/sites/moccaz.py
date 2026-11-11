@@ -41,7 +41,9 @@ class MoccazAdapter(SiteAdapter):
     label = "M.OCCAZ"
     default_category = "nos-voitures"
     categories = ["nos-voitures"]
-    modes = ["list"]
+    # les fiches detail existent (telephone + galerie complete) : les modes
+    # rescan/details/refresh/mixed sont donc disponibles comme ailleurs.
+    modes = ["list", "rescan", "details"]
 
     def __init__(self):
         self._page = 0
