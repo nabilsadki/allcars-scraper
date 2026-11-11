@@ -89,6 +89,34 @@ services:
       - site
     entrypoint: ["python3", "-m", "scraper.cli"]
 
+  # ------------------------------------------------------- phpMyAdmin
+  # parcourir la base depuis le navigateur (http://127.0.0.1:8082)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: allcars-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      # le serveur MySQL n'a qu'un host : pas d'ecran de choix
+      PMA_ARBITRARY: 0
+      UPLOAD_LIMIT: 512M
+      MEMORY_LIMIT: 512M
+      # identifiants pre-remplis (compte applicatif, pas root)
+      PMA_USER: ${DB_USER:-allcars}
+      PMA_PASSWORD: ${DB_PASSWORD:-allcars}
+    ports:
+      # uniquement en local, comme la base elle-meme
+      - "127.0.0.1:${PHPMYADMIN_PORT:-8082}:80"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   # -------------------------------------------------------------- outils
   tools:
     build:

@@ -101,6 +101,25 @@ docker compose stop db
 
 ---
 
+## 2b. Parcourir la base (phpMyAdmin)
+
+```bash
+docker compose up -d phpmyadmin   # http://127.0.0.1:8082
+```
+
+* Écoute **uniquement en local** (`127.0.0.1`), comme la base et l'interface.
+* Le serveur est déjà configuré (`PMA_HOST=db`) : pas d'écran de choix.
+* Identifiants pré-remplis avec le compte applicatif (`allcars` / `allcars`
+  par défaut). Pour voir *toutes* les bases, se connecter en `root` avec
+  `MYSQL_ROOT_PASSWORD` (par défaut `rootpass`).
+* Import/export jusqu'à 512 Mo par fichier (`UPLOAD_LIMIT`).
+* `restart: unless-stopped` : il revient tout seul au redémarrage du poste.
+  `docker compose stop phpmyadmin` l'arrête sans toucher au reste.
+
+Le port se change avec `PHPMYADMIN_PORT` dans `.env`.
+
+---
+
 ## 3. Le scraper
 
 ```bash
