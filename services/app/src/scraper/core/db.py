@@ -318,7 +318,10 @@ class Database:
             "seller": ad.get("seller"),
             "seller_type": ad.get("seller_type"),
             "seller_id": ad.get("seller_id"),
-            "phone": ad.get("phone"),
+            # une valeur plus longue que la colonne faisait echouer l'upsert
+            # (DataError 1406) : la fiche n'etait jamais marquee vue et etait
+            # re-telechargee a chaque passage.
+            "phone": _short_str(ad.get("phone"), 64),
             "link": ad.get("url"),
             "description": ad.get("description"),
             "fuel": ad.get("fuel"),
@@ -357,7 +360,9 @@ class Database:
             "note_fuel": ad.get("note_fuel"),
             "note_gear": ad.get("note_gear"),
             "note_specs": ad.get("note_specs"),
-            "km_year": ad.get("km_year"),
+            # km/an peut depasser la capacite d'un INT quand le km brut est
+            # aberrant : on jette la valeur plutot que de perdre la fiche.
+            "km_year": _as_int_range(ad.get("km_year"), 0, 1_000_000),
             "note_etat": ad.get("note_etat"),
             "note_achat": ad.get("note_achat"),
             "note_global": ad.get("note_global"),
@@ -912,6 +917,25 @@ def _as_int(v: Any) -> Optional[int]:
         return int(str(v).replace(" ", "").replace("km", "").strip())
     except (TypeError, ValueError):
         return None
+
+
+def _as_int_range(v: Any, lo: int, hi: int) -> Optional[int]:
+    """Entier borne : None hors plage (evite un DataError 1264 au write)."""
+    n = _as_int(v)
+    if n is None:
+        return None
+    return n if lo <= n <= hi else None
+
+
+def _short_str(v: Any, maxlen: int) -> Optional[str]:
+    """Chaine qui tient dans la colonne, sinon None (valeur absurde)."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    return s if len(s) <= maxlen else None
+
 
 def _as_km(v: Any) -> Optional[int]:
     """Kilometrage coerce et borde (les valeurs fofloues du site sont jetees)."""
