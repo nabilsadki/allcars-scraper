@@ -217,12 +217,14 @@
         {% set pct = [[pct, 0]|max, 100]|min %}
         <div class="flex items-center justify-between gap-2">
           <dt class="text-muted">À jour &lt; 2 j</dt>
-          <dd class="m-0">
+          <dd class="m-0 flex flex-col items-end gap-0.5">
             <div class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden"
                  title="{{ '{:,}'.format(c.recent_2d or 0).replace(',', ' ') }} / {{ '{:,}'.format(c.n or 0).replace(',', ' ') }} annonces vues il y a moins de 2 jours ({{ ('%.1f'|format(pct))|replace('.', ',') }} %)">
               <div class="h-full rounded-full {{ 'bg-ok' if pct >= 90 else 'bg-warn' }}"
                    style="width: {{ '%.1f'|format(pct) }}%"></div>
             </div>
+            <span class="text-[9px] leading-none tabular-nums text-muted/70">
+              {{ '{:,}'.format(c.recent_2d or 0).replace(',', ' ') }}</span>
           </dd>
         </div>
       </dl>
