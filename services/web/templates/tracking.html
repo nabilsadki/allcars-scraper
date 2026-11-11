@@ -208,6 +208,12 @@
             {{ '{:,}'.format(c.actives or 0).replace(',', ' ') }}</dd>
         </div>
         <div class="flex items-baseline justify-between gap-2">
+          <dt class="text-muted">Fiches inactives</dt>
+          <dd class="m-0 tabular-nums font-medium text-muted"
+              title="annonces desactivees (disparues du site, 404)">
+            {{ '{:,}'.format((c.n or 0) - (c.actives or 0)).replace(',', ' ') }}</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-2">
           <dt class="text-muted">À jour &lt; 2 j</dt>
           <dd class="m-0 tabular-nums font-medium {{ 'text-ok' if (c.recent_2d or 0) >= (c.n or 0) else 'text-warn' }}"
               title="annonces dont last_seen_at date de moins de 2 jours">
