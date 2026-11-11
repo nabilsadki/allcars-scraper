@@ -12,6 +12,7 @@ list     : scrape et ecrit tout
 rescan   : ne recupere le detail que des annonces nouvelles/modifiees
 details  : complete les fiches detail manquantes
 refresh  : rafraichit les fiches les plus anciennes, selectionnees en base
+mixed    : rescan de la fenetre de liste, puis refresh d'un lot en base
 """
 
 from __future__ import annotations
@@ -469,7 +470,7 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
 def run_rescan(site: SiteAdapter, client, db: Database, *,
                category: str, limit: int = 0, details: bool = True,
                mark_missing: bool = False, quiet: bool = False,
-               run_id: Optional[int] = None) -> dict:
+               run_id: Optional[int] = None, progress_mode: str = "") -> dict:
     """Re-scraping intelligent : la liste detecte, la fiche detail confirme."""
     started = datetime.now()
     t0 = time.time()
@@ -483,7 +484,7 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
     known_before = set(db.known_ad_ids(site.name))
     seen: set = set()
     n_new = n_changed = n_unchanged = n_details = n_candidates = n_db_errors = 0
-    progress = Progress(site.name, mode="rescan", category=category)
+    progress = Progress(site.name, mode=progress_mode or "rescan", category=category)
 
     for ad in iter_listing(site, client, category, limit, verbose=not quiet,
                            progress=progress):
@@ -695,7 +696,8 @@ def run_details(site: SiteAdapter, client, db: Database, *,
 
 def run_refresh(site: SiteAdapter, client, db: Database, *,
                 stale_days: int = 4, limit: int = 500, category: str = "",
-                quiet: bool = False, run_id: Optional[int] = None) -> dict:
+                quiet: bool = False, run_id: Optional[int] = None,
+                progress_mode: str = "") -> dict:
     """Rafraichit les fiches les plus anciennes, en partant de la BDD.
 
     Contrairement a `run_rescan` (qui part du listing du site), ce mode ne
@@ -744,7 +746,7 @@ def run_refresh(site: SiteAdapter, client, db: Database, *,
         print(f"  {len(rows)} fiche(s) a rafraichir "
               f"(anciennete > {stale_days} j, plafond {limit})", flush=True)
 
-    progress = Progress(site.name, mode="refresh", category=category)
+    progress = Progress(site.name, mode=progress_mode or "refresh", category=category)
     progress.update(total=len(rows))
     n = n_failed = n_gone = 0
     for r in rows:
@@ -850,4 +852,90 @@ def run_refresh(site: SiteAdapter, client, db: Database, *,
               f"{client.stats['requests']} requetes | {dt:.0f}s", flush=True)
     return {"refreshed": n, "details": n, "selected": len(rows),
             "disappeared": n_gone, "failed": n_failed,
+            "seconds": dt, "started": started, "error": None}
+
+
+def run_mixed(site: SiteAdapter, client, db: Database, *,
+              category: str, limit: int = 0, refresh_limit: int = 0,
+              stale_days: int = 4, mark_missing: bool = False,
+              quiet: bool = False, run_id: Optional[int] = None) -> dict:
+    """Un seul run : rescan de la fenetre de liste, puis refresh en base.
+
+    Le rescan passe en premier : il vient de rafraichir `last_seen_at` sur sa
+    fenetre, donc la selection du refresh (ORDER BY last_seen_at ASC) ne
+    reprend pas ces annonces. L'inverse gaspillerait des requetes.
+
+    `refresh_limit` est le lot de la seconde passe (0 = pas de refresh, le
+    run se comporte comme un rescan). Il se calibre en fonction du temps
+    restant dans le creneau : ~1,2 s par fiche mesuree.
+    """
+    started = datetime.now()
+    t0 = time.time()
+
+    res = run_rescan(site, client, db, category=category, limit=limit,
+                     details=True, mark_missing=mark_missing, quiet=quiet,
+                     run_id=run_id, progress_mode="mixed")
+
+    # compteurs de la seule passe refresh (le rescan a deja incrementé)
+    before = dict(db.counters)
+    refreshed = gone_refresh = failed_refresh = 0
+    if refresh_limit:
+        if not quiet:
+            print(f"\n=== passe refresh : {refresh_limit} fiche(s) "
+                  f"(anciennete > {stale_days} j) ===", flush=True)
+        res2 = run_refresh(site, client, db, stale_days=stale_days,
+                           limit=refresh_limit, quiet=quiet, run_id=run_id,
+                           progress_mode="mixed")
+        refreshed = int(res2.get("refreshed") or 0)
+        gone_refresh = int(res2.get("disappeared") or 0)
+        failed_refresh = int(res2.get("failed") or 0)
+
+    def _delta(key: str) -> int:
+        return int(db.counters.get(key, 0)) - int(before.get(key, 0))
+
+    inserted = int(res.get("new") or 0) + _delta("inserted")
+    changed = int(res.get("changed") or 0) + _delta("updated")
+    unchanged = int(res.get("unchanged") or 0) + _delta("unchanged")
+    details = int(res.get("details") or 0) + refreshed
+    disappeared = int(res.get("disappeared") or 0) + gone_refresh
+
+    # La 2e passe a reecrit le fichier de progression avec SES compteurs
+    # (mode=refresh, listed=0). On remet l'etat complet du run mixte pour
+    # que l'interface affiche les deux passes, pas seulement la derniere.
+    try:
+        from .progress import PROGRESS_DIR
+        path = os.path.join(PROGRESS_DIR, f"{site.name}.json")
+        with open(path, encoding="utf-8") as fh:
+            state = json.load(fh)
+        state.update({
+            "mode": "mixed",
+            "status": "success",
+            "listed": int(res.get("seen") or 0),
+            "details": details,
+            "inserted": inserted,
+            "updated": changed,
+            "unchanged": unchanged,
+            "total": 0,
+            "finished_at": datetime.now().isoformat(timespec="seconds"),
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            "error": None,
+        })
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state, fh, ensure_ascii=False, default=str)
+        os.replace(tmp, path)
+    except Exception:
+        pass   # le suivi ne doit jamais faire echouer le scrape
+
+    dt = time.time() - t0
+    if not quiet:
+        print(f"\nMixed termine : {res.get('seen', 0)} annonces vues | "
+              f"{int(res.get('new') or 0)} nouvelles | "
+              f"{int(res.get('changed') or 0)} modifiees | "
+              f"{refreshed} fiches rafraichies | {failed_refresh} echecs | "
+              f"{client.stats['requests']} requetes | {dt:.0f}s", flush=True)
+    return {"seen": int(res.get("seen") or 0), "new": inserted,
+            "changed": changed, "unchanged": unchanged,
+            "details": details, "disappeared": disappeared,
+            "refreshed": refreshed, "failed": failed_refresh,
             "seconds": dt, "started": started, "error": None}

@@ -23,7 +23,8 @@ from datetime import datetime
 
 from .core.db import Database
 from .core.http import HttpClient
-from .core.pipeline import run_details, run_list, run_refresh, run_rescan
+from .core.pipeline import (run_details, run_list, run_mixed, run_refresh,
+                            run_rescan)
 from .core.progress import install_signal_handlers
 from .core.registry import get_site, publish
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
@@ -41,6 +42,7 @@ DEFAULTS = {
     "slices": True,
     "mark_missing": False,
     "stale_days": 4,
+    "refresh_limit": 2000,
 }
 
 
@@ -102,6 +104,14 @@ def main() -> int:
                               limit=limit or 500, category=category,
                               quiet=False, run_id=run_id)
             listed = 0
+        elif mode == "mixed":
+            res = run_mixed(site, client, db, category=category,
+                            limit=limit,
+                            refresh_limit=int(job.get("refresh_limit") or 0),
+                            stale_days=int(job.get("stale_days") or 4),
+                            mark_missing=bool(job.get("mark_missing")),
+                            quiet=False, run_id=run_id)
+            listed = res.get("seen", 0)
         else:
             res = run_list(site, client, db, category=category, limit=limit,
                            details=details, quiet=False, run_id=run_id)

@@ -20,7 +20,8 @@ from datetime import datetime
 
 from .core.db import Database
 from .core.http import HttpClient
-from .core.pipeline import run_details, run_list, run_refresh, run_rescan
+from .core.pipeline import (run_details, run_list, run_mixed, run_refresh,
+                            run_rescan)
 from .core.progress import install_signal_handlers
 from .core.registry import available_sites, get_site, publish, site_info
 from .core.scoring import compute_notes, compute_notes_v2, load_config
@@ -163,6 +164,46 @@ def cmd_refresh(args) -> int:
         "ads_inserted": 0,
         "ads_updated": db.counters.get("updated", 0),
         "ads_unchanged": db.counters.get("unchanged", 0),
+        "ads_disappeared": res.get("disappeared", 0),
+        "http_requests": client.stats["requests"],
+        "blocked": client.stats["blocked"],
+        "status": "success",
+    })
+    db.close()
+    return 0
+
+
+def cmd_mixed(args) -> int:
+    """Rescan de la fenetre de liste, puis refresh d'un lot en base."""
+    site = _site(args)
+    if not (args.category or "").strip():
+        args.category = getattr(site, "default_category", "") or ""
+    db = _db(args)
+    client = _client(args)
+    started = datetime.now()
+    run_id = db.start_run({"started_at": started, "site": site.name,
+                           "category": args.category, "mode": "mixed"})
+    try:
+        res = run_mixed(site, client, db, category=args.category,
+                        limit=args.limit,
+                        refresh_limit=getattr(args, "refresh_limit", 0),
+                        stale_days=getattr(args, "stale_days", 4),
+                        mark_missing=args.mark_missing, quiet=args.quiet,
+                        run_id=run_id)
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
+        db.finish_run(run_id, {"finished_at": datetime.now(), "status": "error",
+                               "error": err})
+        db.close()
+        print(f"  ERREUR : {err}", file=sys.stderr)
+        return 1
+    db.finish_run(run_id, {
+        "finished_at": datetime.now(),
+        "ads_listed": res.get("seen", 0),
+        "ads_details": res.get("details", 0),
+        "ads_inserted": res.get("new", 0),
+        "ads_updated": res.get("changed", 0),
+        "ads_unchanged": res.get("unchanged", 0),
         "ads_disappeared": res.get("disappeared", 0),
         "http_requests": client.stats["requests"],
         "blocked": client.stats["blocked"],
@@ -446,6 +487,18 @@ def main(argv=None) -> int:
     s3b.add_argument("--stale-days", type=int, default=4, dest="stale_days",
                      help="anciennete minimale en jours (defaut 4)")
     s3b.set_defaults(func=cmd_refresh)
+
+    s3c = common(sub.add_parser(
+        "mixed",
+        help="rescan de la fenetre puis refresh d'un lot en base"))
+    s3c.add_argument("--refresh-limit", type=int, default=2000,
+                     dest="refresh_limit",
+                     help="fiches a rafraichir apres le rescan (0 = aucune)")
+    s3c.add_argument("--stale-days", type=int, default=4, dest="stale_days",
+                     help="anciennete minimale en jours (defaut 4)")
+    s3c.add_argument("--mark-missing", action="store_true",
+                     help="marquer inactives les annonces disparues (run complet)")
+    s3c.set_defaults(func=cmd_mixed)
 
     s4 = common(sub.add_parser("score", help="recalculer les notes"))
     s4.set_defaults(func=cmd_score)

@@ -138,6 +138,11 @@ docker compose run --rm app details --limit 200
 #   --limit 500    : taille du lot (les fiches sans detail passent en premier)
 docker compose run --rm app refresh --site avito --stale-days 4 --limit 500 --db
 
+# run mixte (recommande pour la planification) : rescan de la fenetre de
+# liste, puis refresh d'un lot calibre dans le meme creneau
+#   --refresh-limit 2000 : fiches reprises apres le rescan (0 = aucune)
+docker compose run --rm app mixed --site avito --refresh-limit 2000 --stale-days 4 --db
+
 # recalculer les notes
 docker compose run --rm app score
 
@@ -252,6 +257,12 @@ systemctl --user status nabyl.allcars-web.service
 Le service `scraper` (lui) reste en `restart: "no"` : **aucun scrap n'est
 relance automatiquement**, c'est l'interface qui le pilote.
 
+> **Déployer l'interface pendant un scrape** : `docker compose up -d
+> --force-recreate web` recrée aussi `db` (dépendance) et retire les
+> conteneurs éphémères `allcars-scrape-*` en cours. Utiliser
+> `docker compose up -d --no-deps --force-recreate web` : seule l'interface
+> est remplacée, les scrapes continuent.
+
 ## 3c. Page de suivi (`/tracking`)
 
 Deuxieme page de l'interface, accessible depuis la barre de navigation
@@ -264,8 +275,9 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   l'onglet est ouvert).
 * **Pilotage** : demarrer / arreter / relancer le scrap en cours, avec le
   choix du site, de la categorie, du mode (`list`, `rescan`, `details`,
-  `refresh`),
-  de la cadence (delay / jitter), du plafond et de la decoupe en tranches.
+  `refresh`, `mixed`), de la cadence (delay / jitter), du plafond, du
+  **refresh limit** (lot de la passe refresh), du seuil de fraicheur
+  (`stale_days`) et de la decoupe en tranches.
   Changer de site met a jour la categorie et les modes proposes ; les
   boutons passent en "desactive" selon l'etat du conteneur (evite le double
   clic).
@@ -495,6 +507,29 @@ refresh
   utilisable depuis la page *Suivi du scrap*.
 * Index dédié : `idx_refresh (site, is_active, details_fetched, last_seen_at)`.
 
+### Mode `mixed` : un seul créneau, deux passes
+
+Alterner `rescan` et `refresh` run après run double la taille des lots et
+fabrique des runs de 9 h à 45 h qui débordent de la planification. `mixed`
+enchaîne les deux **dans le même run** :
+
+```
+mixed
+  ├─ rescan  : pages de liste -> nouvelles / modifiées / disparues
+  │            (met à jour last_seen_at sur toute la fenêtre)
+  └─ refresh : N fiches en base, les plus anciennes d'abord
+               N = refresh_limit (~1,2 s/fiche)
+```
+
+* Le rescan passe **en premier** : le refresh ne reprend donc pas les
+  annonces que le rescan vient de rafraîchir.
+* Le lot `refresh_limit` borne la durée du run : il se calibre sur le temps
+  restant du créneau (`(créneau − rescan − marge) / 1,2 s`).
+* `refresh_limit = 0` : le run se comporte comme un `rescan` simple.
+* Une seule ligne `scrape_runs` (`mode = mixed`), compteurs cumulés.
+* Réglable par site dans *Pilotage* (`Refresh limit`, `Stale (j)`) et
+  proposé par défaut dans la planification.
+
 Tables :
 * `ads` — état courant + `version`, `content_hash`, `seen_count`,
   `first_seen_at`, `last_seen_at`, `is_active`
@@ -636,7 +671,7 @@ services/app/src/scraper/
 │   ├── http.py            # client curl_cffi : rate limiting, retry, anti-Cloudflare
 │   ├── site.py            # contrat SiteAdapter + contrat de l'annonce normalisee
 │   ├── registry.py        # enregistrement des adaptateurs
-│   ├── pipeline.py        # list / rescan / details / refresh (versions, fraicheur)
+│   ├── pipeline.py        # list / rescan / details / refresh / mixed (versions, fraicheur)
 │   ├── db.py              # MySQL (upsert versionne, multi-sites)
 │   ├── history.py         # comparaison champ par champ + diff
 │   ├── scoring.py         # legacy + v2
@@ -646,7 +681,7 @@ services/app/src/scraper/
 ├── sites/                 # un fichier par site
 │   ├── avito.py           # Next.js (__NEXT_DATA__) + API GraphQL
 │   └── tomobila.py        # WordPress (tableau d'attributs)
-├── cli.py                 # list | rescan | details | refresh | score | stats | sites
+├── cli.py                 # list | rescan | details | refresh | mixed | score | stats | sites
 ├── query.py               # CLI de consultation
 └── images.py              # telechargeur d'images
 ```

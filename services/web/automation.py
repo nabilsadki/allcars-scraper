@@ -67,10 +67,10 @@ def ensure_tables():
             name = s.get("name")
             if not name:
                 continue
-            cur.execute("INSERT IGNORE INTO site_schedule (site, mode) VALUES (%s, 'rescan')", (name,))
+            cur.execute("INSERT IGNORE INTO site_schedule (site, mode) VALUES (%s, 'mixed')", (name,))
             # default pour un nouveau site : cadence 1 => inactif jusqu'a activation
         try:
-            cur.execute("ALTER TABLE site_schedule ADD COLUMN mode VARCHAR(20) NOT NULL DEFAULT 'rescan'")
+            cur.execute("ALTER TABLE site_schedule ADD COLUMN mode VARCHAR(20) NOT NULL DEFAULT 'mixed'")
         except Exception:
             pass
         try:
@@ -183,7 +183,7 @@ def set_mode(site, mode):
     import app as _app
     db = _app.db()
     mode = (mode or "").strip().lower()
-    allowed = ["list", "rescan", "details", "refresh"]
+    allowed = ["list", "rescan", "details", "refresh", "mixed"]
     try:
         meta = {s.get("name"): s.get("modes", allowed) for s in app.known_sites() if s.get("name")}
         if site in meta:
@@ -243,13 +243,14 @@ def daemon_start():
         thr = _DAEMON["thread"]
         if _DAEMON["enabled"] and thr is not None and thr.is_alive():
             return  # deja actif
-        # (re)demarre un thread meme si un precedent a crashe
+        # (re)demarre un thread meme si un precedent a crashe.
+        # UN SEUL thread : deux boucles concurrentes se marchaient dessus
+        # (doubles enqueues, deadlocks MySQL au demarrage) et la reference
+        # ecrasee faisait croire le daemon mort alors qu'il tournait.
         from threading import Thread
         _DAEMON["enabled"] = True
         _DAEMON["thread"] = Thread(target=_loop, daemon=True,
                                    name="scrape-daemon")
-        _DAEMON["thread"].start()
-        _DAEMON["thread"] = threading.Thread(target=_loop, daemon=True, name="scrape-daemon")
         _DAEMON["thread"].start()
 
 
@@ -267,8 +268,13 @@ def daemon_status():
 
 def _loop():
     import app
-    ensure_tables()
-    cleanup_orphaned_running()
+    # l'init ne doit jamais tuer le thread (sinon `alive` passe a False et le
+    # daemon reste "enabled" sans personne pour traiter la file).
+    try:
+        ensure_tables()
+        cleanup_orphaned_running()
+    except Exception:
+        traceback.print_exc()
     while _DAEMON["enabled"]:
         try:
             import app as _app
@@ -283,8 +289,19 @@ def _loop():
                 site = _r["site"]; cadence = _r["cadence_hours"]; enabled = _r["enabled"]
                 mode = _r.get("mode") if isinstance(_r, dict) else (_r[3] if len(_r) > 3 else None)
                 mode = (mode or "rescan").strip().lower()
-                if mode not in ("list", "rescan", "details", "refresh"):
+                if mode not in ("list", "rescan", "details", "refresh",
+                                "mixed"):
                     mode = "rescan"
+                # un site peut ne pas savoir faire un mode (ex. pas de fiche
+                # detail) : on retombe sur ce qu'il propose vraiment.
+                try:
+                    _meta = next((s for s in _app.known_sites()
+                                  if s.get("name") == site), None)
+                    _allowed = (_meta or {}).get("modes") or []
+                    if _allowed and mode not in _allowed:
+                        mode = "rescan" if "rescan" in _allowed else _allowed[0]
+                except Exception:
+                    pass
                 # ne jamais re-enfiler si un scrap tourne deja sur ce site
                 try:
                     import scrapectl as __sp
@@ -297,16 +314,20 @@ def _loop():
                     "mode": mode, "mark_missing": True,
                     "details": mode in ("rescan", "details"),
                 }
-                if mode == "refresh":
+                if mode in ("refresh", "mixed"):
                     # le lot et la fraicheur viennent du job configure pour
                     # le site (page Pilotage), pas du defaut global.
                     try:
                         import progress as _progress
                         _job = _progress.read_job(site)
-                        payload["limit"] = int(_job.get("limit") or 0)
                         payload["stale_days"] = int(_job.get("stale_days") or 4)
                         payload["delay"] = float(_job.get("delay") or 1.5)
                         payload["jitter"] = float(_job.get("jitter") or 0.8)
+                        if mode == "refresh":
+                            payload["limit"] = int(_job.get("limit") or 0)
+                        else:
+                            payload["refresh_limit"] = int(
+                                _job.get("refresh_limit") or 0)
                     except Exception:
                         pass
                 enqueue(site, mode=mode, payload=payload, priority=3,

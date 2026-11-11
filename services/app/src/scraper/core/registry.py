@@ -42,8 +42,13 @@ def _modes_of(site: SiteAdapter) -> list[str]:
     detail : il reutilise `detail_url` / `parse_detail`, sans code dedie.
     """
     modes = list(getattr(site, "modes", ["list", "rescan", "details"]))
-    if "details" in modes and "refresh" not in modes:
-        modes.append("refresh")
+    if "details" in modes:
+        if "refresh" not in modes:
+            modes.append("refresh")
+        # `mixed` = rescan + refresh dans le meme run : il suppose les deux
+        # passes, donc les memes capacites que `details`.
+        if "rescan" in modes and "mixed" not in modes:
+            modes.append("mixed")
     return modes
 
 

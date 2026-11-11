@@ -205,6 +205,25 @@
     </span>
   </div>
   <div id="auto-body" class="mt-2 space-y-2">
+  <div class="rounded-lg border border-line/60 bg-panel2/30 px-3 py-2 mb-2">
+    <div class="text-[9.5px] uppercase tracking-wider text-muted/70 mb-1">Modes de run</div>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-1 text-[10.5px] leading-snug m-0">
+      <div class="flex gap-1.5"><dt class="font-mono font-semibold text-txt shrink-0">list</dt>
+        <dd class="m-0 text-muted">parcourt les pages de liste et insère tout (pas de détection)</dd></div>
+      <div class="flex gap-1.5"><dt class="font-mono font-semibold text-txt shrink-0">rescan</dt>
+        <dd class="m-0 text-muted">liste + fiche détail des annonces nouvelles ou modifiées</dd></div>
+      <div class="flex gap-1.5"><dt class="font-mono font-semibold text-txt shrink-0">details</dt>
+        <dd class="m-0 text-muted">complète les fiches détail manquantes, sans listing</dd></div>
+      <div class="flex gap-1.5"><dt class="font-mono font-semibold text-txt shrink-0">refresh</dt>
+        <dd class="m-0 text-muted">rafraîchit les fiches les plus anciennes, choisies en base</dd></div>
+      <div class="flex gap-1.5"><dt class="font-mono font-semibold text-accent-txt shrink-0">mixed</dt>
+        <dd class="m-0 text-muted"><b class="text-txt">rescan puis refresh</b> d'un lot (refresh limit) dans le même créneau</dd></div>
+    </dl>
+    <div class="text-[10px] text-muted/70 mt-1">
+      <span class="font-mono">mixed</span> borne la durée du run : la fenêtre de liste d'abord, puis
+      <span class="font-mono">refresh limit</span> fiches (~1,2 s/fiche). Les fiches sans détail passent en premier.
+    </div>
+  </div>
   <div class="flex items-center justify-between mb-2">
     <span class="text-[10.5px] text-muted">Coche les sites a automatiser</span>
     <div class="flex items-center gap-2 text-[11px]">
@@ -297,6 +316,18 @@
       Plafond
       <input type="number" name="limit" id="f-limit" value="{{ job.limit }}" placeholder="0 = tout"
              class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+    </label>
+    <label class="flex flex-col gap-1 text-[12px] text-muted" title="Mode mixed : nombre de fiches rafraîchies après le rescan">
+      Refresh limit
+      <input type="number" name="refresh_limit" id="f-refresh-limit" value="{{ job.refresh_limit }}"
+             placeholder="2000"
+             class="w-24 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
+    </label>
+    <label class="flex flex-col gap-1 text-[12px] text-muted" title="Mode refresh/mixed : ancienneté minimale des fiches reprises">
+      Stale (j)
+      <input type="number" name="stale_days" id="f-stale-days" value="{{ job.stale_days }}"
+             placeholder="4"
+             class="w-20 bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
     </label>
     <label class="flex items-center gap-1.5 text-[13px] text-muted pb-1.5 cursor-pointer">
       <input type="checkbox" name="details_flag" id="f-details" {% if job.details %}checked{% endif %}
@@ -512,7 +543,7 @@
       Mode
       <select name="mode" onchange="this.form.submit()" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         <option value="">tous</option>
-        {% for m in ['list', 'rescan', 'details', 'refresh'] %}
+        {% for m in ['list', 'rescan', 'details', 'refresh', 'mixed'] %}
         <option value="{{ m }}" {% if f_mode == m %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </select>
@@ -614,6 +645,8 @@ function payload() {
     delay: $('#f-delay').value,
     jitter: $('#f-jitter').value,
     limit: $('#f-limit').value,
+    refresh_limit: $('#f-refresh-limit') ? $('#f-refresh-limit').value : undefined,
+    stale_days: $('#f-stale-days') ? $('#f-stale-days').value : undefined,
     details: $('#f-details').checked,
     slices: $('#f-slices').checked,
   };
@@ -731,6 +764,7 @@ const MODE_LABELS = {
   rescan: 'rescan (détection de changements)',
   details: 'details (fiches manquantes)',
   refresh: 'refresh (fiches les plus anciennes)',
+  mixed: 'mixed (rescan + refresh)',
 };
 
 function applySite(siteName) {
@@ -773,6 +807,8 @@ async function loadJob(siteName) {
     if (job.delay !== undefined) $('#f-delay').value = job.delay;
     if (job.jitter !== undefined) $('#f-jitter').value = job.jitter;
     if (job.limit !== undefined) $('#f-limit').value = job.limit;
+    if ($('#f-refresh-limit') && job.refresh_limit !== undefined) $('#f-refresh-limit').value = job.refresh_limit;
+    if ($('#f-stale-days') && job.stale_days !== undefined) $('#f-stale-days').value = job.stale_days;
     if ($('#f-details')) $('#f-details').checked = !!job.details;
     if ($('#f-slices')) $('#f-slices').checked = job.slices !== false;
   } catch (e) { /* on garde les valeurs affichees */ }
@@ -1257,7 +1293,7 @@ async function refreshAutomation() {
         '<td class="py-1 pr-2 text-center sticky z-20 bg-panel" style="left:var(--fz-site,128px)"><input type="checkbox" class="accent-accent w-4 h-4 auto-enable" data-site="' + s.site + '"' + (s.enabled ? ' checked' : '') + '></td>' +
         '<td class="py-1 pr-2 text-center sticky z-20 bg-panel border-r border-line" style="left:calc(var(--fz-site,128px) + var(--fz-auto,80px))"><input type="number" min="1" max="720" value="' + s.cadence_hours + '" class="w-14 bg-panel2 border border-line rounded px-2 py-0.5 text-[11.5px] auto-cadence" data-site="' + s.site + '"></td>' +
         (function () {
-          const modes = Array.isArray(s.modes) && s.modes.length ? s.modes : (['list','rescan','details']);
+          const modes = Array.isArray(s.modes) && s.modes.length ? s.modes : (['list','rescan','details','refresh','mixed']);
           const opts = modes.map(m =>
             '<option value="' + m + '"' + (m === s.mode ? ' selected' : '') + '>' + m + '</option>'
           ).join('');

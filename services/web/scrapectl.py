@@ -134,12 +134,18 @@ def _cli_args(job: dict) -> list[str]:
     except (TypeError, ValueError):
         delay, jitter = 1.5, 0.8
     args += ["--delay", str(delay), "--jitter", str(jitter)]
-    if mode == "refresh":
+    if mode in ("refresh", "mixed"):
         try:
             stale = int(job.get("stale_days") or 4)
         except (TypeError, ValueError):
             stale = 4
         args += ["--stale-days", str(max(1, stale))]
+        if mode == "mixed":
+            try:
+                rlimit = int(job.get("refresh_limit") or 0)
+            except (TypeError, ValueError):
+                rlimit = 0
+            args += ["--refresh-limit", str(max(0, rlimit))]
     elif job.get("details") and mode != "details":
         args.append("--details")
     if not job.get("slices", True):
