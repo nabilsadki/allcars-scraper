@@ -213,11 +213,17 @@
               title="annonces desactivees (disparues du site, 404)">
             {{ '{:,}'.format((c.n or 0) - (c.actives or 0)).replace(',', ' ') }}</dd>
         </div>
-        <div class="flex items-baseline justify-between gap-2">
+        {% set pct = (((c.recent_2d or 0) / c.n * 100) if c.n else 0) %}
+        {% set pct = [[pct, 0]|max, 100]|min %}
+        <div class="flex items-center justify-between gap-2">
           <dt class="text-muted">À jour &lt; 2 j</dt>
-          <dd class="m-0 tabular-nums font-medium {{ 'text-ok' if (c.recent_2d or 0) >= (c.n or 0) else 'text-warn' }}"
-              title="annonces dont last_seen_at date de moins de 2 jours">
-            {{ '{:,}'.format(c.recent_2d or 0).replace(',', ' ') }}</dd>
+          <dd class="m-0">
+            <div class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden"
+                 title="{{ '{:,}'.format(c.recent_2d or 0).replace(',', ' ') }} / {{ '{:,}'.format(c.n or 0).replace(',', ' ') }} annonces vues il y a moins de 2 jours ({{ ('%.1f'|format(pct))|replace('.', ',') }} %)">
+              <div class="h-full rounded-full {{ 'bg-ok' if pct >= 90 else 'bg-warn' }}"
+                   style="width: {{ '%.1f'|format(pct) }}%"></div>
+            </div>
+          </dd>
         </div>
       </dl>
       {# etat du dernier scrap, en badges #}
