@@ -20,7 +20,7 @@ from datetime import datetime
 
 from .core.db import Database
 from .core.http import HttpClient
-from .core.pipeline import run_details, run_list, run_rescan
+from .core.pipeline import run_details, run_list, run_refresh, run_rescan
 from .core.progress import install_signal_handlers
 from .core.registry import available_sites, get_site, publish, site_info
 from .core.scoring import compute_notes, compute_notes_v2, load_config
@@ -132,6 +132,43 @@ def cmd_details(args) -> int:
                     quiet=args.quiet)
     finally:
         db.close()
+    return 0
+
+
+def cmd_refresh(args) -> int:
+    """Rafraichit les fiches les plus anciennes, a partir de la BDD."""
+    site = _site(args)
+    # pas de categorie par defaut : le mode balaie tout le catalogue du site
+    db = _db(args)
+    client = _client(args)
+    started = datetime.now()
+    run_id = db.start_run({"started_at": started, "site": site.name,
+                           "category": args.category or "",
+                           "mode": "refresh"})
+    try:
+        res = run_refresh(site, client, db, stale_days=args.stale_days,
+                          limit=args.limit or 500, category=args.category,
+                          quiet=args.quiet, run_id=run_id)
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
+        db.finish_run(run_id, {"finished_at": datetime.now(), "status": "error",
+                               "error": err})
+        db.close()
+        print(f"  ERREUR : {err}", file=sys.stderr)
+        return 1
+    db.finish_run(run_id, {
+        "finished_at": datetime.now(),
+        "ads_listed": 0,
+        "ads_details": res.get("refreshed", 0),
+        "ads_inserted": 0,
+        "ads_updated": db.counters.get("updated", 0),
+        "ads_unchanged": db.counters.get("unchanged", 0),
+        "ads_disappeared": res.get("disappeared", 0),
+        "http_requests": client.stats["requests"],
+        "blocked": client.stats["blocked"],
+        "status": "success",
+    })
+    db.close()
     return 0
 
 
@@ -318,10 +355,9 @@ def cmd_cleanup_stale(args) -> int:
                 )
                 deactivated.append(str(ad_id))
             elif status == 200:
-                db.cur.execute(
-                    "UPDATE ads SET last_seen_at = NOW() WHERE site = %s AND ad_id = %s",
-                    (site.name, ad_id),
-                )
+                # ne PAS toucher a last_seen_at : ce test ne rafraichit pas
+                # le contenu (le HTML est jete). Sinon le mode `refresh`
+                # croirait la fiche a jour et la sauterait.
                 touched += 1
             else:
                 continue
@@ -403,6 +439,13 @@ def main(argv=None) -> int:
     s3 = common(sub.add_parser("details", help="completer les fiches detail manquantes"),
                 with_site=True)
     s3.set_defaults(func=cmd_details)
+
+    s3b = common(sub.add_parser(
+        "refresh",
+        help="rafraichir les fiches les plus anciennes (selection en base)"))
+    s3b.add_argument("--stale-days", type=int, default=4, dest="stale_days",
+                     help="anciennete minimale en jours (defaut 4)")
+    s3b.set_defaults(func=cmd_refresh)
 
     s4 = common(sub.add_parser("score", help="recalculer les notes"))
     s4.set_defaults(func=cmd_score)

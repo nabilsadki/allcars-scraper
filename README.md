@@ -114,6 +114,11 @@ docker compose run --rm app rescan --category "maroc/voitures-à_vendre" --detai
 # completer les fiches detail manquantes
 docker compose run --rm app details --limit 200
 
+# rafraichir les fiches les plus anciennes (selection en base, pas de listing)
+#   --stale-days 4 : ne reprend que les fiches non revues depuis 4 jours
+#   --limit 500    : taille du lot (les fiches sans detail passent en premier)
+docker compose run --rm app refresh --site avito --stale-days 4 --limit 500 --db
+
 # recalculer les notes
 docker compose run --rm app score
 
@@ -239,7 +244,8 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   reseau. Rafraichissement automatique toutes les 3 s (le reste aussi quand
   l'onglet est ouvert).
 * **Pilotage** : demarrer / arreter / relancer le scrap en cours, avec le
-  choix du site, de la categorie, du mode (`list`, `rescan`, `details`),
+  choix du site, de la categorie, du mode (`list`, `rescan`, `details`,
+  `refresh`),
   de la cadence (delay / jitter), du plafond et de la decoupe en tranches.
   Changer de site met a jour la categorie et les modes proposes ; les
   boutons passent en "desactive" selon l'etat du conteneur (evite le double
@@ -447,6 +453,29 @@ rescan
   version de type `disappeared` (uniquement sur un run couvrant toute la
   catégorie).
 
+### Mode `refresh` : entretenir ce que les listes ne revoient jamais
+
+Les gros sites plafonnent la pagination (Avito : ~4 000 annonces visibles par
+requête, soit ~2,8 % du catalogue). Un `rescan` ne revoit donc qu'une fenêtre
+réduite, toujours la même. `refresh` part **de la base**, pas du listing :
+
+```
+refresh
+  └─ SELECT ... WHERE site=? AND is_active=1
+       AND (details_fetched=0 OR last_seen_at < NOW() - INTERVAL 4 DAY)
+       ORDER BY (details_fetched=0) DESC, last_seen_at ASC
+       LIMIT <lot>
+            └─ fiche detail -> upsert (last_seen_at rafraîchi)
+```
+
+* Les fiches **sans détail** passent en premier, puis les plus anciennes.
+* Un échec réseau ne met **pas** à jour `last_seen_at` : la fiche sera
+  reprise au run suivant.
+* Un 404/410 désactive l'annonce (`is_active = 0`).
+* Le mode est planifiable par site (colonne `mode` de `site_schedule`) et
+  utilisable depuis la page *Suivi du scrap*.
+* Index dédié : `idx_refresh (site, is_active, details_fetched, last_seen_at)`.
+
 Tables :
 * `ads` — état courant + `version`, `content_hash`, `seen_count`,
   `first_seen_at`, `last_seen_at`, `is_active`
@@ -588,7 +617,7 @@ services/app/src/scraper/
 │   ├── http.py            # client curl_cffi : rate limiting, retry, anti-Cloudflare
 │   ├── site.py            # contrat SiteAdapter + contrat de l'annonce normalisee
 │   ├── registry.py        # enregistrement des adaptateurs
-│   ├── pipeline.py        # list / rescan / details (detection de changement, versions)
+│   ├── pipeline.py        # list / rescan / details / refresh (versions, fraicheur)
 │   ├── db.py              # MySQL (upsert versionne, multi-sites)
 │   ├── history.py         # comparaison champ par champ + diff
 │   ├── scoring.py         # legacy + v2
@@ -598,7 +627,7 @@ services/app/src/scraper/
 ├── sites/                 # un fichier par site
 │   ├── avito.py           # Next.js (__NEXT_DATA__) + API GraphQL
 │   └── tomobila.py        # WordPress (tableau d'attributs)
-├── cli.py                 # list | rescan | details | score | images | stats | sites
+├── cli.py                 # list | rescan | details | refresh | score | stats | sites
 ├── query.py               # CLI de consultation
 └── images.py              # telechargeur d'images
 ```

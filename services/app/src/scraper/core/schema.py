@@ -90,7 +90,8 @@ CREATE TABLE IF NOT EXISTS ads (
     KEY idx_hash         (content_hash),
     KEY idx_active       (is_active),
     KEY idx_note         (note),
-    KEY idx_note_global  (note_global)
+    KEY idx_note_global  (note_global),
+    KEY idx_refresh      (site, is_active, details_fetched, last_seen_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS ad_images (

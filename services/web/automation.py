@@ -183,7 +183,7 @@ def set_mode(site, mode):
     import app as _app
     db = _app.db()
     mode = (mode or "").strip().lower()
-    allowed = ["list", "rescan", "details"]
+    allowed = ["list", "rescan", "details", "refresh"]
     try:
         meta = {s.get("name"): s.get("modes", allowed) for s in app.known_sites() if s.get("name")}
         if site in meta:
@@ -283,7 +283,7 @@ def _loop():
                 site = _r["site"]; cadence = _r["cadence_hours"]; enabled = _r["enabled"]
                 mode = _r.get("mode") if isinstance(_r, dict) else (_r[3] if len(_r) > 3 else None)
                 mode = (mode or "rescan").strip().lower()
-                if mode not in ("list", "rescan", "details"):
+                if mode not in ("list", "rescan", "details", "refresh"):
                     mode = "rescan"
                 # ne jamais re-enfiler si un scrap tourne deja sur ce site
                 try:
@@ -293,9 +293,24 @@ def _loop():
                         continue
                 except Exception:
                     pass
-                enqueue(site, mode=mode, payload={
-                    "mode": mode, "mark_missing": True, "details": mode in ("rescan", "details"),
-                }, priority=3, trigger_source="scheduled")
+                payload = {
+                    "mode": mode, "mark_missing": True,
+                    "details": mode in ("rescan", "details"),
+                }
+                if mode == "refresh":
+                    # le lot et la fraicheur viennent du job configure pour
+                    # le site (page Pilotage), pas du defaut global.
+                    try:
+                        import progress as _progress
+                        _job = _progress.read_job(site)
+                        payload["limit"] = int(_job.get("limit") or 0)
+                        payload["stale_days"] = int(_job.get("stale_days") or 4)
+                        payload["delay"] = float(_job.get("delay") or 1.5)
+                        payload["jitter"] = float(_job.get("jitter") or 0.8)
+                    except Exception:
+                        pass
+                enqueue(site, mode=mode, payload=payload, priority=3,
+                        trigger_source="scheduled")
                 print("  enqueued", site, "mode=", mode, flush=True)
                 _exec(db, "UPDATE site_schedule SET next_due = DATE_ADD(NOW(), "
                           "INTERVAL %s HOUR) WHERE site=%s",

@@ -239,6 +239,22 @@ class Database:
                 self.conn.rollback()
             except Exception:
                 pass
+        # --- index du mode refresh : selection des fiches les plus anciennes
+        try:
+            self.cur.execute(
+                "SELECT 1 FROM information_schema.statistics "
+                "WHERE table_schema = DATABASE() AND table_name = 'ads' "
+                "AND index_name = 'idx_refresh' LIMIT 1")
+            if not self.cur.fetchone():
+                self.cur.execute(
+                    "ALTER TABLE ads ADD KEY idx_refresh "
+                    "(site, is_active, details_fetched, last_seen_at)")
+                added.append("ads.idx_refresh")
+        except Exception:
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
         for table, col, ddl in (
             ("ad_images", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),
             ("ad_versions", "site", "VARCHAR(32) NOT NULL DEFAULT 'avito'"),

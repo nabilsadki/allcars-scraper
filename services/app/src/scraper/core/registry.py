@@ -35,6 +35,18 @@ def available_sites() -> list[str]:
     return sorted(_SITES)
 
 
+def _modes_of(site: SiteAdapter) -> list[str]:
+    """Modes proposes par un site.
+
+    `refresh` est ajoute automatiquement des que le site sait lire une fiche
+    detail : il reutilise `detail_url` / `parse_detail`, sans code dedie.
+    """
+    modes = list(getattr(site, "modes", ["list", "rescan", "details"]))
+    if "details" in modes and "refresh" not in modes:
+        modes.append("refresh")
+    return modes
+
+
 def site_info() -> list[dict]:
     return [
         {
@@ -42,7 +54,7 @@ def site_info() -> list[dict]:
             "label": s.label or s.name,
             "default_category": s.default_category,
             "categories": s.categories,
-            "modes": getattr(s, "modes", ["list", "rescan", "details"]),
+            "modes": _modes_of(s),
         }
         for s in sorted(_SITES.values(), key=lambda x: x.name)
     ]

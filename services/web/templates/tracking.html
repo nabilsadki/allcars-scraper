@@ -512,7 +512,7 @@
       Mode
       <select name="mode" onchange="this.form.submit()" class="bg-panel2 border border-line rounded-lg px-2.5 py-1.5 text-sm text-txt focus:outline-none focus:border-accent">
         <option value="">tous</option>
-        {% for m in ['list', 'rescan', 'details'] %}
+        {% for m in ['list', 'rescan', 'details', 'refresh'] %}
         <option value="{{ m }}" {% if f_mode == m %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </select>
@@ -730,6 +730,7 @@ const MODE_LABELS = {
   list: 'list (pages de liste)',
   rescan: 'rescan (détection de changements)',
   details: 'details (fiches manquantes)',
+  refresh: 'refresh (fiches les plus anciennes)',
 };
 
 function applySite(siteName) {

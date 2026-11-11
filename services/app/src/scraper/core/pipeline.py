@@ -11,6 +11,7 @@ Modes
 list     : scrape et ecrit tout
 rescan   : ne recupere le detail que des annonces nouvelles/modifiees
 details  : complete les fiches detail manquantes
+refresh  : rafraichit les fiches les plus anciennes, selectionnees en base
 """
 
 from __future__ import annotations
@@ -690,3 +691,163 @@ def run_details(site: SiteAdapter, client, db: Database, *,
     if not quiet:
         print(f"  {n} fiches completees", flush=True)
     return {"details": n}
+
+
+def run_refresh(site: SiteAdapter, client, db: Database, *,
+                stale_days: int = 4, limit: int = 500, category: str = "",
+                quiet: bool = False, run_id: Optional[int] = None) -> dict:
+    """Rafraichit les fiches les plus anciennes, en partant de la BDD.
+
+    Contrairement a `run_rescan` (qui part du listing du site), ce mode ne
+    parcourt aucune page de liste : il selectionne les annonces directement
+    en base, des plus anciennes aux plus recentes, et refait leur fiche
+    detail. Il sert a entretenir le catalogue que les passes de liste ne
+    revoient jamais (plafond de pagination, tranches non atteintes...).
+
+    Priorite :
+      1. les fiches sans detail (`details_fetched = 0`) ;
+      2. puis `last_seen_at` croissant (les plus anciennes d'abord).
+
+    Une fiche dont le fetch echoue (reseau, 5xx) n'est PAS marquee comme vue :
+    `last_seen_at` reste inchange et elle sera reprise au run suivant.
+    """
+    started = datetime.now()
+    t0 = time.time()
+    config = load_config()
+    try:
+        market = MarketStats(db)
+    except Exception:
+        market = None
+
+    limit = int(limit or 0) or 500
+    stale_days = max(1, int(stale_days or 4))
+
+    # Pas de filtre par categorie : selon les sites, la colonne `category`
+    # contient un libelle ("Voiture d'occasion") et non le slug de listing
+    # (`achat-voiture-occasion`) ; filtrer dessus ne selectionnerait rien.
+    #
+    # Deux branches UNION ALL plutot qu'un OR : chacune utilise l'index
+    # idx_refresh (site, is_active, details_fetched, last_seen_at), la ou
+    # le OR force un filesort sur tout le catalogue (~0,4 s -> ~5 ms).
+    base = ("SELECT * FROM ads "
+            "WHERE site = %s AND is_active = 1 AND link IS NOT NULL ")
+    sql = (f"({base} AND details_fetched = 0 "
+           f"ORDER BY last_seen_at ASC LIMIT %s) "
+           f"UNION ALL "
+           f"({base} AND details_fetched = 1 "
+           f"AND last_seen_at < NOW() - INTERVAL %s DAY "
+           f"ORDER BY last_seen_at ASC LIMIT %s)")
+    params = [site.name, limit, site.name, stale_days, limit]
+
+    rows = db.query(sql, tuple(params))[:limit]
+    if not quiet:
+        print(f"  {len(rows)} fiche(s) a rafraichir "
+              f"(anciennete > {stale_days} j, plafond {limit})", flush=True)
+
+    progress = Progress(site.name, mode="refresh", category=category)
+    progress.update(total=len(rows))
+    n = n_failed = n_gone = 0
+    for r in rows:
+        ad_id = r.get("ad_id")
+        if ad_id is None:
+            continue
+        # On repart du dernier etat complet connu (raw_json) : les champs que
+        # la fiche detail ne renvoie pas sont conserves au lieu d'etre ecrases
+        # par NULL (contrairement a un dict minimal ad_id/url).
+        try:
+            base_ad = db._previous_state(r)
+            if not isinstance(base_ad, dict) or not base_ad:
+                base_ad = db._state_of(r)
+            base_ad = dict(base_ad)
+            base_ad["ad_id"] = ad_id
+            base_ad["url"] = r.get("link") or base_ad.get("url")
+            base_ad.pop("details_fetched", None)
+            base_ad.pop("is_active", None)
+        except Exception:
+            base_ad = {"ad_id": ad_id, "url": r.get("link"),
+                       "brand": r.get("brand"), "model": r.get("model")}
+        try:
+            ad = fetch_detail(site, client, base_ad)
+        except Exception as e:
+            n_failed += 1
+            if not quiet:
+                print(f"  ! fiche {ad_id} : {type(e).__name__}: {str(e)[:80]}",
+                      flush=True)
+            continue
+
+        # echec transitoire : fetch_detail rend l'annonce d'entree, sans
+        # details_fetched. On ne touche pas a last_seen_at (nouvel essai
+        # au prochain run).
+        if not ad.get("details_fetched"):
+            n_failed += 1
+            continue
+
+        if ad.get("is_active") is False:
+            n_gone += 1
+        if not ad.get("brand"):
+            try:
+                ad = site.enrich(ad, client)
+            except Exception:
+                pass
+        _apply_notes(ad, market=market, config=config)
+        try:
+            db.upsert_ad(ad, site=site.name)
+            if ad.get("is_active") is False:
+                # 404/410 : upsert peut reactiver la ligne dans la branche
+                # "inchangee" ; on force la desactivation.
+                db.cur.execute(
+                    "UPDATE ads SET is_active = 0, details_fetched = 1, "
+                    "last_seen_at = NOW() WHERE site = %s AND ad_id = %s",
+                    (site.name, ad_id),
+                )
+            # une fiche sans image ne doit pas effacer la galerie existante
+            db.upsert_images(ad.get("ad_id"), ad.get("images"), site=site.name,
+                             only_if_empty=not (ad.get("images") or []))
+        except Exception as e:
+            n_failed += 1
+            try:
+                db.conn.rollback()
+            except Exception:
+                pass
+            if not quiet:
+                print(f"  ! ecriture {ad_id} : {type(e).__name__}: {str(e)[:80]}",
+                      flush=True)
+            continue
+
+        n += 1
+        if n % 10 == 0:
+            progress.update(details=n)
+            progress.stats(client, db)
+        if n % 100 == 0:
+            try:
+                db.commit()
+            except Exception:
+                db.reconnect()
+            if run_id:
+                db.update_run(run_id, {
+                    "ads_details": n,
+                    "ads_updated": db.counters.get("updated", 0),
+                    "ads_unchanged": db.counters.get("unchanged", 0),
+                    "http_requests": client.stats["requests"],
+                    "blocked": client.stats["blocked"],
+                })
+        if not quiet and n % 25 == 0:
+            print(f"  ... {n}/{len(rows)} fiches rafraichies "
+                  f"({n_gone} disparues, {n_failed} echecs)", flush=True)
+
+    try:
+        db.commit()
+    except Exception:
+        db.reconnect()
+    progress.update(details=n)
+    progress.stats(client, db)
+    progress.finish("success")
+
+    dt = time.time() - t0
+    if not quiet:
+        print(f"\nRefresh termine : {n}/{len(rows)} fiches rafraichies | "
+              f"{n_gone} disparues | {n_failed} echecs | "
+              f"{client.stats['requests']} requetes | {dt:.0f}s", flush=True)
+    return {"refreshed": n, "details": n, "selected": len(rows),
+            "disappeared": n_gone, "failed": n_failed,
+            "seconds": dt, "started": started, "error": None}

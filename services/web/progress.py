@@ -133,6 +133,7 @@ def read_job(site: str = "") -> dict:
         "delay": 1.5,
         "jitter": 0.8,
         "slices": True,
+        "stale_days": 4,
     }
     try:
         with open(job_path(site), encoding="utf-8") as fh:

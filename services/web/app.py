@@ -134,11 +134,11 @@ DEFAULT_SITES = [
      "default_category": "maroc/voitures-à_vendre",
      "categories": ["maroc/voitures-à_vendre", "maroc/immobilier",
                     "maroc/telephones", "maroc/informatique"],
-     "modes": ["list", "rescan", "details"]},
+     "modes": ["list", "rescan", "details", "refresh"]},
     {"name": "tomobila", "label": "Tomobila.ma",
      "default_category": "achat-voiture-occasion",
      "categories": ["achat-voiture-occasion"],
-     "modes": ["list", "rescan", "details"]},
+     "modes": ["list", "rescan", "details", "refresh"]},
 ]
 
 
@@ -1239,7 +1239,7 @@ def tracking():
     for r in (body_rows or []):
         body_breakdown.setdefault(r["site"], []).append((r["body_type"], int(r["n"])))
     job_categories = (site_meta or {}).get("categories", [])
-    job_modes = (site_meta or {}).get("modes", ["list", "rescan", "details"])
+    job_modes = (site_meta or {}).get("modes", ["list", "rescan", "details", "refresh"])
     return render_template(
         "tracking.html", state=state, states=states, alerts=alerts, runs=runs,
         job=job, container_state=container_state, counts=counts,
@@ -1323,6 +1323,11 @@ def _job_from_request() -> dict:
             job[key] = max(0.0, float(payload.get(key) or job.get(key, 1.5)))
         except (TypeError, ValueError):
             pass
+    if "stale_days" in payload:
+        try:
+            job["stale_days"] = max(1, int(payload.get("stale_days") or 4))
+        except (TypeError, ValueError):
+            job["stale_days"] = 4
     return job
 
 
@@ -1496,7 +1501,7 @@ def api_daemons_status():
     states = progress_reader.read_all()
     queue = automation.get_queue(200)
     schedules = automation.get_schedules()
-    site_modes = {s.get("name"): s.get("modes", ["list", "rescan", "details"]) for s in known_sites()}
+    site_modes = {s.get("name"): s.get("modes", ["list", "rescan", "details", "refresh"]) for s in known_sites()}
     out_schedules = []
     for srow in schedules:
         site = srow["site"]
@@ -1529,7 +1534,7 @@ def api_daemons_status():
         else:
             exec_txt = "planifié" if srow.get("enabled") else "—"
         srow = dict(srow)
-        srow["modes"] = list(site_modes.get(site) or ["list", "rescan", "details"])
+        srow["modes"] = list(site_modes.get(site) or ["list", "rescan", "details", "refresh"])
         srow["execution"] = exec_txt
         out_schedules.append(srow)
     return jsonify({"dashboard": True,
@@ -1583,7 +1588,7 @@ def api_schedule_mode():
     if not site:
         return jsonify({"ok": False, "error": "site manquant"}), 400
     meta = next((s for s in known_sites() if (s.get("name") or "") == site), None)
-    allowed = (meta.get("modes") if meta else None) or ["list", "rescan", "details"]
+    allowed = (meta.get("modes") if meta else None) or ["list", "rescan", "details", "refresh"]
     if mode not in allowed:
         return jsonify({"ok": False, "error": "mode invalide"}), 400
     try:

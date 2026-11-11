@@ -23,7 +23,7 @@ from datetime import datetime
 
 from .core.db import Database
 from .core.http import HttpClient
-from .core.pipeline import run_details, run_list, run_rescan
+from .core.pipeline import run_details, run_list, run_refresh, run_rescan
 from .core.progress import install_signal_handlers
 from .core.registry import get_site, publish
 from . import sites as _sites  # noqa: F401  (enregistre les adaptateurs)
@@ -40,6 +40,7 @@ DEFAULTS = {
     "jitter": 0.8,
     "slices": True,
     "mark_missing": False,
+    "stale_days": 4,
 }
 
 
@@ -94,6 +95,12 @@ def main() -> int:
         elif mode == "details":
             res = run_details(site, client, db, limit=limit or 50,
                               category=category, quiet=False)
+            listed = 0
+        elif mode == "refresh":
+            res = run_refresh(site, client, db,
+                              stale_days=int(job.get("stale_days") or 4),
+                              limit=limit or 500, category=category,
+                              quiet=False, run_id=run_id)
             listed = 0
         else:
             res = run_list(site, client, db, category=category, limit=limit,
