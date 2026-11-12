@@ -265,6 +265,9 @@ class RenewAdapter(SiteAdapter):
     default_category = "voiture-occasion"
     categories = ["voiture-occasion"]
     page_size_fixed = True
+    # le site declare la meme canonique (la home) sur toutes ses fiches :
+    # le controle canonique du pipeline rejetterait toutes les annonces.
+    check_canonical = False
 
     # ------------------------------------------------------------- listing
     def listing_url(self, category: str, offset: int) -> str:

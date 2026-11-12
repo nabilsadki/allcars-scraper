@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 import traceback
 from datetime import datetime, timedelta
 from typing import Any, Optional
-from urllib.parse import unquote, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 from .catalog import Catalog
 from .db import Database
@@ -350,6 +351,19 @@ def _same_target(url: str, final: str, *identifiants: Any) -> bool:
     return False
 
 
+_CANONICAL_RE = re.compile(r'<link\b[^>]*\brel\s*=\s*["\']?canonical["\']?[^>]*>',
+                           re.I)
+
+
+def _canonical_url(html: str, base: str) -> str:
+    """URL canonique declaree par la page (vide si absente)."""
+    for tag in _CANONICAL_RE.findall(html or ""):
+        m = re.search(r'\bhref\s*=\s*["\']([^"\']+)', tag, re.I)
+        if m:
+            return urljoin(base, m.group(1).strip())
+    return ""
+
+
 def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
     """Recupere la fiche detail d'une annonce (si le site le permet)."""
     url = site.detail_url(ad)
@@ -362,6 +376,17 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
             client.log(f"  ! fiche {ad.get('ad_id')} : page differente "
                        f"({final[:90]}) - ignoree")
             return ad
+        # page servie a la bonne URL mais dont la canonique pointe ailleurs
+        # (gabarit generique, page "annonce retiree"...) : ce n'est pas la fiche.
+        # `check_canonical = False` sur un adaptateur si son site declare une
+        # canonique peu fiable.
+        if getattr(site, "check_canonical", True):
+            canon = _canonical_url(html, url)
+            if canon and not _same_target(url, canon, ad.get("ad_id"),
+                                          ad.get("list_id")):
+                client.log(f"  ! fiche {ad.get('ad_id')} : canonique differente "
+                           f"({canon[:90]}) - ignoree")
+                return ad
         full = site.parse_detail(html, ad)
     except Exception as e:
         # fiche introuvable : l'annonce est surement supprimee du site
