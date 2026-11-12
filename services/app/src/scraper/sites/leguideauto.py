@@ -126,7 +126,7 @@ class LeguideautoAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        out = dict(ad)
+        out = {}
         # Photos propres : la galerie de l'annonce est exposee en `/large/`
         # (preload + og:image). Les `/small/` et `/medium/` de la page sont
         # les vignettes des annonces similaires.

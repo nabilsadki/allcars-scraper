@@ -113,7 +113,7 @@ class TomobilaAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        out = dict(ad)
+        out = {}
         # titre
         m = re.search(r'<h1[^>]*>(.*?)</h1>', html, re.S)
         if m:

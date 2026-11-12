@@ -178,7 +178,7 @@ class OtoclicAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        out = dict(ad)
+        out = {}
         # Galerie de l'annonce : Elementor marque chaque photo avec
         # data-elementor-lightbox-slideshow="boxcar-gallery". Le reste de la
         # page contient les vignettes d'autres annonces et les logos du site.

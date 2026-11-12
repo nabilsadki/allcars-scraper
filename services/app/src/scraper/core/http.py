@@ -55,6 +55,10 @@ class HttpClient:
         self._last_call = 0.0
         self._i = 0
         self.stats = {"requests": 0, "blocked": 0, "errors": 0}
+        #: URL finale de la derniere requete reussie (apres redirections).
+        #: Sert au pipeline pour refuser une page qui n'est pas celle demandee.
+        self.last_url = ""
+        self.last_redirected = False
 
     def log(self, msg: str) -> None:
         if self.verbose:
@@ -69,6 +73,8 @@ class HttpClient:
 
     def _request(self, method: str, url: str, **kwargs) -> Any:
         last_err: Optional[Exception] = None
+        self.last_url = ""
+        self.last_redirected = False
         for attempt in range(1, self.retries + 1):
             self._wait()
             imp = USER_AGENTS[self._i % len(USER_AGENTS)]
@@ -89,6 +95,10 @@ class HttpClient:
 
             text = getattr(r, "text", "") or ""
             if r.status_code == 200 and "Just a moment" not in text:
+                # curl_cffi suit les redirections : on memorise la page
+                # reellement servie (le pipeline la compare a l'URL demandee).
+                self.last_url = str(getattr(r, "url", "") or url)
+                self.last_redirected = bool(getattr(r, "history", None))
                 return r
 
             if "Just a moment" in text or r.status_code in (403, 429, 503):

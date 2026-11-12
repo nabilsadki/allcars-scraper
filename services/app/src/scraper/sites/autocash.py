@@ -94,7 +94,7 @@ class AutocashAdapter(SiteAdapter):
         return value or None
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        result = dict(ad)
+        result = {}
         try:
             title_match = re.search(r"<title>(.*?)</title>", html, re.S)
             title = title_match.group(1).strip() if title_match else result.get("title")

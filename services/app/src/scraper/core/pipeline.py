@@ -24,6 +24,7 @@ import time
 import traceback
 from datetime import datetime, timedelta
 from typing import Any, Optional
+from urllib.parse import unquote, urlsplit
 
 from .catalog import Catalog
 from .db import Database
@@ -308,6 +309,47 @@ def _iter_slice(site: SiteAdapter, client, category: str, limit: int,
 
 
 
+#: cles qui prouvent qu'une page a vraiment livre le contenu d'une fiche.
+#: Volontairement sans `seller`, `details_fetched`, `ad_id`, `url` : plusieurs
+#: adaptateurs les renseignent meme quand la page ne contient rien.
+DETAIL_CONTENT_KEYS = frozenset({
+    "title", "description", "price", "price_str", "year", "mileage_km", "km",
+    "fuel", "gearbox", "gear", "brand", "model", "body_type", "body", "doors",
+    "color", "version", "fiscal_power", "cv", "phone", "images", "city",
+    "cond", "origin", "first_hand", "options", "old_price",
+})
+
+
+def _same_target(url: str, final: str, *identifiants: Any) -> bool:
+    """La page effectivement lue correspond-elle a l'URL demandee ?
+
+    Les sites renvoient parfois une redirection (302 -> accueil, -> autre
+    annonce, -> page "neuf") qui aboutit a un HTTP 200 : sans ce controle,
+    la fiche etait marquee vue alors que la page n'avait rien a voir.
+    """
+    if not final:
+        return True
+
+    def _norm(u: str) -> tuple[str, str]:
+        p = urlsplit(u or "")
+        host = (p.netloc or "").lower()
+        if host.startswith("www."):
+            host = host[4:]
+        return host, unquote(p.path or "").rstrip("/").lower()
+
+    if _norm(url) == _norm(final):
+        return True
+    # une redirection qui conserve l'identifiant de l'annonce reste valable
+    # (http->https, ajout de slug/ville, normalisation de casse...).
+    # `list_id` compte aussi : sur Avito l'`ad_id` interne differe de l'id
+    # present dans l'URL, qui est stocke dans `list_id`.
+    fin = unquote(final)
+    for ident in identifiants:
+        if ident is not None and str(ident) and str(ident) in fin:
+            return True
+    return False
+
+
 def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
     """Recupere la fiche detail d'une annonce (si le site le permet)."""
     url = site.detail_url(ad)
@@ -315,6 +357,11 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
         return ad
     try:
         html = client.get(url)
+        final = getattr(client, "last_url", "") or url
+        if not _same_target(url, final, ad.get("ad_id"), ad.get("list_id")):
+            client.log(f"  ! fiche {ad.get('ad_id')} : page differente "
+                       f"({final[:90]}) - ignoree")
+            return ad
         full = site.parse_detail(html, ad)
     except Exception as e:
         # fiche introuvable : l'annonce est surement supprimee du site
@@ -327,6 +374,11 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
         client.log(f"  ! detail en echec ({type(e).__name__}: {e})")
         return ad
     if not full:
+        return ad
+    # page 200 mais vide (annonce retiree, gabarit generique, redirection
+    # douce) : aucune donnee de fiche -> on ne marque pas l'annonce vue.
+    if not (DETAIL_CONTENT_KEYS & set(full)):
+        client.log(f"  ! fiche {ad.get('ad_id')} : page sans contenu - ignoree")
         return ad
     merged = dict(ad)
     for k, v in full.items():
@@ -381,7 +433,8 @@ def run_list(site: SiteAdapter, client, db: Optional[Database], *,
                 ad = site.enrich(ad, client)
             if details:
                 ad = fetch_detail(site, client, ad)
-                n_details += 1
+                if ad.get("details_fetched"):
+                    n_details += 1
             _apply_notes(ad, market=market, config=config)
             if out_fh:
                 out_fh.write(json.dumps(ad, ensure_ascii=False, default=str) + "\n")
@@ -559,7 +612,8 @@ def run_rescan(site: SiteAdapter, client, db: Database, *,
         # 2) la fiche detail fait foi
         if details:
             ad = fetch_detail(site, client, ad)
-            n_details += 1
+            if ad.get("details_fetched"):
+                n_details += 1
         _apply_notes(ad, market=market, config=config)
         try:
             result = db.upsert_ad(ad, site=site.name)

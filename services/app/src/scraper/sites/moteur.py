@@ -146,7 +146,7 @@ class MoteurAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        out = dict(ad)
+        out = {}
         # titre
         title = _text(html, r'class="[^"]*ad-hero-title[^"]*"[^>]*>(.*?)</h1>')
         if title:

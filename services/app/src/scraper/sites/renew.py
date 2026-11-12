@@ -372,7 +372,7 @@ class RenewAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        out = dict(ad)
+        out = {}
         images = [i["url"] for i in (ad.get("images") or []) if i.get("url")]
         # Galerie complete : l'etat Nuxt de la fiche contient les `visuels` de
         # l'annonce. On ne prend que l'objet dont l'argusid correspond, sinon

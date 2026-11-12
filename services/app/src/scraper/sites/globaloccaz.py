@@ -172,7 +172,7 @@ class GlobalOccazAdapter(SiteAdapter):
         return ad.get("url")
 
     def parse_detail(self, html: str, ad: dict) -> dict:
-        out = dict(ad)
+        out = {}
         images = []
         for url in re.findall(
                 r'<img[^>]+class="[^"]*vehica-gallery[^"]*"[^>]+src="([^"]+)"', html):
