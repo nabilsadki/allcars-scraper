@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Suivi du scrap — All Cars{% endblock %}
 {% block content %}
+<style>
+  /* graphe d'activite : montee des barres a l'affichage, glissement des
+     segments quand on masque/affiche un indicateur */
+  @keyframes actGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  #activity-chart .act-bar { transform-origin: bottom; animation: actGrow .45s cubic-bezier(.2, .7, .3, 1) both; }
+  #activity-chart .act-seg { transition: height .35s ease, opacity .25s ease; }
+</style>
 {% set n_run = live_running_sites|length %}
 
 <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between mb-4">
@@ -1703,56 +1710,87 @@ setInterval(refreshContainers, 5000);
     return n * base;
   }
 
-  function renderActivity(d) {
-    ACT_LAST = d;
-    const box = document.getElementById('activity-chart');
-    if (!box) return;
-    const days = d.days || [];
-    const H = 110;
-    const values = x => [
-      ['detailed', x.detailed], ['updated', x.updated],
-      ['deactivated', x.deactivated], ['activated', x.activated],
-      ['total', x.total],
-    ];
-    // l'echelle s'adapte aux segments visibles : le plus haut remplit la zone
-    const sums = days.map(x => values(x).filter(([k]) => !ACT_HIDDEN.has(k))
-      .reduce((a, [, v]) => a + v, 0));
-    const niceMax = _niceCeil(Math.max(0, ...sums));
+  const ACT_H = 110;
+  const ACT_SERIES = [
+    ['detailed', 'fiches détaillées'], ['updated', 'mises à jour'],
+    ['deactivated', 'désactivées'], ['activated', 'activées'],
+    ['total', 'total scrappé'],
+  ];
+
+  const _actSums = days => days.map(x => ACT_SERIES
+    .filter(([k]) => !ACT_HIDDEN.has(k))
+    .reduce((a, [k]) => a + (x[k] || 0), 0));
+
+  function _actAxisHtml(niceMax) {
     const TICKS = 4;
     const ticks = [];
     for (let i = 0; i <= TICKS; i++) {
       ticks.push('<span>' + _actCompact(Math.round(niceMax * (TICKS - i) / TICKS)) + '</span>');
     }
-    const axis = '<div class="shrink-0 w-9 sticky left-0 bg-panel z-10 flex flex-col items-end gap-1 text-[8.5px] leading-none text-muted/70 tabular-nums">' +
-      '<span class="text-[8.5px] leading-none opacity-0">0</span>' +
-      '<div class="flex flex-col justify-between items-end w-full" style="height:' + H + 'px">' + ticks.join('') + '</div>' +
-      '<span class="text-[9px] leading-none opacity-0">00/00</span>' +
-      '</div>';
+    return '<span class="text-[8.5px] leading-none opacity-0">0</span>' +
+      '<div class="flex flex-col justify-between items-end w-full" style="height:' + ACT_H + 'px">' + ticks.join('') + '</div>' +
+      '<span class="text-[9px] leading-none opacity-0">00/00</span>';
+  }
+
+  function renderActivity(d) {
+    ACT_LAST = d;
+    const box = document.getElementById('activity-chart');
+    if (!box) return;
+    const days = d.days || [];
     if (!days.length) {
       box.innerHTML = '<p class="text-muted text-[12px] m-0 py-1">Aucune donnée.</p>';
       return;
     }
-    box.innerHTML = axis + days.map((x, idx) => {
-      const segs = values(x).map(([k, v]) => {
-        const lbl = { detailed: 'fiches détaillées', updated: 'mises à jour',
-                      deactivated: 'désactivées', activated: 'activées',
-                      total: 'total scrappé' }[k];
-        return (!ACT_HIDDEN.has(k) && v > 0)
-          ? '<div class="act-seg cursor-pointer" data-act-date="' + x.date + '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
+    const sums = _actSums(days);
+    const niceMax = _niceCeil(Math.max(0, ...sums));
+    box.innerHTML = '<div id="activity-axis" class="shrink-0 w-9 sticky left-0 bg-panel z-10 flex flex-col items-end gap-1 text-[8.5px] leading-none text-muted/70 tabular-nums">' +
+      _actAxisHtml(niceMax) + '</div>' +
+      days.map((x, idx) => {
+        const segs = ACT_SERIES.map(([k, lbl]) => {
+          const v = x[k] || 0;
+          const off = ACT_HIDDEN.has(k);
+          return '<div class="act-seg cursor-pointer" data-act-key="' + k + '" data-act-date="' + x.date +
+            '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
             ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
-            ' style="height:' + (v / niceMax * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
-          : '';
+            ' style="height:' + (off ? 0 : v / niceMax * ACT_H).toFixed(1) + 'px;opacity:' + (off ? 0 : 1) +
+            ';background:' + ACT_COLORS[k] + '"></div>';
+        }).join('');
+        const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
+          ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
+          ' · fiches détaillées ' + _actFmt(x.detailed);
+        return '<div class="flex-1 min-w-[32px] flex flex-col items-center gap-1">' +
+          '<span class="text-[8.5px] leading-none tabular-nums text-muted/70 whitespace-nowrap" data-act-total="' + x.date + '">' + _actCompact(sums[idx]) + '</span>' +
+          '<div class="act-bar w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" data-act-bar="' + x.date + '" style="height:' + ACT_H + 'px" title="' + tip + '">' + segs + '</div>' +
+          '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
+          '</div>';
       }).join('');
-      const sum = sums[idx];
-      const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
-        ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
-        ' · fiches détaillées ' + _actFmt(x.detailed);
-      return '<div class="flex-1 min-w-[32px] flex flex-col items-center gap-1">' +
-        '<span class="text-[8.5px] leading-none tabular-nums text-muted/70 whitespace-nowrap">' + _actCompact(sum) + '</span>' +
-        '<div class="w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" style="height:' + H + 'px" title="' + tip + '">' + segs + '</div>' +
-        '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
-        '</div>';
-    }).join('');
+  }
+
+  // mise a jour en place (sans reconstruire) : les hauteurs glissent via la
+  // transition CSS quand on masque/affiche un indicateur
+  function updateActivityBars() {
+    if (!ACT_LAST) return;
+    const days = ACT_LAST.days || [];
+    if (!days.length) return;
+    const sums = _actSums(days);
+    const niceMax = _niceCeil(Math.max(0, ...sums));
+    const axis = document.getElementById('activity-axis');
+    if (axis) axis.innerHTML = _actAxisHtml(niceMax);
+    days.forEach((x, idx) => {
+      const bar = document.querySelector('[data-act-bar="' + x.date + '"]');
+      if (bar) {
+        ACT_SERIES.forEach(([k]) => {
+          const seg = bar.querySelector('[data-act-key="' + k + '"]');
+          if (!seg) return;
+          const off = ACT_HIDDEN.has(k);
+          const v = x[k] || 0;
+          seg.style.opacity = off ? '0' : '1';
+          seg.style.height = (off ? 0 : v / niceMax * ACT_H).toFixed(1) + 'px';
+        });
+      }
+      const tot = document.querySelector('[data-act-total="' + x.date + '"]');
+      if (tot) tot.textContent = _actCompact(sums[idx]);
+    });
   }
 
   async function refreshActivity() {
@@ -1813,7 +1851,7 @@ setInterval(refreshContainers, 5000);
         if (ACT_HIDDEN.has(k)) ACT_HIDDEN.delete(k); else ACT_HIDDEN.add(k);
         localStorage.setItem('tracking:activityHidden', JSON.stringify([...ACT_HIDDEN]));
         applyActivityLegend();
-        if (ACT_LAST) renderActivity(ACT_LAST);
+        updateActivityBars();
       });
     });
     applyActivityLegend();
