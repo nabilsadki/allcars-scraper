@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
 import pymysql
@@ -1842,6 +1842,64 @@ def api_reindex_schedule_post():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify(row)
+
+
+@app.route("/api/daily")
+def api_daily():
+    """Activite de scrape agregee par jour (defaut : 7 derniers jours)."""
+    today = datetime.now().date()
+
+    def _parse(name, default):
+        raw = (request.args.get(name) or "").strip()
+        if not raw:
+            return default
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            return default
+
+    d_from = _parse("from", today - timedelta(days=6))
+    d_to = _parse("to", today)
+    if d_from > d_to:
+        d_from, d_to = d_to, d_from
+    # garde-fou : un an maximum (le graphe reste lisible)
+    if (d_to - d_from).days > 366:
+        d_from = d_to - timedelta(days=366)
+    try:
+        rows = query(
+            "SELECT DATE(started_at) d, "
+            "       COALESCE(SUM(ads_listed), 0)      total, "
+            "       COALESCE(SUM(ads_inserted), 0)    activated, "
+            "       COALESCE(SUM(ads_disappeared), 0) deactivated, "
+            "       COALESCE(SUM(ads_updated), 0)     updated, "
+            "       COALESCE(SUM(ads_details), 0)     detailed "
+            "FROM scrape_runs "
+            "WHERE started_at >= %s AND started_at < %s + INTERVAL 1 DAY "
+            "GROUP BY DATE(started_at) ORDER BY d",
+            (d_from, d_to))
+    except Exception as e:
+        return jsonify({"error": str(e), "days": []}), 500
+
+    by_day = {}
+    for r in rows or []:
+        key = str(r.get("d"))
+        by_day[key] = r
+    days = []
+    cur = d_from
+    while cur <= d_to:
+        key = cur.isoformat()
+        r = by_day.get(key) or {}
+        days.append({
+            "date": key,
+            "total": int(r.get("total") or 0),
+            "activated": int(r.get("activated") or 0),
+            "deactivated": int(r.get("deactivated") or 0),
+            "updated": int(r.get("updated") or 0),
+            "detailed": int(r.get("detailed") or 0),
+        })
+        cur += timedelta(days=1)
+    return jsonify({"from": d_from.isoformat(), "to": d_to.isoformat(),
+                    "days": days})
 
 
 

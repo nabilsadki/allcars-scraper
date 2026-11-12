@@ -75,6 +75,47 @@
   </div>
 </div>
 
+{# ------------- Activité de scrape (barres empilées, repliable) ------------- #}
+<div class="bg-panel border border-line rounded-xl mb-3.5 overflow-hidden" id="activity-panel">
+  <button type="button" id="activity-toggle"
+          class="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 bg-transparent text-left
+                 border-0 cursor-pointer hover:bg-panel2/40 transition-colors focus:outline-none">
+    <span class="text-[12px] uppercase tracking-wider text-muted flex items-center gap-2">
+      Activité des scrapes
+      <span class="normal-case tracking-normal text-[10px] text-muted" id="activity-meta">7 derniers jours</span>
+    </span>
+    <span class="text-muted text-[11px] shrink-0" id="activity-chevron" aria-hidden="true">▸</span>
+  </button>
+  <div id="activity-body" class="hidden px-3.5 pb-3 pt-2.5 border-t border-line">
+    <div class="flex flex-wrap items-end gap-2 text-[11px] text-muted mb-3">
+      <label class="flex flex-col gap-1">Du
+        <input type="date" id="activity-from"
+               class="bg-panel2 border border-line rounded-lg px-2 py-1 text-[12px] text-txt focus:outline-none focus:border-accent">
+      </label>
+      <label class="flex flex-col gap-1">Au
+        <input type="date" id="activity-to"
+               class="bg-panel2 border border-line rounded-lg px-2 py-1 text-[12px] text-txt focus:outline-none focus:border-accent">
+      </label>
+      <button type="button" id="activity-reset"
+              class="border border-line text-muted bg-panel2/80 rounded-lg px-2.5 py-1 text-[11px] cursor-pointer hover:bg-panel2">7 derniers jours</button>
+      <span class="ml-auto text-[10.5px] text-muted/80" id="activity-range"></span>
+    </div>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-muted mb-2">
+      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#60a5fa"></span>total scrappé</span>
+      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#34d399"></span>activées</span>
+      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#fb7185"></span>désactivées</span>
+      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#fbbf24"></span>mises à jour</span>
+      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#a78bfa"></span>fiches détaillées</span>
+    </div>
+    <div class="overflow-x-auto -mx-1 px-1">
+      <div class="flex items-end gap-1.5 min-w-full" id="activity-chart">
+        <p class="text-muted text-[12px] m-0 py-1">Chargement…</p>
+      </div>
+    </div>
+    <p class="text-[10px] text-muted/70 mt-2 mb-0">Une barre par jour, empilant les cinq indicateurs (somme du jour).</p>
+  </div>
+</div>
+
 {# --------------------------------------------- etat de tous les conteneurs #}
 <div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5" id="containers-panel">
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
@@ -1616,6 +1657,90 @@ setInterval(refreshContainers, 5000);
 
     refreshReindex();
   setInterval(refreshReindex, 5000);
+
+  // ---- Activité des scrapes : barres empilées par jour ----
+  const ACT_COLORS = {
+    detailed: '#a78bfa', updated: '#fbbf24', deactivated: '#fb7185',
+    activated: '#34d399', total: '#60a5fa',
+  };
+  const _actIso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  const _actFmt = n => (Number(n) || 0).toLocaleString('fr-FR');
+  const _actShort = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : iso; };
+  const _actInputs = () => [document.getElementById('activity-from'), document.getElementById('activity-to')];
+
+  async function refreshActivity() {
+    const box = document.getElementById('activity-chart');
+    if (!box) return;
+    const [from, to] = _actInputs();
+    const qs = new URLSearchParams();
+    if (from && from.value) qs.set('from', from.value);
+    if (to && to.value) qs.set('to', to.value);
+    try {
+      const r = await fetch('/api/daily?' + qs.toString(), {cache: 'no-store'});
+      const d = await r.json();
+      if (d.error) { box.innerHTML = '<p class="text-muted text-[12px] m-0 py-1">Erreur : ' + d.error + '</p>'; return; }
+      const days = d.days || [];
+      if (from && !from.value) from.value = d.from;
+      if (to && !to.value) to.value = d.to;
+      if (document.getElementById('activity-meta'))
+        document.getElementById('activity-meta').textContent = 'du ' + _actShort(d.from) + ' au ' + _actShort(d.to);
+      if (document.getElementById('activity-range')) {
+        const tot = days.reduce((a, x) => a + x.total, 0);
+        const det = days.reduce((a, x) => a + x.detailed, 0);
+        document.getElementById('activity-range').textContent = _actFmt(tot) + ' annonces · ' + _actFmt(det) + ' fiches';
+      }
+      const H = 120;
+      const max = Math.max(1, ...days.map(x => x.total + x.activated + x.deactivated + x.updated + x.detailed));
+      box.innerHTML = days.map(x => {
+        const segs = [
+          ['detailed', x.detailed], ['updated', x.updated],
+          ['deactivated', x.deactivated], ['activated', x.activated], ['total', x.total],
+        ].map(([k, v]) => v > 0
+          ? '<div style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
+          : '').join('');
+        const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
+          ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
+          ' · fiches détaillées ' + _actFmt(x.detailed);
+        return '<div class="flex-1 min-w-[26px] flex flex-col items-center gap-1">' +
+          '<div class="w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" style="height:' + H + 'px" title="' + tip + '">' + segs + '</div>' +
+          '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
+          '</div>';
+      }).join('') || '<p class="text-muted text-[12px] m-0 py-1">Aucune donnée.</p>';
+    } catch (e) { /* ignore */ }
+  }
+
+  (function initActivity() {
+    const body = document.getElementById('activity-body');
+    const toggle = document.getElementById('activity-toggle');
+    const chevron = document.getElementById('activity-chevron');
+    const [from, to] = _actInputs();
+    const today = new Date();
+    const start = new Date(); start.setDate(today.getDate() - 6);
+    if (from && !from.value) from.value = _actIso(start);
+    if (to && !to.value) to.value = _actIso(today);
+    const setCollapsed = collapsed => {
+      if (body) body.classList.toggle('hidden', collapsed);
+      if (chevron) chevron.textContent = collapsed ? '▸' : '▾';
+    };
+    if (body && toggle) {
+      // replié par défaut, état mémorisé
+      setCollapsed(localStorage.getItem('tracking:activityCollapsed') !== '0');
+      toggle.addEventListener('click', () => {
+        const collapsed = !body.classList.contains('hidden');
+        setCollapsed(collapsed);
+        localStorage.setItem('tracking:activityCollapsed', collapsed ? '1' : '0');
+        if (!collapsed) refreshActivity();
+      });
+    }
+    [from, to].forEach(inp => inp && inp.addEventListener('change', refreshActivity));
+    const reset = document.getElementById('activity-reset');
+    if (reset) reset.addEventListener('click', () => {
+      const t = new Date(); const s = new Date(); s.setDate(t.getDate() - 6);
+      if (from) from.value = _actIso(s);
+      if (to) to.value = _actIso(t);
+      refreshActivity();
+    });
+  })();
 
 </script>
 

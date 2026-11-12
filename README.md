@@ -294,6 +294,10 @@ Deuxieme page de l'interface, accessible depuis la barre de navigation
   La colonne categorie est masquee quand chaque site n'a que peu de
   categories. Le tableau se **filtre** (site, statut, mode) et se **trie**
   en cliquant sur un en-tete (+ fleches ▲/▼). + les derniers logs du conteneur.
+* **Activité des scrapes** (bloc repliable, juste après les notifications) :
+  un graphe en barres empilées par jour — total scrappé, activées,
+  désactivées, mises à jour, fiches détaillées — sur les 7 derniers jours
+  par défaut. Un sélecteur de dates (Du / Au) ajuste l'intervalle.
 * **Vue mobile** : le bloc de filtres se replie derriere un bouton
   "Filtres · N actif(s)" ; sur le suivi, chaque site se replie aussi,
   avec la barre de progression toujours visible
