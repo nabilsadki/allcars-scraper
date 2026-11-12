@@ -1170,7 +1170,7 @@ async function refreshContainers() {
       dead:       ['bg-bad',   'text-bad',   'x'],
       removing:   ['bg-muted', 'text-muted', 's'],
     };
-    box.innerHTML = list.map(c => {
+    const renderCard = c => {
       const scraper = isScraper(c);
       const infra = INFRA[c.name];
       const style = scraper
@@ -1202,7 +1202,12 @@ async function refreshContainers() {
           '</span>' +
         '</div>' +
       '</div>';
-    }).join('');
+    };
+    // les scrapers commencent sur une nouvelle ligne (separateur pleine largeur)
+    const infraCards = list.filter(c => !isScraper(c)).map(renderCard).join('');
+    const scraperCards = list.filter(isScraper).map(renderCard).join('');
+    box.innerHTML = infraCards +
+      (scraperCards ? '<div class="col-span-full h-px bg-line/70 my-0.5"></div>' + scraperCards : '');
   } catch (e) { /* ignore */ }
 }
 
