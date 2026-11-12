@@ -115,6 +115,10 @@
           <span class="text-[12.5px] font-medium tabular-nums" id="reindex-db-complete">—</span>
         </div>
         <div class="flex items-baseline justify-between gap-2">
+          <span class="text-[10.5px] text-muted">Inactives</span>
+          <span class="text-[12.5px] font-medium tabular-nums text-muted" id="reindex-db-inactive">—</span>
+        </div>
+        <div class="flex items-baseline justify-between gap-2">
           <span class="text-[10.5px] text-muted">Last seen &lt; 2 j</span>
           <span class="text-[12.5px] font-medium tabular-nums" id="reindex-db-recent">—</span>
         </div>
@@ -1476,6 +1480,8 @@ setInterval(refreshContainers, 5000);
         (d.db_count || 0).toLocaleString('fr-FR');
       if (el('reindex-db-complete')) el('reindex-db-complete').textContent =
         (d.db_count_complete || 0).toLocaleString('fr-FR');
+      if (el('reindex-db-inactive')) el('reindex-db-inactive').textContent =
+        (d.db_count_inactive || 0).toLocaleString('fr-FR');
       if (el('reindex-db-recent')) el('reindex-db-recent').textContent =
         (d.db_count_recent_2d || 0).toLocaleString('fr-FR');
       const n = (d.site && d.site.index_documents);
