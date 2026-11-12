@@ -130,12 +130,19 @@
 </div>
 
 {# --------------------------------------------- etat de tous les conteneurs #}
-<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5" id="containers-panel">
-  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
-    Conteneurs <span class="muted small normal-case tracking-normal text-[12px]" id="containers-count"></span>
-  </div>
-  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" id="cont-list">
-    <p class="text-muted text-[12px] m-0 col-span-full">Chargement…</p>
+<div class="bg-panel border border-line rounded-xl mb-3.5 overflow-hidden" id="containers-panel">
+  <button type="button" id="containers-toggle"
+          class="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 bg-transparent text-left
+                 border-0 cursor-pointer hover:bg-panel2/40 transition-colors focus:outline-none">
+    <span class="text-[12px] uppercase tracking-wider text-muted flex items-center gap-2">
+      Conteneurs <span class="muted small normal-case tracking-normal text-[12px]" id="containers-count"></span>
+    </span>
+    <span class="text-muted text-[11px] shrink-0" id="containers-chevron" aria-hidden="true">▾</span>
+  </button>
+  <div id="containers-body" class="px-3.5 pb-3 pt-1 border-t border-line">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2" id="cont-list">
+      <p class="text-muted text-[12px] m-0 col-span-full">Chargement…</p>
+    </div>
   </div>
 </div>
 
@@ -1264,6 +1271,24 @@ async function refreshContainers() {
       (scraperCards ? '<div class="col-span-full h-px bg-line/70 my-0.5"></div>' + scraperCards : '');
   } catch (e) { /* ignore */ }
 }
+
+// bloc Conteneurs repliable (ouvert par defaut, etat memorise)
+(function initContainersCollapse() {
+  const body = document.getElementById('containers-body');
+  const toggle = document.getElementById('containers-toggle');
+  const chevron = document.getElementById('containers-chevron');
+  const apply = collapsed => {
+    if (body) body.classList.toggle('hidden', collapsed);
+    if (chevron) chevron.textContent = collapsed ? '▸' : '▾';
+  };
+  if (!body || !toggle) return;
+  apply(localStorage.getItem('tracking:containersCollapsed') === '1');
+  toggle.addEventListener('click', () => {
+    const collapsed = !body.classList.contains('hidden');
+    apply(collapsed);
+    localStorage.setItem('tracking:containersCollapsed', collapsed ? '1' : '0');
+  });
+})();
 
 // teinte du site (meme regle que le filtre Jinja)
 const SITE_HUES = {avito: 214, tomobila: 145, globaloccaz: 268, kifal: 24,
