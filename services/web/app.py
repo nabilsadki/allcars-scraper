@@ -1754,6 +1754,7 @@ def api_reindex_status():
     # annonces presentes dans le scrapper
     db_count = 0
     complete_count = 0
+    active_count = 0
     inactive_count = 0
     recent_count = 0
     try:
@@ -1761,6 +1762,7 @@ def api_reindex_status():
         rows = query(
             "SELECT COUNT(*) n, "
             "       SUM(details_fetched = 1) n_complete, "
+            "       SUM(is_active = 1) n_active, "
             "       SUM(is_active = 0) n_inactive, "
             "       SUM(last_seen_at >= NOW() - INTERVAL 2 DAY) n_recent "
             "FROM ads")
@@ -1769,13 +1771,15 @@ def api_reindex_status():
             if isinstance(r, dict):
                 db_count = int(r.get("n") or 0)
                 complete_count = int(r.get("n_complete") or 0)
+                active_count = int(r.get("n_active") or 0)
                 inactive_count = int(r.get("n_inactive") or 0)
                 recent_count = int(r.get("n_recent") or 0)
             else:
                 db_count = int(r[0] or 0)
                 complete_count = int(r[1] or 0)
-                inactive_count = int(r[2] or 0)
-                recent_count = int(r[3] or 0)
+                active_count = int(r[2] or 0)
+                inactive_count = int(r[3] or 0)
+                recent_count = int(r[4] or 0)
     except Exception:
         pass
     # etat de l'index via le site public
@@ -1801,6 +1805,7 @@ def api_reindex_status():
     return jsonify({
         "db_count": db_count,
         "db_count_complete": complete_count,
+        "db_count_active": active_count,
         "db_count_inactive": inactive_count,
         "db_count_recent_2d": recent_count,
         "site": site_status,
