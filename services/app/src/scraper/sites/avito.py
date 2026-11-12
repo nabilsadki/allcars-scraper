@@ -560,6 +560,20 @@ class AvitoAdapter(SiteAdapter):
     def detail_url(self, ad: dict) -> Optional[str]:
         return ad.get("url")
 
+    def redirect_means_removed(self, url: str, final: str) -> bool:
+        """Avito redirige une annonce retiree vers la liste de la categorie.
+
+        Constat (2026-11-12) : une fiche supprimee repond 200 apres une
+        redirection vers /fr/maroc/voitures_d_occasion-a_vendre (ou vers
+        l'accueil). C'est le signal de retrait du site, equivalent a un 404.
+        """
+        from urllib.parse import unquote, urlsplit
+        path = unquote(urlsplit(final or "").path or "").strip("/").lower()
+        if path in ("", "fr"):
+            return True                                    # accueil
+        # liste de la categorie : pas de suffixe "_<listId>.htm"
+        return "voitures" in path and not re.search(r"_\d{6,}\.htm$", path)
+
     def parse_detail(self, html: str, ad: dict) -> dict:
         data = self._next_data(html)
         props = data.get("props", {}).get("pageProps", {})

@@ -180,6 +180,16 @@ class SiteAdapter(ABC):
     def parse_detail(self, html: str, ad: dict) -> dict:
         """Complete l'annonce avec les donnees de sa fiche."""
 
+    def redirect_means_removed(self, url: str, final: str) -> bool:
+        """Une redirection vers `final` signifie-t-elle que l'annonce est retiree ?
+
+        Certains sites ne renvoient pas de 404 : une annonce supprimee est
+        redirigee vers la liste de la categorie (ou l'accueil) avec un
+        HTTP 200. Par defaut on ne conclut rien (simple rejet de la fiche) ;
+        un adaptateur peut l'affirmer quand son site a ce comportement.
+        """
+        return False
+
     # ------------------------------------------------------------- optionnel
     def total_ads(self, html: str) -> Optional[int]:
         """Nombre total d'annonces du catalogue (si la page l'expose)."""

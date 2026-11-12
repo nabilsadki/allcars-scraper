@@ -373,6 +373,16 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
         html = client.get(url)
         final = getattr(client, "last_url", "") or url
         if not _same_target(url, final, ad.get("ad_id"), ad.get("list_id")):
+            if site.redirect_means_removed(url, final):
+                # le site signale un retrait par une redirection vers la
+                # liste/l'accueil (pas de 404) : on desactive l'annonce.
+                out = dict(ad)
+                out["details_fetched"] = True
+                out["is_active"] = False
+                out["url"] = url
+                client.log(f"  ! fiche {ad.get('ad_id')} : retiree "
+                           f"(redirection vers {final[:80]})")
+                return out
             client.log(f"  ! fiche {ad.get('ad_id')} : page differente "
                        f"({final[:90]}) - ignoree")
             return ad

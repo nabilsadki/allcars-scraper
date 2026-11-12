@@ -308,6 +308,10 @@ class Database:
             "ad_id": ad.get("ad_id"),
             "list_id": ad.get("list_id"),
             "site": site,
+            # un retrait signale par le site (404 ou redirection "annonce
+            # retiree") doit rester desactive, meme si l'ad est encore dans
+            # la fenetre de liste.
+            "is_active": 0 if ad.get("is_active") is False else 1,
             "category": ad.get("category"),
             "title": ad.get("title"),
             "price": ad.get("price"),
@@ -466,9 +470,10 @@ class Database:
             sets = "".join(f"{c} = %s, " for c in extra)
             self.cur.execute(
                 f"UPDATE ads SET {sets}last_seen_at = NOW(), "
-                "seen_count = seen_count + 1, is_active = 1 "
+                "seen_count = seen_count + 1, is_active = %s "
                 "WHERE site = %s AND ad_id = %s",
-                list(extra.values()) + [site, ad_id],
+                list(extra.values())
+                + [0 if ad.get("is_active") is False else 1, site, ad_id],
             )
             self._update_scores(ad_id, ad, site)
             self.counters["unchanged"] += 1
@@ -485,9 +490,10 @@ class Database:
         row["content_hash"] = h
         cols = [c for c in row if c != "ad_id"]
         sets = ", ".join(f"{c} = %s" for c in cols)
+        # `is_active` fait partie de `row` (0 si le site a signale un retrait)
         self.cur.execute(
             f"UPDATE ads SET {sets}, last_seen_at = NOW(), "
-            "seen_count = seen_count + 1, is_active = 1 "
+            "seen_count = seen_count + 1 "
             "WHERE site = %s AND ad_id = %s",
             [row[c] for c in cols] + [site, ad_id],
         )
