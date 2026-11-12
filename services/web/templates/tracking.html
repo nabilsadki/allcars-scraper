@@ -114,13 +114,19 @@
           <span class="text-[10.5px] text-muted">Fiches complètes</span>
           <span class="text-[12.5px] font-medium tabular-nums" id="reindex-db-complete">—</span>
         </div>
-        <div class="flex items-baseline justify-between gap-2">
-          <span class="text-[10.5px] text-muted">Actives</span>
-          <span class="text-[12.5px] font-medium tabular-nums" id="reindex-db-active">—</span>
-        </div>
-        <div class="flex items-baseline justify-between gap-2">
-          <span class="text-[10.5px] text-muted">Inactives</span>
-          <span class="text-[12.5px] font-medium tabular-nums text-muted" id="reindex-db-inactive">—</span>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[10.5px] text-muted">Statut</span>
+          <span class="flex flex-col items-end gap-0.5">
+            <span class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden flex"
+                  id="reindex-db-statusbar" title="—">
+              <span class="h-full bg-ok" id="reindex-db-active-bar" style="width:0%"></span>
+              <span class="h-full bg-warn" id="reindex-db-inactive-bar" style="width:0%"></span>
+            </span>
+            <span class="text-[9px] leading-none tabular-nums text-muted/70 whitespace-nowrap">
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-ok align-middle mr-0.5"></span><span id="reindex-db-active">—</span>
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-warn align-middle ml-1 mr-0.5"></span><span id="reindex-db-inactive">—</span>
+            </span>
+          </span>
         </div>
         <div class="flex items-baseline justify-between gap-2">
           <span class="text-[10.5px] text-muted">Last seen &lt; 2 j</span>
@@ -1484,10 +1490,20 @@ setInterval(refreshContainers, 5000);
         (d.db_count || 0).toLocaleString('fr-FR');
       if (el('reindex-db-complete')) el('reindex-db-complete').textContent =
         (d.db_count_complete || 0).toLocaleString('fr-FR');
+      const totalDb = Number(d.db_count || 0);
+      const actDb = Number(d.db_count_active || 0);
+      const inaDb = Number(d.db_count_inactive || 0);
       if (el('reindex-db-active')) el('reindex-db-active').textContent =
-        (d.db_count_active || 0).toLocaleString('fr-FR');
+        actDb.toLocaleString('fr-FR');
       if (el('reindex-db-inactive')) el('reindex-db-inactive').textContent =
-        (d.db_count_inactive || 0).toLocaleString('fr-FR');
+        inaDb.toLocaleString('fr-FR');
+      const pctAct = totalDb ? (actDb / totalDb * 100) : 0;
+      const pctIna = totalDb ? (inaDb / totalDb * 100) : 0;
+      if (el('reindex-db-active-bar')) el('reindex-db-active-bar').style.width = pctAct.toFixed(2) + '%';
+      if (el('reindex-db-inactive-bar')) el('reindex-db-inactive-bar').style.width = pctIna.toFixed(2) + '%';
+      if (el('reindex-db-statusbar')) el('reindex-db-statusbar').title =
+        actDb.toLocaleString('fr-FR') + ' actives · ' + inaDb.toLocaleString('fr-FR') +
+        ' inactives (' + pctIna.toFixed(1).replace('.', ',') + ' %)';
       if (el('reindex-db-recent')) el('reindex-db-recent').textContent =
         (d.db_count_recent_2d || 0).toLocaleString('fr-FR');
       const n = (d.site && d.site.index_documents);
