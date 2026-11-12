@@ -216,16 +216,24 @@
           <dd class="m-0 tabular-nums font-medium {{ 'text-ok' if (c.details or 0) >= c.n else 'text-warn' }}">
             {{ '{:,}'.format(c.details or 0).replace(',', ' ') }}</dd>
         </div>
-        <div class="flex items-baseline justify-between gap-2">
-          <dt class="text-muted">Fiches activées</dt>
-          <dd class="m-0 tabular-nums font-medium text-txt">
-            {{ '{:,}'.format(c.actives or 0).replace(',', ' ') }}</dd>
-        </div>
-        <div class="flex items-baseline justify-between gap-2">
-          <dt class="text-muted">Fiches inactives</dt>
-          <dd class="m-0 tabular-nums font-medium text-muted"
-              title="annonces desactivees (disparues du site, 404)">
-            {{ '{:,}'.format((c.n or 0) - (c.actives or 0)).replace(',', ' ') }}</dd>
+        {% set nb_act = c.actives or 0 %}
+        {% set nb_ina = (c.n or 0) - nb_act %}
+        {% set pct_act = ((nb_act / c.n * 100) if c.n else 0) %}
+        {% set pct_act = [[pct_act, 0]|max, 100]|min %}
+        {% set pct_ina = 100 - pct_act %}
+        <div class="flex items-center justify-between gap-2">
+          <dt class="text-muted">Statut</dt>
+          <dd class="m-0 flex flex-col items-end gap-0.5">
+            <div class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden flex"
+                 title="{{ '{:,}'.format(nb_act).replace(',', ' ') }} actives · {{ '{:,}'.format(nb_ina).replace(',', ' ') }} inactives ({{ ('%.1f'|format(pct_ina))|replace('.', ',') }} % inactives)">
+              <div class="h-full bg-ok" style="width: {{ '%.2f'|format(pct_act) }}%"></div>
+              <div class="h-full bg-warn" style="width: {{ '%.2f'|format(pct_ina) }}%"></div>
+            </div>
+            <span class="text-[9px] leading-none tabular-nums text-muted/70 whitespace-nowrap">
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-ok align-middle mr-0.5"></span>{{ '{:,}'.format(nb_act).replace(',', ' ') }}
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-warn align-middle ml-1 mr-0.5"></span>{{ '{:,}'.format(nb_ina).replace(',', ' ') }}
+            </span>
+          </dd>
         </div>
         {% set pct = (((c.recent_2d or 0) / c.n * 100) if c.n else 0) %}
         {% set pct = [[pct, 0]|max, 100]|min %}
