@@ -1693,31 +1693,57 @@ setInterval(refreshContainers, 5000);
     });
   }
 
+  // borne « ronde » superieure (1, 2, 5 x 10^n) pour l'axe Y
+  function _niceCeil(v) {
+    if (!v || v <= 0) return 1;
+    const exp = Math.floor(Math.log10(v));
+    const base = Math.pow(10, exp);
+    const f = v / base;
+    const n = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+    return n * base;
+  }
+
   function renderActivity(d) {
     ACT_LAST = d;
     const box = document.getElementById('activity-chart');
     if (!box) return;
     const days = d.days || [];
-    const H = 120;
-    // echelle fixe : basee sur le total de tous les indicateurs, pour que
-    // masquer un segment ne deforme pas la comparaison entre les jours.
-    const max = Math.max(1, ...days.map(x => x.total + x.activated + x.deactivated + x.updated + x.detailed));
-    box.innerHTML = days.map(x => {
-      const segs = [
-        ['detailed', x.detailed, 'fiches détaillées'], ['updated', x.updated, 'mises à jour'],
-        ['deactivated', x.deactivated, 'désactivées'], ['activated', x.activated, 'activées'],
-        ['total', x.total, 'total scrappé'],
-      ].map(([k, v, lbl]) => (!ACT_HIDDEN.has(k) && v > 0)
-        ? '<div class="act-seg cursor-pointer" data-act-date="' + x.date + '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
-          ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
-          ' style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
-        : '').join('');
-      // total affiche = somme des seuls segments visibles
-      const sum = [
-        ['detailed', x.detailed], ['updated', x.updated],
-        ['deactivated', x.deactivated], ['activated', x.activated],
-        ['total', x.total],
-      ].filter(([k]) => !ACT_HIDDEN.has(k)).reduce((a, [, v]) => a + v, 0);
+    const H = 110;
+    const values = x => [
+      ['detailed', x.detailed], ['updated', x.updated],
+      ['deactivated', x.deactivated], ['activated', x.activated],
+      ['total', x.total],
+    ];
+    // l'echelle s'adapte aux segments visibles : le plus haut remplit la zone
+    const sums = days.map(x => values(x).filter(([k]) => !ACT_HIDDEN.has(k))
+      .reduce((a, [, v]) => a + v, 0));
+    const niceMax = _niceCeil(Math.max(0, ...sums));
+    const TICKS = 4;
+    const ticks = [];
+    for (let i = 0; i <= TICKS; i++) {
+      ticks.push('<span>' + _actCompact(Math.round(niceMax * (TICKS - i) / TICKS)) + '</span>');
+    }
+    const axis = '<div class="shrink-0 w-9 sticky left-0 bg-panel z-10 flex flex-col items-end gap-1 text-[8.5px] leading-none text-muted/70 tabular-nums">' +
+      '<span class="text-[8.5px] leading-none opacity-0">0</span>' +
+      '<div class="flex flex-col justify-between items-end w-full" style="height:' + H + 'px">' + ticks.join('') + '</div>' +
+      '<span class="text-[9px] leading-none opacity-0">00/00</span>' +
+      '</div>';
+    if (!days.length) {
+      box.innerHTML = '<p class="text-muted text-[12px] m-0 py-1">Aucune donnée.</p>';
+      return;
+    }
+    box.innerHTML = axis + days.map((x, idx) => {
+      const segs = values(x).map(([k, v]) => {
+        const lbl = { detailed: 'fiches détaillées', updated: 'mises à jour',
+                      deactivated: 'désactivées', activated: 'activées',
+                      total: 'total scrappé' }[k];
+        return (!ACT_HIDDEN.has(k) && v > 0)
+          ? '<div class="act-seg cursor-pointer" data-act-date="' + x.date + '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
+            ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
+            ' style="height:' + (v / niceMax * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
+          : '';
+      }).join('');
+      const sum = sums[idx];
       const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
         ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
         ' · fiches détaillées ' + _actFmt(x.detailed);
@@ -1726,7 +1752,7 @@ setInterval(refreshContainers, 5000);
         '<div class="w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" style="height:' + H + 'px" title="' + tip + '">' + segs + '</div>' +
         '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
         '</div>';
-    }).join('') || '<p class="text-muted text-[12px] m-0 py-1">Aucune donnée.</p>';
+    }).join('');
   }
 
   async function refreshActivity() {
