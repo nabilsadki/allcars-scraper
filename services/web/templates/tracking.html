@@ -112,7 +112,8 @@
         <p class="text-muted text-[12px] m-0 py-1">Chargement…</p>
       </div>
     </div>
-    <p class="text-[10px] text-muted/70 mt-2 mb-0">Une barre par jour, empilant les cinq indicateurs (somme du jour).</p>
+    <p class="text-[10.5px] text-muted mt-1.5 mb-0 min-h-[14px]" id="activity-pick"></p>
+    <p class="text-[10px] text-muted/70 mt-1 mb-0">Une barre par jour, empilant les cinq indicateurs (somme du jour). Cliquez sur un segment pour afficher sa valeur.</p>
   </div>
 </div>
 
@@ -1665,12 +1666,20 @@ setInterval(refreshContainers, 5000);
   };
   const _actIso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
   const _actFmt = n => (Number(n) || 0).toLocaleString('fr-FR');
+  const _actCompact = n => {
+    n = Number(n) || 0;
+    if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.', ',') + ' M';
+    if (n >= 1000) return Math.round(n / 1000) + ' k';
+    return String(n);
+  };
   const _actShort = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : iso; };
   const _actInputs = () => [document.getElementById('activity-from'), document.getElementById('activity-to')];
 
   async function refreshActivity() {
     const box = document.getElementById('activity-chart');
     if (!box) return;
+    const _pick = document.getElementById('activity-pick');
+    if (_pick) _pick.textContent = '';   // la selection precedente ne vaut plus
     const [from, to] = _actInputs();
     const qs = new URLSearchParams();
     if (from && from.value) qs.set('from', from.value);
@@ -1693,15 +1702,20 @@ setInterval(refreshContainers, 5000);
       const max = Math.max(1, ...days.map(x => x.total + x.activated + x.deactivated + x.updated + x.detailed));
       box.innerHTML = days.map(x => {
         const segs = [
-          ['detailed', x.detailed], ['updated', x.updated],
-          ['deactivated', x.deactivated], ['activated', x.activated], ['total', x.total],
-        ].map(([k, v]) => v > 0
-          ? '<div style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
+          ['detailed', x.detailed, 'fiches détaillées'], ['updated', x.updated, 'mises à jour'],
+          ['deactivated', x.deactivated, 'désactivées'], ['activated', x.activated, 'activées'],
+          ['total', x.total, 'total scrappé'],
+        ].map(([k, v, lbl]) => v > 0
+          ? '<div class="act-seg cursor-pointer" data-act-date="' + x.date + '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
+            ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
+            ' style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
           : '').join('');
+        const sum = x.total + x.activated + x.deactivated + x.updated + x.detailed;
         const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
           ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
           ' · fiches détaillées ' + _actFmt(x.detailed);
-        return '<div class="flex-1 min-w-[26px] flex flex-col items-center gap-1">' +
+        return '<div class="flex-1 min-w-[32px] flex flex-col items-center gap-1">' +
+          '<span class="text-[8.5px] leading-none tabular-nums text-muted/70 whitespace-nowrap">' + _actCompact(sum) + '</span>' +
           '<div class="w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" style="height:' + H + 'px" title="' + tip + '">' + segs + '</div>' +
           '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
           '</div>';
@@ -1733,6 +1747,18 @@ setInterval(refreshContainers, 5000);
       });
     }
     [from, to].forEach(inp => inp && inp.addEventListener('change', refreshActivity));
+    // clic/tap sur un segment : afficher sa valeur sous le graphe
+    const chart = document.getElementById('activity-chart');
+    const pick = document.getElementById('activity-pick');
+    if (chart && pick) chart.addEventListener('click', ev => {
+      const el = ev.target.closest('[data-act-value]');
+      if (!el) return;
+      chart.querySelectorAll('.act-seg').forEach(s => { s.style.outline = ''; s.style.outlineOffset = ''; });
+      el.style.outline = '1px solid rgba(255,255,255,.6)';
+      el.style.outlineOffset = '-1px';
+      pick.textContent = _actShort(el.dataset.actDate) + ' · ' + el.dataset.actLabel +
+        ' : ' + _actFmt(el.dataset.actValue);
+    });
     const reset = document.getElementById('activity-reset');
     if (reset) reset.addEventListener('click', () => {
       const t = new Date(); const s = new Date(); s.setDate(t.getDate() - 6);
