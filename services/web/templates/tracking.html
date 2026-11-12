@@ -114,10 +114,10 @@
           <span class="text-[10.5px] text-muted">Fiches complètes</span>
           <span class="text-[12.5px] font-medium tabular-nums" id="reindex-db-complete">—</span>
         </div>
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-[10.5px] text-muted">Statut</span>
+        <div class="flex items-start justify-between gap-2">
+          <span class="text-[10.5px] text-muted leading-none">Statut</span>
           <span class="flex flex-col items-end gap-0.5">
-            <span class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden flex"
+            <span class="h-1.5 mt-[2px] w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden flex"
                   id="reindex-db-statusbar" title="—">
               <span class="h-full bg-ok" id="reindex-db-active-bar" style="width:0%"></span>
               <span class="h-full bg-warn" id="reindex-db-inactive-bar" style="width:0%"></span>
@@ -221,10 +221,10 @@
         {% set pct_act = ((nb_act / c.n * 100) if c.n else 0) %}
         {% set pct_act = [[pct_act, 0]|max, 100]|min %}
         {% set pct_ina = 100 - pct_act %}
-        <div class="flex items-center justify-between gap-2">
-          <dt class="text-muted">Statut</dt>
+        <div class="flex items-start justify-between gap-2">
+          <dt class="text-muted leading-none">Statut</dt>
           <dd class="m-0 flex flex-col items-end gap-0.5">
-            <div class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden flex"
+            <div class="h-1.5 mt-[2px] w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden flex"
                  title="{{ '{:,}'.format(nb_act).replace(',', ' ') }} actives · {{ '{:,}'.format(nb_ina).replace(',', ' ') }} inactives ({{ ('%.1f'|format(pct_ina))|replace('.', ',') }} % inactives)">
               <div class="h-full bg-ok" style="width: {{ '%.2f'|format(pct_act) }}%"></div>
               <div class="h-full bg-warn" style="width: {{ '%.2f'|format(pct_ina) }}%"></div>
@@ -237,10 +237,10 @@
         </div>
         {% set pct = (((c.recent_2d or 0) / c.n * 100) if c.n else 0) %}
         {% set pct = [[pct, 0]|max, 100]|min %}
-        <div class="flex items-center justify-between gap-2">
-          <dt class="text-muted">À jour &lt; 2 j</dt>
+        <div class="flex items-start justify-between gap-2">
+          <dt class="text-muted leading-none">À jour &lt; 2 j</dt>
           <dd class="m-0 flex flex-col items-end gap-0.5">
-            <div class="h-1.5 w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden"
+            <div class="h-1.5 mt-[2px] w-[76px] rounded-full bg-panel border border-line/60 overflow-hidden"
                  title="{{ '{:,}'.format(c.recent_2d or 0).replace(',', ' ') }} / {{ '{:,}'.format(c.n or 0).replace(',', ' ') }} annonces vues il y a moins de 2 jours ({{ ('%.1f'|format(pct))|replace('.', ',') }} %)">
               <div class="h-full rounded-full {{ 'bg-ok' if pct >= 90 else 'bg-warn' }}"
                    style="width: {{ '%.1f'|format(pct) }}%"></div>
