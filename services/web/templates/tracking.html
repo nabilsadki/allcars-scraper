@@ -80,7 +80,7 @@
   <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
     Conteneurs <span class="muted small normal-case tracking-normal text-[12px]" id="containers-count"></span>
   </div>
-  <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2" id="cont-list">
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2" id="cont-list">
     <p class="text-muted text-[12px] m-0 col-span-full">Chargement…</p>
   </div>
 </div>
@@ -1176,7 +1176,7 @@ async function refreshContainers() {
       const short = (c.name || '').replace(/^allcars-/, '');
       // scraper : badge du site (couleur du site) a la place du nom brut
       const titleHtml = (scraper && c.site)
-        ? '<span class="sitebadge inline-block px-1.5 py-px rounded text-[10.5px] font-bold border leading-none" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
+        ? '<span class="sitebadge inline-block max-w-full truncate px-1.5 py-px rounded text-[10.5px] font-bold border leading-none" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
         : '<span class="font-mono text-[12px] font-semibold truncate block leading-tight">' + short + '</span>';
       return '<div class="bg-panel2 border border-line rounded-lg p-2.5 min-w-0" style="' + style + '">' +
         '<div class="flex items-start justify-between gap-2">' +
