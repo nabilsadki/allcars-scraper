@@ -1174,12 +1174,16 @@ async function refreshContainers() {
       const label = STATE_LABELS[c.state] || [c.state || 'inconnu', 'unknown'];
       const mark = STATE_MARK[c.state] || ['bg-muted', 'text-muted', '?'];
       const short = (c.name || '').replace(/^allcars-/, '');
+      // scraper : badge du site (couleur du site) a la place du nom brut
+      const titleHtml = (scraper && c.site)
+        ? '<span class="sitebadge inline-block px-1.5 py-px rounded text-[10.5px] font-bold border leading-none" style="--site-hue: ' + hueOf(c.site) + '">' + c.site + '</span>'
+        : '<span class="font-mono text-[12px] font-semibold truncate block leading-tight">' + short + '</span>';
       return '<div class="bg-panel2 border border-line rounded-lg p-2.5 min-w-0" style="' + style + '">' +
         '<div class="flex items-start justify-between gap-2">' +
           '<div class="flex items-start gap-1.5 min-w-0">' +
             '<span class="text-lg leading-none shrink-0" aria-hidden="true">' + icon + '</span>' +
             '<div class="min-w-0">' +
-              '<div class="font-mono text-[12px] font-semibold truncate leading-tight">' + short + '</div>' +
+              '<div class="leading-tight">' + titleHtml + '</div>' +
               '<div class="text-[10px] text-muted truncate leading-tight mt-0.5" title="' +
                 (c.status || '') + '">' + (c.status || c.state || '') + '</div>' +
             '</div>' +
