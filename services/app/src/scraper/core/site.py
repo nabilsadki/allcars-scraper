@@ -140,6 +140,21 @@ AD_FIELDS = [
 ]
 
 
+#: marqueurs (dans <title>/<h1>) d'une annonce retiree. Certains sites
+#: gardent la page en 200 avec "annonce vendue" / "annonce terminee".
+REMOVED_PAGE_MARKERS = (
+    "annonce terminee", "annonce terminée",
+    "annonce vendue", "annonce vendu",
+    "annonce retiree", "annonce retirée",
+    "annonce supprimee", "annonce supprimée",
+    "annonce introuvable", "annonce expiree", "annonce expirée",
+    "n'existe plus", "n’existe plus",
+    "n'est plus disponible", "n’est plus disponible",
+    "no longer available",
+    "- vendue", "- vendu", "- termine", "- terminé",
+)
+
+
 class SiteAdapter(ABC):
     """Un site a scraper.
 
@@ -189,6 +204,26 @@ class SiteAdapter(ABC):
         un adaptateur peut l'affirmer quand son site a ce comportement.
         """
         return False
+
+    def page_means_removed(self, html: str, ad: Optional[dict] = None) -> bool:
+        """La page 200 annonce-t-elle elle-meme que l'annonce n'existe plus ?
+
+        Certains sites gardent la fiche en ligne (meme URL, contenu encore
+        present) mais affichent "annonce vendue" / "annonce terminee" dans
+        le titre. Par defaut, on cherche ces marqueurs dans <title> et <h1>
+        (jamais dans le corps : une description peut contenir le mot).
+        """
+        heads = []
+        m = re.search(r"<title[^>]*>(.*?)</title>", html or "", re.S | re.I)
+        if m:
+            heads.append(m.group(1))
+        m = re.search(r"<h1[^>]*>(.*?)</h1>", html or "", re.S | re.I)
+        if m:
+            heads.append(m.group(1))
+        txt = " ".join(heads).lower()
+        txt = txt.replace("\u2013", "-").replace("\u2014", "-")
+        txt = re.sub(r"\s+", " ", txt)
+        return any(mark in txt for mark in REMOVED_PAGE_MARKERS)
 
     # ------------------------------------------------------------- optionnel
     def total_ads(self, html: str) -> Optional[int]:

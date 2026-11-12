@@ -114,9 +114,9 @@ class KiaAdapter(SiteAdapter):
         try:
             item = json.loads(html)
         except json.JSONDecodeError:
-            return ad
+            return {}
         if not isinstance(item, dict) or item.get("id") is None:
-            return ad
+            return {}
 
         price_new = (item.get("prix") or {}).get("nouveau")
         price_old = (item.get("prix") or {}).get("ancien")

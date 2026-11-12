@@ -175,6 +175,15 @@ class KifalAdapter(SiteAdapter):
     def detail_url(self, ad: dict) -> Optional[str]:
         return ad.get("url")
 
+    def redirect_means_removed(self, url: str, final: str) -> bool:
+        """Kifal redirige une annonce retiree vers /annonce-404/<id>.
+
+        L'identifiant reste present dans l'URL : sans ce test, le controle
+        generique considererait la page comme valable.
+        """
+        from urllib.parse import unquote, urlsplit
+        return "/annonce-404/" in unquote(urlsplit(final or "").path or "")
+
     def parse_detail(self, html: str, ad: dict) -> dict:
         out = {}
         images = []

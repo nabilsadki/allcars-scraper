@@ -372,20 +372,32 @@ def fetch_detail(site: SiteAdapter, client, ad: dict) -> dict:
     try:
         html = client.get(url)
         final = getattr(client, "last_url", "") or url
+        # AVANT le controle d'identite : certains sites redirigent vers une
+        # page "annonce-404" qui conserve l'identifiant (Kifal), ou vers une
+        # liste (Avito). L'identifiant present ne suffit donc pas a conclure.
+        if site.redirect_means_removed(url, final):
+            # le site signale un retrait par une redirection (pas de 404) :
+            # on desactive l'annonce.
+            out = dict(ad)
+            out["details_fetched"] = True
+            out["is_active"] = False
+            out["url"] = url
+            client.log(f"  ! fiche {ad.get('ad_id')} : retiree "
+                       f"(redirection vers {final[:80]})")
+            return out
         if not _same_target(url, final, ad.get("ad_id"), ad.get("list_id")):
-            if site.redirect_means_removed(url, final):
-                # le site signale un retrait par une redirection vers la
-                # liste/l'accueil (pas de 404) : on desactive l'annonce.
-                out = dict(ad)
-                out["details_fetched"] = True
-                out["is_active"] = False
-                out["url"] = url
-                client.log(f"  ! fiche {ad.get('ad_id')} : retiree "
-                           f"(redirection vers {final[:80]})")
-                return out
             client.log(f"  ! fiche {ad.get('ad_id')} : page differente "
                        f"({final[:90]}) - ignoree")
             return ad
+        # la page repond 200 avec le contenu, mais s'annonce elle-meme comme
+        # retiree ("annonce vendue", "annonce terminee"...) : on desactive.
+        if site.page_means_removed(html, ad):
+            out = dict(ad)
+            out["details_fetched"] = True
+            out["is_active"] = False
+            out["url"] = url
+            client.log(f"  ! fiche {ad.get('ad_id')} : annonce retiree (page)")
+            return out
         # page servie a la bonne URL mais dont la canonique pointe ailleurs
         # (gabarit generique, page "annonce retiree"...) : ce n'est pas la fiche.
         # `check_canonical = False` sur un adaptateur si son site declare une
