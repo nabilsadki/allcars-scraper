@@ -101,11 +101,16 @@
       <span class="ml-auto text-[10.5px] text-muted/80" id="activity-range"></span>
     </div>
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-muted mb-2">
-      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#60a5fa"></span>total scrappé</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#34d399"></span>activées</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#fb7185"></span>désactivées</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#fbbf24"></span>mises à jour</span>
-      <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-sm" style="background:#a78bfa"></span>fiches détaillées</span>
+      <button type="button" data-act-series="total" title="Afficher / masquer"
+              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#60a5fa"></span>total scrappé</button>
+      <button type="button" data-act-series="activated" title="Afficher / masquer"
+              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#34d399"></span>activées</button>
+      <button type="button" data-act-series="deactivated" title="Afficher / masquer"
+              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#fb7185"></span>désactivées</button>
+      <button type="button" data-act-series="updated" title="Afficher / masquer"
+              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#fbbf24"></span>mises à jour</button>
+      <button type="button" data-act-series="detailed" title="Afficher / masquer"
+              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#a78bfa"></span>fiches détaillées</button>
     </div>
     <div class="overflow-x-auto -mx-1 px-1">
       <div class="flex items-end gap-1.5 min-w-full" id="activity-chart">
@@ -1675,6 +1680,50 @@ setInterval(refreshContainers, 5000);
   const _actShort = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] : iso; };
   const _actInputs = () => [document.getElementById('activity-from'), document.getElementById('activity-to')];
 
+  let ACT_HIDDEN = new Set();
+  try { ACT_HIDDEN = new Set(JSON.parse(localStorage.getItem('tracking:activityHidden') || '[]')); }
+  catch (e) { ACT_HIDDEN = new Set(); }
+  let ACT_LAST = null;
+
+  function applyActivityLegend() {
+    document.querySelectorAll('[data-act-series]').forEach(el => {
+      const off = ACT_HIDDEN.has(el.getAttribute('data-act-series'));
+      el.classList.toggle('opacity-40', off);
+      el.classList.toggle('line-through', off);
+    });
+  }
+
+  function renderActivity(d) {
+    ACT_LAST = d;
+    const box = document.getElementById('activity-chart');
+    if (!box) return;
+    const days = d.days || [];
+    const H = 120;
+    // echelle fixe : basee sur le total de tous les indicateurs, pour que
+    // masquer un segment ne deforme pas la comparaison entre les jours.
+    const max = Math.max(1, ...days.map(x => x.total + x.activated + x.deactivated + x.updated + x.detailed));
+    box.innerHTML = days.map(x => {
+      const segs = [
+        ['detailed', x.detailed, 'fiches détaillées'], ['updated', x.updated, 'mises à jour'],
+        ['deactivated', x.deactivated, 'désactivées'], ['activated', x.activated, 'activées'],
+        ['total', x.total, 'total scrappé'],
+      ].map(([k, v, lbl]) => (!ACT_HIDDEN.has(k) && v > 0)
+        ? '<div class="act-seg cursor-pointer" data-act-date="' + x.date + '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
+          ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
+          ' style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
+        : '').join('');
+      const sum = x.total + x.activated + x.deactivated + x.updated + x.detailed;
+      const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
+        ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
+        ' · fiches détaillées ' + _actFmt(x.detailed);
+      return '<div class="flex-1 min-w-[32px] flex flex-col items-center gap-1">' +
+        '<span class="text-[8.5px] leading-none tabular-nums text-muted/70 whitespace-nowrap">' + _actCompact(sum) + '</span>' +
+        '<div class="w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" style="height:' + H + 'px" title="' + tip + '">' + segs + '</div>' +
+        '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
+        '</div>';
+    }).join('') || '<p class="text-muted text-[12px] m-0 py-1">Aucune donnée.</p>';
+  }
+
   async function refreshActivity() {
     const box = document.getElementById('activity-chart');
     if (!box) return;
@@ -1698,28 +1747,7 @@ setInterval(refreshContainers, 5000);
         const det = days.reduce((a, x) => a + x.detailed, 0);
         document.getElementById('activity-range').textContent = _actFmt(tot) + ' annonces · ' + _actFmt(det) + ' fiches';
       }
-      const H = 120;
-      const max = Math.max(1, ...days.map(x => x.total + x.activated + x.deactivated + x.updated + x.detailed));
-      box.innerHTML = days.map(x => {
-        const segs = [
-          ['detailed', x.detailed, 'fiches détaillées'], ['updated', x.updated, 'mises à jour'],
-          ['deactivated', x.deactivated, 'désactivées'], ['activated', x.activated, 'activées'],
-          ['total', x.total, 'total scrappé'],
-        ].map(([k, v, lbl]) => v > 0
-          ? '<div class="act-seg cursor-pointer" data-act-date="' + x.date + '" data-act-label="' + lbl + '" data-act-value="' + v + '"' +
-            ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
-            ' style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
-          : '').join('');
-        const sum = x.total + x.activated + x.deactivated + x.updated + x.detailed;
-        const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
-          ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
-          ' · fiches détaillées ' + _actFmt(x.detailed);
-        return '<div class="flex-1 min-w-[32px] flex flex-col items-center gap-1">' +
-          '<span class="text-[8.5px] leading-none tabular-nums text-muted/70 whitespace-nowrap">' + _actCompact(sum) + '</span>' +
-          '<div class="w-full max-w-[48px] flex flex-col justify-end rounded-sm overflow-hidden" style="height:' + H + 'px" title="' + tip + '">' + segs + '</div>' +
-          '<span class="text-[9px] text-muted whitespace-nowrap">' + _actShort(x.date) + '</span>' +
-          '</div>';
-      }).join('') || '<p class="text-muted text-[12px] m-0 py-1">Aucune donnée.</p>';
+      renderActivity(d);
     } catch (e) { /* ignore */ }
   }
 
@@ -1747,6 +1775,17 @@ setInterval(refreshContainers, 5000);
       });
     }
     [from, to].forEach(inp => inp && inp.addEventListener('change', refreshActivity));
+    // legendes : clic = masquer/afficher un indicateur (etat memorise)
+    document.querySelectorAll('[data-act-series]').forEach(el => {
+      el.addEventListener('click', () => {
+        const k = el.getAttribute('data-act-series');
+        if (ACT_HIDDEN.has(k)) ACT_HIDDEN.delete(k); else ACT_HIDDEN.add(k);
+        localStorage.setItem('tracking:activityHidden', JSON.stringify([...ACT_HIDDEN]));
+        applyActivityLegend();
+        if (ACT_LAST) renderActivity(ACT_LAST);
+      });
+    });
+    applyActivityLegend();
     // clic/tap sur un segment : afficher sa valeur sous le graphe
     const chart = document.getElementById('activity-chart');
     const pick = document.getElementById('activity-pick');
