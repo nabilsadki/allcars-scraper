@@ -1712,7 +1712,12 @@ setInterval(refreshContainers, 5000);
           ' title="' + lbl + ' : ' + _actFmt(v) + '"' +
           ' style="height:' + (v / max * H).toFixed(1) + 'px;background:' + ACT_COLORS[k] + '"></div>'
         : '').join('');
-      const sum = x.total + x.activated + x.deactivated + x.updated + x.detailed;
+      // total affiche = somme des seuls segments visibles
+      const sum = [
+        ['detailed', x.detailed], ['updated', x.updated],
+        ['deactivated', x.deactivated], ['activated', x.activated],
+        ['total', x.total],
+      ].filter(([k]) => !ACT_HIDDEN.has(k)).reduce((a, [, v]) => a + v, 0);
       const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
         ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
         ' · fiches détaillées ' + _actFmt(x.detailed);
