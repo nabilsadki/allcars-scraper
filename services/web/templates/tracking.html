@@ -1810,6 +1810,9 @@ setInterval(refreshContainers, 5000);
       if (to) to.value = _actIso(t);
       refreshActivity();
     });
+    // chargement initial : sans cela, un bloc deja ouvert au chargement de la
+    // page restait vide jusqu'a une action (changement de date / reset).
+    refreshActivity();
   })();
 
 </script>
