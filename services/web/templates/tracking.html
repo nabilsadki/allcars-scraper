@@ -89,7 +89,7 @@
                  border-0 cursor-pointer hover:bg-panel2/40 transition-colors focus:outline-none">
     <span class="text-[12px] uppercase tracking-wider text-muted flex items-center gap-2">
       Activité des scrapes
-      <span class="normal-case tracking-normal text-[10px] text-muted" id="activity-meta">7 derniers jours</span>
+      <span class="normal-case tracking-normal text-[10px] text-muted" id="activity-meta">—</span>
     </span>
     <span class="text-muted text-[11px] shrink-0" id="activity-chevron" aria-hidden="true">▸</span>
   </button>
@@ -1849,9 +1849,12 @@ setInterval(refreshContainers, 5000);
     const body = document.getElementById('activity-body');
     const toggle = document.getElementById('activity-toggle');
     const chevron = document.getElementById('activity-chevron');
+    // plage par defaut : 28 jours sur desktop, 7 sur mobile
+    const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+    const defaultDays = () => (isMobile() ? 7 : 28);
     const [from, to] = _actInputs();
     const today = new Date();
-    const start = new Date(); start.setDate(today.getDate() - 6);
+    const start = new Date(); start.setDate(today.getDate() - (defaultDays() - 1));
     if (from && !from.value) from.value = _actIso(start);
     if (to && !to.value) to.value = _actIso(today);
     const setCollapsed = collapsed => {
@@ -1893,12 +1896,16 @@ setInterval(refreshContainers, 5000);
         ' : ' + _actFmt(el.dataset.actValue);
     });
     const reset = document.getElementById('activity-reset');
-    if (reset) reset.addEventListener('click', () => {
-      const t = new Date(); const s = new Date(); s.setDate(t.getDate() - 6);
-      if (from) from.value = _actIso(s);
-      if (to) to.value = _actIso(t);
-      refreshActivity();
-    });
+    if (reset) {
+      reset.textContent = defaultDays() + ' derniers jours';
+      reset.addEventListener('click', () => {
+        const t = new Date(); const s = new Date();
+        s.setDate(t.getDate() - (defaultDays() - 1));
+        if (from) from.value = _actIso(s);
+        if (to) to.value = _actIso(t);
+        refreshActivity();
+      });
+    }
     // chargement initial : sans cela, un bloc deja ouvert au chargement de la
     // page restait vide jusqu'a une action (changement de date / reset).
     refreshActivity();
