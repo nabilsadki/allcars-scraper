@@ -111,7 +111,7 @@
       <button type="button" data-act-series="total" title="Afficher / masquer"
               class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#60a5fa"></span>total scrappé</button>
       <button type="button" data-act-series="activated" title="Afficher / masquer"
-              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#34d399"></span>activées</button>
+              class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#34d399"></span>nouvelles annonces</button>
       <button type="button" data-act-series="deactivated" title="Afficher / masquer"
               class="inline-flex items-center gap-1 cursor-pointer select-none bg-transparent border-0 p-0 text-[10.5px] text-muted hover:text-txt transition-colors"><span class="w-2 h-2 rounded-sm" style="background:#fb7185"></span>désactivées</button>
       <button type="button" data-act-series="updated" title="Afficher / masquer"
@@ -1738,7 +1738,7 @@ setInterval(refreshContainers, 5000);
   const ACT_H = 110;
   const ACT_SERIES = [
     ['detailed', 'fiches détaillées'], ['updated', 'mises à jour'],
-    ['deactivated', 'désactivées'], ['activated', 'activées'],
+    ['deactivated', 'désactivées'], ['activated', 'nouvelles annonces'],
     ['total', 'total scrappé'],
   ];
 
@@ -1780,7 +1780,7 @@ setInterval(refreshContainers, 5000);
             ' style="height:' + (off ? 0 : v / niceMax * ACT_H).toFixed(1) + 'px;opacity:' + (off ? 0 : 1) +
             ';background:' + ACT_COLORS[k] + '"></div>';
         }).join('');
-        const tip = x.date + ' — total ' + _actFmt(x.total) + ' · activées ' + _actFmt(x.activated) +
+        const tip = x.date + ' — total ' + _actFmt(x.total) + ' · nouvelles ' + _actFmt(x.activated) +
           ' · désactivées ' + _actFmt(x.deactivated) + ' · mises à jour ' + _actFmt(x.updated) +
           ' · fiches détaillées ' + _actFmt(x.detailed);
         return '<div class="flex-1 min-w-[32px] flex flex-col items-center gap-1">' +
