@@ -233,11 +233,17 @@
 </div>
 
 {# ----------------------- Resume par site (minimaliste) --------------------------- #}
-<div class="bg-panel border border-line rounded-xl p-3.5 mb-3.5">
-  <div class="text-[12px] uppercase tracking-wider text-muted mb-2.5 flex items-center gap-2">
-    Sites scrapés
-    <span class="normal-case tracking-normal text-[11px] text-muted">{{ counts|length }} site(s)</span>
-  </div>
+<div class="bg-panel border border-line rounded-xl mb-3.5 overflow-hidden" id="sites-panel">
+  <button type="button" id="sites-toggle"
+          class="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 bg-transparent text-left
+                 border-0 cursor-pointer hover:bg-panel2/40 transition-colors focus:outline-none">
+    <span class="text-[12px] uppercase tracking-wider text-muted flex items-center gap-2">
+      Sites scrapés
+      <span class="normal-case tracking-normal text-[11px] text-muted">{{ counts|length }} site(s)</span>
+    </span>
+    <span class="text-muted text-[11px] shrink-0" id="sites-chevron" aria-hidden="true">▾</span>
+  </button>
+  <div id="sites-body" class="px-3.5 pb-3 pt-1 border-t border-line">
   <div class="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
     {% for c in counts %}
     {% set hue = c.site|site_hue %}
@@ -330,6 +336,7 @@
       {% endif %}
     </div>
     {% endfor %}
+  </div>
   </div>
 </div>
 
@@ -1287,6 +1294,24 @@ async function refreshContainers() {
     const collapsed = !body.classList.contains('hidden');
     apply(collapsed);
     localStorage.setItem('tracking:containersCollapsed', collapsed ? '1' : '0');
+  });
+})();
+
+// bloc Sites scrapes repliable (ouvert par defaut, etat memorise)
+(function initSitesCollapse() {
+  const body = document.getElementById('sites-body');
+  const toggle = document.getElementById('sites-toggle');
+  const chevron = document.getElementById('sites-chevron');
+  const apply = collapsed => {
+    if (body) body.classList.toggle('hidden', collapsed);
+    if (chevron) chevron.textContent = collapsed ? '▸' : '▾';
+  };
+  if (!body || !toggle) return;
+  apply(localStorage.getItem('tracking:sitesCollapsed') === '1');
+  toggle.addEventListener('click', () => {
+    const collapsed = !body.classList.contains('hidden');
+    apply(collapsed);
+    localStorage.setItem('tracking:sitesCollapsed', collapsed ? '1' : '0');
   });
 })();
 
